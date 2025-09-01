@@ -378,27 +378,6 @@ def parse_coords(cell: str) -> List[Tuple[float, float]]:
         return []
 
 
-def validate_df_structure(df):
-    """Validate that dataframe has required columns: plane_id, label, coords"""
-    required_columns = {"plane_id", "label", "coords"}
-
-    try:
-        # check columns
-        actual_columns = set(df.columns)
-
-        missing_columns = required_columns - actual_columns
-        if missing_columns:
-            raise ValueError(f"missing required columns: {missing_columns}")
-
-        # Check dataframe has any data rows
-        if df.empty:
-            raise ValueError(f"df has no data rows")
-
-        return True
-
-    except Exception as e:
-        raise SystemExit(f"validation failed: {e}")
-
 def boundaries_to_arrow_XXX(df_in: pd.DataFrame, out_dir: str = None) -> None:
     out_dir = Path(out_dir) / "arrow" / 'arrow_boundaries'
     out_dir.mkdir(parents=True, exist_ok=True)
