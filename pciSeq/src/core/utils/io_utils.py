@@ -559,92 +559,119 @@ def _boundaries_to_arrow(df_in: List[pd.DataFrame], out_dir: str = None) -> None
 
 
 
-def boundaries_to_arrow(dfs_in: List[pd.DataFrame], out_dir: str, compression: str = "uncompressed"):
+def boundaries_to_arrow(
+    dfs_in,
+    out_dir,
+    num_of_planes=None,
+    compression="uncompressed",
+    label_col="plane_id", # plane_id or label
+):
     """
-    Converts a list of DataFrames of boundary data into one Arrow Feather file per plane.
-
-    Args:
-        dfs_in: A list of DataFrames. Each DataFrame must contain data for a single plane
-                and have the columns ['plane_id', 'label', 'coords']. The 'coords' column
-                should contain lists of [x, y] coordinates.
-        out_dir: The root directory to save the output 'arrow_boundaries' folder to.
-        compression: The compression to use for the Feather files.
+    Write one Feather shard per plane_id in [0..num_of_planes-1].
+    If num_of_planes is None, uses max observed plane_id + 1.
+    Writes empty shards for planes with no polygons.
     """
-    out_dir = Path(out_dir) / "arrow" / 'arrow_boundaries'
+    out_dir = Path(out_dir) / "arrow" / "arrow_boundaries"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    comp = compression if compression != "none" else None
+    comp = None if compression == "none" else compression
+
+    # Validate inputs and collect observed plane_ids
+    required = {"plane_id", label_col, "coords"}
+    observed_ids = set()
+    for i, df in enumerate(dfs_in):
+        missing = required - set(df.columns)
+        if missing:
+            raise ValueError(f"DataFrame {i} missing columns: {sorted(missing)}")
+        # Ensure numeric plane_id
+        if not pd.api.types.is_integer_dtype(df["plane_id"]):
+            try:
+                dfs_in[i] = df.assign(plane_id=pd.to_numeric(df["plane_id"], errors="raise").astype("int64"))
+            except Exception as e:
+                raise ValueError(f"DataFrame {i} has non-integer plane_id values") from e
+        observed_ids.update(df["plane_id"].unique().tolist())
+
+    if not observed_ids and num_of_planes is None:
+        # Nothing to write; still emit empty manifest folder
+        (out_dir / "manifest.json").write_text(json.dumps({
+            "format": "arrow-feather", "total_rows": 0, "total_points": 0, "shards": []
+        }, indent=2))
+        return
+
+    if num_of_planes is None:
+        max_pid = int(max(observed_ids))
+        num_of_planes = max_pid + 1
+
+    # Pre-build schema and empty table factory (compatible with all pyarrow versions)
+    schema = pa.schema([
+        pa.field("x_list", pa.list_(pa.float32())),
+        pa.field("y_list", pa.list_(pa.float32())),
+        pa.field("plane_id", pa.uint16()),
+        pa.field("label", pa.int32()),
+    ])
+
+    def make_empty_table():
+        return pa.table({
+            "x_list": pa.array([], type=pa.list_(pa.float32())),
+            "y_list": pa.array([], type=pa.list_(pa.float32())),
+            "plane_id": pa.array([], type=pa.uint16()),
+            "label": pa.array([], type=pa.int32()),
+        }, schema=schema)
+
+    # Concatenate per-plane across all input DFs
+    by_plane = {pid: [] for pid in range(num_of_planes)}
+    for df in dfs_in:
+        # Only consider rows within [0..num_of_planes-1] to avoid stray IDs
+        mask = (df["plane_id"] >= 0) & (df["plane_id"] < num_of_planes)
+        if mask.any():
+            g = df.loc[mask].groupby("plane_id", sort=False)
+            for pid, part in g:
+                by_plane[int(pid)].append(part)
 
     shards = []
     total_polys = 0
     total_points = 0
 
-    # Define the schema once, to be used for all files
-    schema = pa.schema([
-        pa.field('x_list', pa.list_(pa.float32())),
-        pa.field('y_list', pa.list_(pa.float32())),
-        pa.field('plane_id', pa.uint16()),
-        pa.field('label', pa.int32())
-    ])
-
-    # Process each DataFrame in the input list
-    for df_plane in dfs_in:
-        if df_plane.empty:
-            continue
-
-        # Check for required columns
-        required_cols = ['plane_id', 'cell_id', 'coords']
-        if not all(col in df_plane.columns for col in required_cols):
-            print("Warning: A DataFrame is missing required columns. Skipping.")
-            continue
-
-        # Get the plane ID from the first row of the DataFrame
-        current_plane_id = int(df_plane['plane_id'].iloc[0])
-        shard_name = f"boundaries_plane_{current_plane_id:02d}.feather"
-
-        # Filter out rows with empty coordinate lists
-        df_plane = df_plane.copy()
-        df_plane = df_plane[df_plane["coords"].str.len() > 0]
+    for plane_id in range(num_of_planes):
+        shard_name = f"boundaries_plane_{plane_id:02d}.feather"
+        if by_plane[plane_id]:
+            df_plane = pd.concat(by_plane[plane_id], ignore_index=True)
+            # Drop rows with empty coords
+            df_plane = df_plane[df_plane["coords"].str.len() > 0]
+        else:
+            df_plane = pd.DataFrame(columns=["coords", label_col])
 
         if df_plane.empty:
-            # If plane has no valid polygons, write an empty Feather file
-            empty_table = schema.empty_table()
-            feather.write_feather(empty_table, (out_dir / shard_name).as_posix(), compression=comp)
-            shards.append({"url": shard_name, "rows": 0, "plane": current_plane_id})
-            print(f"Wrote empty shard {shard_name} for plane {current_plane_id}")
+            table = make_empty_table()
+            feather.write_feather(table, (out_dir / shard_name).as_posix(), compression=comp)
+            shards.append({"url": shard_name, "rows": 0, "plane": plane_id})
             continue
 
-        # Prepare data for Arrow, using the 'coords' column directly
+        # Prepare Arrow arrays
         x_lists = df_plane["coords"].apply(lambda coords: [float(x) for x, _ in coords])
         y_lists = df_plane["coords"].apply(lambda coords: [float(y) for _, y in coords])
-        labels = pd.to_numeric(df_plane["cell_id"], errors="coerce").fillna(-1).astype("int32")
+        labels = pd.to_numeric(df_plane[label_col], errors="coerce").fillna(-1).astype("int32")
 
-        # Create the Arrow table
         arrays = {
             "x_list": pa.array(x_lists.tolist(), type=pa.list_(pa.float32())),
             "y_list": pa.array(y_lists.tolist(), type=pa.list_(pa.float32())),
-            "plane_id": pa.array([current_plane_id] * len(df_plane), type=pa.uint16()),
+            "plane_id": pa.array([plane_id] * len(df_plane), type=pa.uint16()),
             "label": pa.array(labels.tolist(), type=pa.int32()),
         }
         table = pa.table(arrays, schema=schema)
-
-        # Write the Feather file
         feather.write_feather(table, (out_dir / shard_name).as_posix(), compression=comp)
 
-        polys = len(df_plane)
-        pts = sum(x_lists.str.len())
+        polys = int(len(df_plane))
+        pts = int(x_lists.str.len().sum())
         total_polys += polys
         total_points += pts
+        shards.append({"url": shard_name, "rows": polys, "plane": plane_id})
 
-        shards.append({"url": shard_name, "rows": int(polys), "plane": current_plane_id})
-        # print(f"Wrote {shard_name}: polys={polys}, points={pts}")
-
-    # Manifest
     manifest = {
         "format": "arrow-feather",
         "total_rows": int(total_polys),
         "total_points": int(total_points),
-        "shards": sorted(shards, key=lambda s: s['plane']),  # Sort shards by plane number
+        "shards": sorted(shards, key=lambda s: s["plane"]),
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
     io_utils_logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
