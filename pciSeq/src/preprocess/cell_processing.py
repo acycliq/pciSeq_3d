@@ -3,7 +3,7 @@ from typing import List
 import numpy as np
 import pandas as pd
 import skimage.measure as skmeas
-from multiprocessing import Pool, cpu_count
+from multiprocessing import cpu_count
 from multiprocessing.dummy import Pool as ThreadPool
 
 # All that below is to avoid diplib to show a welcome msg on import. If hasattr(sys,'ps1') return True, then
@@ -109,24 +109,31 @@ def parse_chaincode(c):
 
 def calculate_cell_properties(masks: np.ndarray, voxel_size: List[float]) -> pd.DataFrame:
     """
-    Calculate cell properties from segmentation masks.
+    Calculate cell properties from 3D segmentation masks.
 
     Parameters
     ----------
     masks : np.ndarray
-        3D array of cell labels
+        3D array of cell labels with shape (Z, Y, X)
     voxel_size : List[float]
-        Physical size of voxels [z, y, x]
 
     Returns
     -------
     pd.DataFrame
-        Cell properties including position and size
+        Cell properties with columns:
+        - label: cell ID
+        - area: mean volume per Z-slice (in normalized units)
+        - x_cell, y_cell, z_cell: centroid coordinates (in physical units)
+        - z_stretch: ratio of Z extent to mean XY extent
     """
-    scaling = [voxel_size[0] / voxel_size[0], voxel_size[1] / voxel_size[0], voxel_size[2] / voxel_size[0]]
-    scaling = scaling[::-1]  # Convert to zyx order, same as the image
+    # Normalize voxel sizes by x dimension and convert to ZYX order for regionprops
+    scaling = [
+        voxel_size[2] / voxel_size[0],  # z
+        voxel_size[1] / voxel_size[0],  # y
+        voxel_size[0] / voxel_size[0]   # x (always 1)
+    ]
 
-    properties = ['label', 'area', 'centroid', 'equivalent_diameter_area', 'bbox']
+    properties = ['label', 'area', 'centroid', 'bbox']
     props = skmeas.regionprops_table(
         label_image=masks,
         spacing=scaling,
@@ -134,25 +141,53 @@ def calculate_cell_properties(masks: np.ndarray, voxel_size: List[float]) -> pd.
     )
 
     props_df = pd.DataFrame(props)
-    props_df['mean_area_per_slice'] = (
-            props_df['area'].values /
-            (props_df['bbox-3'].values - props_df['bbox-0'].values)
+
+    # Calculate bounding box extents (in pixel/voxel indices)
+    z_extent = props_df['bbox-3'] - props_df['bbox-0']
+    y_extent = props_df['bbox-4'] - props_df['bbox-1']
+    x_extent = props_df['bbox-5'] - props_df['bbox-2']
+
+    # Z-stretch: elongation along Z vs average XY extent
+    z_stretch = z_extent / ((x_extent + y_extent) / 2)
+    y_stretch = y_extent / ((x_extent + y_extent) / 2)
+    x_stretch = x_extent / ((x_extent + y_extent) / 2)
+
+    # Bbox returns pixel indices, not physical coordinates.
+    # We need to scale to get the elongation for anisotropic voxels.
+    z_stretch *= scaling[0]
+    y_stretch *= scaling[1]
+    x_stretch *= scaling[2]
+
+    props_df = props_df.assign(
+        z_stretch=z_stretch,
+        y_stretch=y_stretch,
+        x_stretch=x_stretch
     )
 
+    # Mean volume per Z-slice (avoid division by zero)
+    z_slices = z_extent.replace(0, 1)
+    props_df['mean_area_per_slice'] = props_df['area'] / z_slices
+
+    # Rename columns for clarity
     props_df = props_df.rename(columns={
-        "mean_area_per_slice": 'area',
+        'mean_area_per_slice': 'area',
         'area': 'volume',
         'centroid-0': 'z_cell',
         'centroid-1': 'y_cell',
         'centroid-2': 'x_cell'
     })
 
-    props_df = props_df[['label', 'area', 'z_cell', 'y_cell', 'x_cell']]
+    # Select final columns
+    props_df = props_df[['label', 'area', 'z_cell', 'y_cell', 'x_cell',
+                         'z_stretch', 'y_stretch', 'x_stretch']]
 
     return props_df.astype({
-        "label": np.uint32,
-        "area": np.uint32,
+        'label': np.uint32,
+        'area': np.uint32,
         'z_cell': np.float32,
         'y_cell': np.float32,
-        'x_cell': np.float32
+        'x_cell': np.float32,
+        'z_stretch': np.float32,
+        'y_stretch': np.float32,
+        'x_stretch': np.float32
     })
