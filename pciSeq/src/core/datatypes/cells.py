@@ -46,7 +46,7 @@ class Cells(object):
         """
         self.config = config
         self.ini_cell_props, self._mcr = read_image_objects(_cells_df, config)
-        self._elongation = _cells_df[['x_stretch', 'y_stretch', 'z_stretch']].mean().values
+        self._stretch_factors = _cells_df[['x_stretch', 'y_stretch', 'z_stretch']].mean().values
         self.nC = len(self.ini_cell_props['cell_label'])
         self.classProb = None
         self.class_names = None
@@ -161,15 +161,15 @@ class Cells(object):
         self._nb_contr = val
 
     @property
-    def elongation(self):
+    def stretch_factors(self):
         if self.config["is3D"]:
-            return self._elongation
+            return self._stretch_factors
         else:
-            return self._elongation[:2]
+            return self._stretch_factors[:2]
 
-    @elongation.setter
-    def elongation(self, val):
-        self._elongation = val
+    @stretch_factors.setter
+    def stretch_factors(self, val):
+        self._stretch_factors = val
 
     # -------- METHODS -------- #
     def ini_centroids(self) -> pd.DataFrame:
@@ -196,7 +196,7 @@ class Cells(object):
         """
         dim = 3 if self.config['is3D'] else 2
         # cov = self.mcr * self.mcr * np.eye(dim, dim)
-        cov = np.diag(self.mcr**2 * self.elongation)
+        cov = np.diag(self.mcr**2 * self.stretch_factors)
         return np.tile(cov.astype(np.float32), (self.nC, 1, 1))
 
     def nn(self) -> NearestNeighbors:
