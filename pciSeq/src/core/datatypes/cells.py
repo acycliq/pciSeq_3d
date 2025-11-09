@@ -196,7 +196,12 @@ class Cells(object):
         """
         dim = 3 if self.config['is3D'] else 2
         # cov = self.mcr * self.mcr * np.eye(dim, dim)
-        cov = np.diag(self.mcr**2 * self.stretch_factors)
+        if self.config['cell_stretch_factors'] is not None:
+            stretch_factors = np.array(self.config['cell_stretch_factors'])
+        else:
+            stretch_factors = self.stretch_factors
+
+        cov = np.diag(self.mcr**2 * stretch_factors)
         return np.tile(cov.astype(np.float32), (self.nC, 1, 1))
 
     def nn(self) -> NearestNeighbors:
