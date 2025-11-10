@@ -196,6 +196,7 @@ class Cells(object):
         """
         # dim = 3 if self.config['is3D'] else 2
         if self.config['cell_stretch_factors'] is not None:
+            # maybe I can have this if/else in the getter, right?
             stretch_factors = np.array(self.config['cell_stretch_factors'])
         else:
             stretch_factors = self.stretch_factors
