@@ -194,14 +194,16 @@ class Cells(object):
         Returns:
             np.array: Array of covariance matrices.
         """
-        dim = 3 if self.config['is3D'] else 2
-        # cov = self.mcr * self.mcr * np.eye(dim, dim)
+        # dim = 3 if self.config['is3D'] else 2
         if self.config['cell_stretch_factors'] is not None:
             stretch_factors = np.array(self.config['cell_stretch_factors'])
         else:
             stretch_factors = self.stretch_factors
 
-        cov = np.diag(self.mcr**2 * stretch_factors)
+        # mean cell radius (ie mcr) is the stdev of the normal dist.
+        # apply the stretch factors to the stdev
+        mcr = self.mcr * stretch_factors
+        cov = np.diag(mcr**2)
         return np.tile(cov.astype(np.float32), (self.nC, 1, 1))
 
     def nn(self) -> NearestNeighbors:
