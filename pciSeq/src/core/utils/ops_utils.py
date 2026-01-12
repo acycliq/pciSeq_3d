@@ -120,8 +120,14 @@ def compute_gene_loglikelihood_matrix(obj) -> np.ndarray:
     # Compute scaled expression (expensive operation done once)
     scaled_means = obj.scaled_exp.compute()
 
+    # Get per-cell eta: [nC, nG]
+    # Background (index 0) gets neutral value 1.0 (no efficiency scaling)
+    eta_for_cells = obj.genes.eta_bar[obj.cells.plane_id[1:], :]  # [nC-1, nG]
+    background_eta = np.ones((1, obj.nG), dtype=np.float32)
+    eta_bar = np.vstack([background_eta, eta_for_cells])  # [nC, nG]
+
     # Calculate scaled expression adjusted by gene efficiency and regularization
-    ScaledExp = np.einsum('cgk,g,ck->cgk', scaled_means, obj.genes.eta_bar, obj.cells.theta_bar) + obj.config['SpotReg']
+    ScaledExp = np.einsum('cgk,cg,ck->cgk', scaled_means, eta_bar, obj.cells.theta_bar) + obj.config['SpotReg']
 
     # Calculate negative binomial probabilities
     pNegBin = ScaledExp / (obj.config['rSpot'] + ScaledExp)

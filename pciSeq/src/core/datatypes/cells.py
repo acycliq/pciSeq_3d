@@ -13,6 +13,7 @@ import opt_einsum as oe
 
 # Local imports
 from ..utils.cell_utils import read_image_objects, keep_labels_unique
+from ..utils.geometry import anisotropy_calc
 
 cells_logger = logging.getLogger(__name__)
 
@@ -177,6 +178,11 @@ class Cells(object):
     def logtheta_bar(self):
         """Returns the log eta bar for genes (estimated mean of the posterior)."""
         return self._logtheta_bar
+
+    @property
+    def plane_id(self) -> np.ndarray:
+        cell_coords = anisotropy_calc(self.centroid.values, voxel_size=self.config['voxel_size'], inverse=True)
+        return np.floor(cell_coords[:,-1]).astype(np.int32)
 
     # -------- METHODS -------- #
 

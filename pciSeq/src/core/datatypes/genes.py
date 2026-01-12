@@ -82,8 +82,9 @@ class Genes(object):
             a (float): Parameter a for eta calculation.
             b (float): Parameter b for eta calculation.
         """
-        self._eta_bar = np.ones(self.nG, dtype=np.float32) * (a / b)
-        self._logeta_bar = np.ones(self.nG, dtype=np.float32) * self._digamma(a, b)
+        n_planes = self.config['img_dim']['n_planes']
+        self._eta_bar = np.ones([n_planes, self.nG], dtype=np.float32) * (a / b)
+        self._logeta_bar = np.ones([n_planes, self.nG], dtype=np.float32) * self._digamma(a, b)
 
     def calc_eta(self, a, b):
         """
