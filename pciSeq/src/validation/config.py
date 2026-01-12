@@ -29,7 +29,6 @@ _TYPE_SPECS = {
     "cell_type_prior": str,
     "cell_type_weights": (type(None), dict),
     "voxel_size": list,
-    "exclude_planes": (type(None), list),
     "is3D": (type(None), bool),
     "remove_flat_cells": bool,
     "realtime_viewer": bool,
@@ -164,7 +163,6 @@ class Config(dict):
         """
 
         self["is3D"] = self._detect_3d(coo)
-        self["exclude_planes"] = self["exclude_planes"] or []
 
     def _detect_3d(self, coo) -> bool:
         """
