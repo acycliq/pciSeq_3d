@@ -578,69 +578,28 @@ class VarBayes:
         theta_bar = self.cells.theta_bar
         n_planes = self.nP
 
+        cell_plane_ids = self.cells.plane_id[1:] # nC-1, exclude background
+        plane_onehot = np.eye(n_planes)[cell_plane_ids]
 
-        # 1: Observed counts per plane
-        spot_plane_ids = self.spots.data.plane_id.values  # [nS]
-        spot_gene_ids = self.spots.gene_id  # [nS]
-        counts_per_gene_per_plane = np.zeros((n_planes, self.nG))
-        np.add.at(counts_per_gene_per_plane, (spot_plane_ids, spot_gene_ids), 1)
 
-        # 1a: Background counts per plane
-        background_probs = self.spots.parent_cell_prob[:, -1]  # [nS]
-        background_per_plane = np.zeros((n_planes, self.nG))
-        np.add.at(background_per_plane, (spot_plane_ids, spot_gene_ids), background_probs)
+        observed_exBackground = np.einsum('cg,cp->pg', self.cells.geneCount[1:,], plane_onehot)
+        observed_exBackground_assignedToZero = np.einsum("cg,c,cp->pg",self.cells.geneCount[1:, :], self.cells.classProb[1:, -1], plane_onehot)
+        observed = observed_exBackground - observed_exBackground_assignedToZero
 
-        # 1b: Zero class counts per plane
-        cell_plane_ids = self.cells.plane_id[1:]  # [nC-1], exclude background
-        plane_onehot = np.eye(n_planes)[cell_plane_ids]  # [nC-1, n_planes]
-
-        zero_prob = classProb[1:, -1]  # [nC-1]
-        gene_counts = self.cells.geneCount[1:, :]  # [nC-1, nG]
-        zero_class_gene_counts = zero_prob[:, None] * gene_counts  # [nC-1, nG]
-
-        zero_class_per_plane = np.einsum(
-            "cp, cg -> pg", plane_onehot, zero_class_gene_counts
+        expected = oe.contract(
+            "cp, c,cgk,ck,gk,ck->pg",
+            plane_onehot,
+            area_factor[1:],
+            gamma_bar[1:, :, :-1],
+            classProb[1:, :-1],
+            mu.values[:, :-1],
+            theta_bar[1:,:-1],
+            optimize="optimal",
         )
 
-
-        # Expected counts per plane (class_total_counts)
-        class_total_counts_per_plane = oe.contract('cp, ck, gk, c, cgk, ck -> pg',
-                                                   plane_onehot,
-                                                   classProb[1:, :-1],
-                                                   mu.values[:, :-1],
-                                                   area_factor[1:],
-                                                   gamma_bar[1:, :, :-1],
-                                                   theta_bar[1:, :-1],
-                                                   optimize='optimal')
-
-        # Final calculation
-        observed = self.config['rGene'] + counts_per_gene_per_plane - background_per_plane - zero_class_per_plane
-        expected = self.config['rGene'] + class_total_counts_per_plane
-
-
-        # zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
-        # zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
-        # # zero_class_counts = oe.contract('c, cg -> g', classProb[:, -1], self.cells.geneCount, optimize='optimal')
-        #
-        # # Calcs the sum in the Gamma distribution (equation 5). The zero class
-        # # is excluded from the sum, hence the arrays in the einsum below stop at :-1
-        # # Note. We should exclude the "cell" that is meant to keep the
-        # # misreads, ie exclude the background, hence the relevant indexing below
-        # # starts at 1
-        # class_total_counts = oe.contract('ck, gk, c, cgk, ck -> g',
-        #                                  classProb[:, :-1],
-        #                                  mu.values[:, :-1],
-        #                                  area_factor,
-        #                                  gamma_bar[:, :, :-1],
-        #                                  theta_bar[:,:-1], optimize='optimal')
-        # # background_counts = self.cells.background_counts
-        # background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
-        #
-        # # observed (ie actual) gene reads per gene
-        # observed = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
-        #
-        # # expected (ie predicted) gene reads per gene
-        # expected = self.config['rGene'] + class_total_counts
+        # add now the hyperparameter from the prior
+        observed = self.config['rGene'] + observed
+        expected = self.config['rGene'] + expected
 
         # Finally, update gene_gamma. It will basically divide observed by expected
         # and gene inefficiency will eventually express how well a gene is detected.
@@ -796,9 +755,13 @@ class VarBayes:
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
-        eta_bar = self.genes.eta_bar
+        # eta_bar = self.genes.eta_bar
 
-        beta = np.einsum('ck, c, cgk, g, gk -> ck',
+        eta_for_cells = self.genes.eta_bar[self.cells.plane_id[1:], :]  # [nC-1, nG]
+        background_eta = np.ones((1, self.nG), dtype=np.float32)  # Using 1.0 for background eta means "no efficiency scaling" - which is semantically correct since background isn't a real cell
+        eta_bar = np.vstack([background_eta, eta_for_cells])  # [nC, nG]
+
+        beta = np.einsum('ck, c, cgk, cg, gk -> ck',
                          classProb,
                          area_factor,
                          gamma_bar,
