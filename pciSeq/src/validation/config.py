@@ -40,6 +40,7 @@ _TYPE_SPECS = {
     "realtime_viewer_fixed_radius": (type(None), float),
     "mean_gene_counts_per_class": int,
     "mean_gene_counts_per_cell": int,
+    'rTheta': (int, float)
 }
 
 
