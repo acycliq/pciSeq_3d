@@ -309,3 +309,71 @@ def get_img_shape(coo: List[coo_matrix]) -> List[int]:
     assert len(img_shape) == 1, 'pages do not have the same shape'
     img_shape = img_shape.pop()
     return [n, img_shape[0], img_shape[1]]
+
+
+def convert_bonus_dict_to_isotropic(bonus_dict: dict, voxel_size: List[float]) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Convert InsideCellBonus dict from plane indices to isotropic z-coordinates.
+
+    The user specifies InsideCellBonus as a step function with plane indices as keys.
+    This function converts those plane indices to isotropic z-coordinates for use
+    with cell centroid z-values during spot-to-cell assignment.
+
+    Args:
+        bonus_dict: Dict with plane indices as keys (upper bound inclusive),
+                   bonus values as values. e.g., {10: 8, 30: 5, 50: 1, 60: 0}
+                   means planes 0-10 get bonus 8, planes 11-30 get bonus 5, etc.
+        voxel_size: [x, y, z] voxel dimensions
+
+    Returns:
+        Tuple of (z_thresholds, bonus_values):
+            - z_thresholds: Sorted array of z upper bounds in isotropic coordinates
+            - bonus_values: Corresponding bonus values for each threshold
+
+    Example:
+        voxel_size = [0.28, 0.28, 0.7]
+        Sz = 0.7 / 0.28 = 2.5
+        {10: 8, 30: 5} → z_thresholds=[25.0, 75.0], values=[8, 5]
+    """
+    # Calculate z scaling factor (same formula as anisotropy_calc)
+    Sz = voxel_size[2] / voxel_size[0]
+
+    # Sort keys and build arrays
+    sorted_planes = sorted(bonus_dict.keys())
+    z_thresholds = np.array([plane * Sz for plane in sorted_planes], dtype=np.float32)
+    bonus_values = np.array([bonus_dict[plane] for plane in sorted_planes], dtype=np.float32)
+
+    return z_thresholds, bonus_values
+
+
+def lookup_bonus_by_z(z_coords: np.ndarray,
+                      z_thresholds: np.ndarray,
+                      bonus_values: np.ndarray) -> np.ndarray:
+    """
+    Look up bonus values for z-coordinates using a step function.
+
+    Given cell z-coordinates (isotropic), finds the appropriate bonus value
+    based on the step function defined by z_thresholds and bonus_values.
+
+    Args:
+        z_coords: Array of z-coordinates (isotropic) to look up
+        z_thresholds: Sorted array of z upper bounds (from convert_bonus_dict_to_isotropic)
+        bonus_values: Bonus value for each threshold
+
+    Returns:
+        Array of bonus values, same shape as z_coords
+
+    Notes:
+        - Uses upper bound inclusive: z <= threshold[i] → bonus[i]
+        - Beyond last threshold: uses last bonus value
+        - Uses np.searchsorted for efficient vectorized lookup
+    """
+    # searchsorted finds insertion point; with side='right', returns index after equal elements
+    # For upper bound inclusive, we want the first threshold >= z
+    # side='right' gives us: threshold[i-1] < z <= threshold[i] → index i
+    indices = np.searchsorted(z_thresholds, z_coords, side='right')
+
+    # Clip to valid range (handles z beyond last threshold → use last value)
+    indices = np.clip(indices, 0, len(bonus_values) - 1)
+
+    return bonus_values[indices]

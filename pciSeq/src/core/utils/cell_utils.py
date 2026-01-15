@@ -21,14 +21,27 @@ def read_image_objects(img_obj, cfg):
     relCellRadius = np.append(1, relCellRadius)
 
     InsideCellBonus = cfg['InsideCellBonus']
-    if not InsideCellBonus:
-        # This is more for clarity. The operation below will work fine even if InsideCellBonus is False
-        InsideCellBonus = 0
+    if isinstance(InsideCellBonus, dict):
+        # Depth-dependent bonus: compute CellAreaFactor per cell based on z0 (isotropic)
+        from .geometry import convert_bonus_dict_to_isotropic, lookup_bonus_by_z
+        z_thresholds, bonus_values = convert_bonus_dict_to_isotropic(InsideCellBonus, cfg['voxel_size'])
+        # img_obj.z0 is already in isotropic coordinates
+        bonus_per_cell = lookup_bonus_by_z(img_obj.z0.values, z_thresholds, bonus_values)
+        # Prepend 0 for background (index 0) - background gets no bonus (CellAreaFactor = 1.0)
+        bonus_per_cell = np.append(0, bonus_per_cell)
+        # Compute CellAreaFactor per cell
+        numer = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(bonus_per_cell)) + np.exp(bonus_per_cell)
+        denom = np.exp(-0.5) * (1 - np.exp(bonus_per_cell)) + np.exp(bonus_per_cell)
+        CellAreaFactor = numer / denom
+    else:
+        if not InsideCellBonus:
+            # This is more for clarity. The operation below will work fine even if InsideCellBonus is False
+            InsideCellBonus = 0
 
-    # if InsideCellBonus == 0 then CellAreaFactor will be equal to 1.0
-    numer = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
-    denom = np.exp(-0.5) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
-    CellAreaFactor = numer / denom
+        # if InsideCellBonus == 0 then CellAreaFactor will be equal to 1.0
+        numer = np.exp(-relCellRadius ** 2 / 2) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
+        denom = np.exp(-0.5) * (1 - np.exp(InsideCellBonus)) + np.exp(InsideCellBonus)
+        CellAreaFactor = numer / denom
 
     out = {
         'area_factor': CellAreaFactor.astype(np.float32), 'rel_radius': relCellRadius.astype(np.float32),

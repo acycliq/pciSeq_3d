@@ -16,7 +16,7 @@ _TYPE_SPECS = {
     "CellCallTolerance": float,
     "rGene": (int, float),
     "Inefficiency": float,
-    "InsideCellBonus": (bool, int, float),
+    "InsideCellBonus": (bool, int, float, dict),
     "MisreadDensity": (float, dict),
     "cell_centroid_prior": (int, float, dict),
     "cell_cov_prior": (int, float, dict),

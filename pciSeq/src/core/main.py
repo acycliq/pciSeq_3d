@@ -76,6 +76,7 @@ from .summary import collect_data
 # from .analysis import CellExplorer
 from .utils import ops_utils as utils
 from .utils import visualisation
+from .utils.geometry import convert_bonus_dict_to_isotropic, lookup_bonus_by_z
 from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
 import joblib
 
@@ -117,6 +118,7 @@ class VarBayes:
         self._setup_diagnostics()
         self._setup_components(cells_df, spots_df, scRNAseq)
         self._setup_dimensions()
+        self._setup_inside_bonus()
 
         # Placeholder for other attributes
         self._scaled_exp = None
@@ -167,6 +169,60 @@ class VarBayes:
         self.nS = self.spots.nS  # spots
         self.nN = self.config['nNeighbors'] + 1  # neighbors + background
         self.nP = self.config['img_dim']['n_planes'] # number of planes
+
+    def _setup_inside_bonus(self) -> None:
+        """
+        Pre-compute InsideCellBonus lookup data for depth-dependent bonus.
+
+        Supports two modes:
+        1. Scalar: Same bonus for all planes (backward compatible)
+        2. Dict: Step function with plane indices as keys, bonus values as values
+           e.g., {10: 8, 30: 5, 50: 1, 60: 0} means planes 0-10 get bonus 8, etc.
+
+        The dict keys (plane indices) are converted to isotropic z-coordinates
+        for lookup during spot-to-cell assignment.
+        """
+        icb = self.config['InsideCellBonus']
+
+        if isinstance(icb, (int, float, bool)):
+            # Scalar case: store as-is, will apply uniformly
+            self._bonus_is_scalar = True
+            self._bonus_scalar_value = float(icb)
+            self._bonus_z_thresholds = None
+            self._bonus_values = None
+            main_logger.info(f"InsideCellBonus: uniform value {self._bonus_scalar_value} for all planes")
+        else:
+            # Dict case: convert to isotropic z thresholds
+            self._bonus_is_scalar = False
+            self._bonus_scalar_value = None
+            self._bonus_z_thresholds, self._bonus_values = convert_bonus_dict_to_isotropic(
+                icb, self.config['voxel_size']
+            )
+
+            # Validation: check dict keys against actual number of planes
+            max_plane_key = max(icb.keys())
+            n_planes = self.config['img_dim']['n_planes']
+
+            if max_plane_key > n_planes - 1:
+                main_logger.warning(
+                    f"InsideCellBonus dict has key {max_plane_key} but data only has "
+                    f"{n_planes} planes (0-{n_planes-1}). Extra keys will be ignored."
+                )
+
+            if max_plane_key < n_planes - 1:
+                main_logger.info(
+                    f"InsideCellBonus dict max key is {max_plane_key}, planes {max_plane_key+1}-{n_planes-1} "
+                    f"will use last value: {self._bonus_values[-1]}"
+                )
+
+            # Log the bonus configuration
+            main_logger.info("InsideCellBonus: depth-dependent step function (plane 0 = bottom/deep)")
+            Sz = self.config['voxel_size'][2] / self.config['voxel_size'][0]
+            prev_plane = -1
+            for plane, bonus in sorted(icb.items()):
+                z_iso = plane * Sz
+                main_logger.info(f"  Planes {prev_plane+1}-{plane} (z <= {z_iso:.2f}): bonus = {bonus}")
+                prev_plane = plane
 
     def initialise_state(self) -> None:
         """Initialises the starting state of the objects
@@ -485,9 +541,41 @@ class VarBayes:
             attention[:, n] = term_1
             expr_fluctuations[:, n] = term_2
 
-        # apply inside cell bonus
-        bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
-        wSpotCell += bonus_mask
+        # Apply inside cell bonus (depth-dependent)
+        #
+        # IMPORTANT: We use the CANDIDATE CELL's z-coordinate, not the spot's z-coordinate.
+        # Rationale: The motivation for depth-dependent bonus is to trust segmentation more
+        # for cells at depths where expression evidence is unreliable (low eta). A cell's
+        # depth determines how weak its expression signal is, so the bonus should be based
+        # on where the cell is, not where the spot is.
+        #
+        # This means a single spot may receive different bonuses for different candidate
+        # cells if those cells are at different depths. This is intentional - we want to
+        # favor assignment to cells where we trust the segmentation (the "inside" check)
+        # more than the expression evidence.
+        #
+        if self._bonus_is_scalar:
+            # Backward compatible: same bonus for all planes
+            bonus_mask = self.spots.bonus_mask * self._bonus_scalar_value
+            wSpotCell += bonus_mask
+        else:
+            # Depth-dependent: different bonus per candidate cell's z-coordinate
+            for n in range(nN - 1):
+                # Get z-coordinate of each candidate parent cell (NOT the spot's z)
+                cell_ids = self.spots.parent_cell_id[:, n]
+                cell_z = self.cells.centroid.iloc[cell_ids]['z'].values  # isotropic z
+
+                # Look up bonus for each z using step function
+                bonus_per_spot = lookup_bonus_by_z(
+                    cell_z,
+                    self._bonus_z_thresholds,
+                    self._bonus_values
+                )
+
+                # Apply bonus where spot is inside cell
+                wSpotCell[:, n] += self.spots.bonus_mask[:, n] * bonus_per_spot
+
+            # Last column (misread) gets no bonus - already handled by not looping to nN
 
         # update the prob a spot belongs to a neighboring cell
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
