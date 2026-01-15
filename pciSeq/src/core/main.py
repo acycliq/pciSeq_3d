@@ -216,12 +216,13 @@ class VarBayes:
                 )
 
             # Log the bonus configuration
-            main_logger.info("InsideCellBonus: depth-dependent step function (plane 0 = bottom/deep)")
+            main_logger.info("InsideCellBonus: depth-dependent step function")
             Sz = self.config['voxel_size'][2] / self.config['voxel_size'][0]
             prev_plane = -1
             for plane, bonus in sorted(icb.items()):
                 z_iso = plane * Sz
-                main_logger.info(f"  Planes {prev_plane+1}-{plane} (z <= {z_iso:.2f}): bonus = {bonus}")
+                # main_logger.info(f"  Planes {prev_plane+1}-{plane} (z <= {z_iso:.2f}): bonus = {bonus}")
+                main_logger.info(f"  Planes {prev_plane+1}-{plane}: bonus = {bonus}")
                 prev_plane = plane
 
     def initialise_state(self) -> None:
@@ -542,18 +543,7 @@ class VarBayes:
             expr_fluctuations[:, n] = term_2
 
         # Apply inside cell bonus (depth-dependent)
-        #
-        # IMPORTANT: We use the CANDIDATE CELL's z-coordinate, not the spot's z-coordinate.
-        # Rationale: The motivation for depth-dependent bonus is to trust segmentation more
-        # for cells at depths where expression evidence is unreliable (low eta). A cell's
-        # depth determines how weak its expression signal is, so the bonus should be based
-        # on where the cell is, not where the spot is.
-        #
-        # This means a single spot may receive different bonuses for different candidate
-        # cells if those cells are at different depths. This is intentional - we want to
-        # favor assignment to cells where we trust the segmentation (the "inside" check)
-        # more than the expression evidence.
-        #
+        # Use the candidate parent cell's z-coord, not the spot's z-coordinate.
         if self._bonus_is_scalar:
             # Backward compatible: same bonus for all planes
             bonus_mask = self.spots.bonus_mask * self._bonus_scalar_value
