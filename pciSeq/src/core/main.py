@@ -167,6 +167,7 @@ class VarBayes:
         self.nK = self.cellTypes.nK  # classes
         self.nS = self.spots.nS  # spots
         self.nN = self.config['nNeighbors'] + 1  # neighbors + background
+        self.nP = self.config['img_dim']['n_planes']  # number of z-planes
 
     def initialise_state(self) -> None:
         """Initialises the starting state of the objects
@@ -185,18 +186,26 @@ class VarBayes:
         self.spots.init_gamma(self.config['rSpot'], self.config['rSpot'], [self.nC, self.nG, self.nK])
         self.init_theta()
 
+    def _eta_per_cell(self) -> np.ndarray:
+        """Map depth-indexed eta [n_planes, nG] to per-cell eta [nC, nG].
+
+        Background cell (index 0) gets neutral eta = 1.0 (no efficiency scaling).
+        Each real cell reads eta from its z-plane.
+        """
+        eta_for_cells = self.genes.eta_bar[self.cells.plane_id[1:], :]  # [nC-1, nG]
+        background_eta = np.ones((1, self.nG), dtype=np.float32)
+        return np.vstack([background_eta, eta_for_cells])  # [nC, nG]
+
     def init_theta(self) -> None:
         geneCounts = self.cells.ini_gene_counts
         alpha = geneCounts + self.config['rTheta'] - 1
 
-
-
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
-        eta_bar = self.genes.eta_bar
+        eta_bar = self._eta_per_cell()
 
-        beta = np.einsum('c, cgk, g, gk -> ck',
+        beta = np.einsum('c, cgk, cg, gk -> ck',
                          area_factor,
                          gamma_bar,
                          eta_bar,
@@ -411,7 +420,8 @@ class VarBayes:
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                                     self.single_cell.mean_expression_adj.values))
 
-        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :]+ cfg['rSpot']
+        eta_bar = self._eta_per_cell()  # [nC, nG]
+        beta = self.scaled_exp.compute() * eta_bar[:, :, None] * self.cells.theta_bar[:,None, :]+ cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots._post_shape = rho
@@ -494,7 +504,6 @@ class VarBayes:
         wSpotCell = np.zeros([nS, nN], dtype=np.float64)
         gn = self.spots.data.gene_name.values
         expected_counts = self.single_cell.log_mean_expression.loc[gn].values
-        logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
         # misread = self.spot_misread_density()
         misread = self.spots.misread_density(self.genes)
@@ -514,6 +523,10 @@ class VarBayes:
         for n in range(nN - 1):
             # get the spots' nth-closest cell
             sn = self.spots.parent_cell_id[:, n]
+
+            # depth-dependent eta: each candidate cell reads eta from its z-plane
+            plane_id = self.cells.plane_id[sn]
+            logeta_bar = self.genes.logeta_bar[plane_id, self.spots.gene_id]
 
             # get the respective cell type probabilities
             cp = self.cells.classProb[sn]
@@ -630,33 +643,34 @@ class VarBayes:
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
         theta_bar = self.cells.theta_bar
+        n_planes = self.nP
 
-        zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
-        zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
-        # zero_class_counts = oe.contract('c, cg -> g', classProb[:, -1], self.cells.geneCount, optimize='optimal')
+        # One-hot encoding maps each cell to its z-plane (exclude background cell 0)
+        cell_plane_ids = self.cells.plane_id[1:]
+        plane_onehot = np.eye(n_planes, dtype=np.float32)[cell_plane_ids]  # [nC-1, nP]
 
-        # Calcs the sum in the Gamma distribution (equation 5). The zero class
-        # is excluded from the sum, hence the arrays in the einsum below stop at :-1
-        # Note. We should exclude the "cell" that is meant to keep the
-        # misreads, ie exclude the background, hence the relevant indexing below
-        # starts at 1
-        class_total_counts = oe.contract('ck, gk, c, cgk, ck -> g',
-                                         classProb[:, :-1],
-                                         mu.values[:, :-1],
-                                         area_factor,
-                                         gamma_bar[:, :, :-1],
-                                         theta_bar[:,:-1], optimize='optimal')
-        # background_counts = self.cells.background_counts
-        background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
+        # Observed gene counts per plane, excluding background (cell 0)
+        # and removing the zero-class contribution
+        observed_per_plane = np.einsum('cg, cp -> pg', self.cells.geneCount[1:, :], plane_onehot)
+        zero_class_contribution = np.einsum('cg, c, cp -> pg',
+                                            self.cells.geneCount[1:, :],
+                                            classProb[1:, -1],
+                                            plane_onehot)
+        observed = self.config['rGene'] + observed_per_plane - zero_class_contribution
 
-        # observed (ie actual) gene reads per gene
-        observed = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
+        # Expected gene counts per plane: sum over cells in each plane and
+        # classes (excluding zero) of area * gamma * classProb * mu * theta
+        expected = oe.contract('cp, c, cgk, ck, gk, ck -> pg',
+                               plane_onehot,
+                               area_factor[1:],
+                               gamma_bar[1:, :, :-1],
+                               classProb[1:, :-1],
+                               mu.values[:, :-1],
+                               theta_bar[1:, :-1],
+                               optimize='optimal')
+        expected = self.config['rGene'] + expected
 
-        # expected (ie predicted) gene reads per gene
-        expected = self.config['rGene'] + class_total_counts
-
-        # Finally, update gene_gamma. It will basically divide observed by expected
-        # and gene inefficiency will eventually express how well a gene is detected.
+        # Update eta: divides observed by expected per plane, shape [nP, nG]
         self.genes.calc_eta(observed, expected)
 
     # -------------------------------------------------------------------- #
@@ -803,9 +817,9 @@ class VarBayes:
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
-        eta_bar = self.genes.eta_bar
+        eta_bar = self._eta_per_cell()
 
-        beta = np.einsum('c, cgk, g, gk -> ck',
+        beta = np.einsum('c, cgk, cg, gk -> ck',
                          area_factor,
                          gamma_bar,
                          eta_bar,
