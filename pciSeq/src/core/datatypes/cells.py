@@ -60,6 +60,7 @@ class Cells(object):
         self._theta_bar = None
         self._logtheta_bar = None
         self._nbrs = None
+        self._mrf_weights = None
 
     # -------- PROPERTIES -------- #
     @property
@@ -186,6 +187,18 @@ class Cells(object):
     @nbrs.setter
     def nbrs(self, val):
         self._nbrs = val
+        # If the neighbour graph changes, the cached MRF weights are no longer valid.
+        # Clear them here so the next calc_mrf() rebuilds the MRF graph from the
+        # updated neighbour structure.
+        self._mrf_weights = None
+
+    @property
+    def mrf_weights(self):
+        return self._mrf_weights
+
+    @mrf_weights.setter
+    def mrf_weights(self, val):
+        self._mrf_weights = val
 
     # -------- METHODS -------- #
 
@@ -339,22 +352,58 @@ class Cells(object):
         }
         return out
 
-    def calc_mrf(self):
+    def build_mrf_weights(self):
+        # For each cell c, these arrays store its k nearest neighbour ids and
+        # the corresponding distances. Both arrays have shape (nC, nN).
         nbrs_idx = self.nbrs['indices']
+        nbrs_dist = self.nbrs['distances']
+        nC, nN = nbrs_idx.shape
 
-        # Weight each neighbor by 1/distance so closer cells have more influence.
-        # Normalise so the weights sum to nNeighbors (e.g. 9), matching the
-        # scale of zeta (class probs sum to 1 per neighbor, 9 neighbors total).
-        # This way proximity and zeta contribute equally to the MRF potential.
-        nbrs_prxmty = 1/self.nbrs['distances']
-        nbrs_prxmty = nbrs_prxmty / nbrs_prxmty.sum(axis=1, keepdims=True) * nbrs_idx.shape[1]
+        # Flatten the kNN tables into an edge list.
+        # For edge t:
+        # - src[t] is the source cell
+        # - dst[t] is one of its neighbours
+        # - dist[t] is the distance between them
+        src = np.repeat(np.arange(nC, dtype=np.int32), nN)
+        dst = nbrs_idx.ravel().astype(np.int32)
+        dist = nbrs_dist.ravel().astype(np.float32)
 
-        # Proximity-weighted sum of neighbour class probabilities (zeta)
-        nbr_probs = self.classProb[nbrs_idx]  # (nC, nN, nK)
-        mrf = (nbr_probs * nbrs_prxmty[:, :, None]).sum(axis=1)
-        out = mrf * self.config["mrf_beta"]
+        # Cell 0 is the background node, so it should not participate in the MRF graph.
+        mask = (src > 0) & (dst > 0)
+        src = src[mask]
+        dst = dst[mask]
+        dist = dist[mask]
 
-        return out
+        # Turn distances into edge weights: closer neighbours get larger weights.
+        # The epsilon only prevents division by zero for extremely small distances.
+        weights = 1.0 / np.maximum(dist, np.finfo(np.float32).eps)
+
+        # Build the directed kNN graph as a sparse adjacency matrix.
+        # Entry (i, j) is non-zero if j is in i's neighbour list.
+        directed = scipy.sparse.coo_matrix(
+            (weights, (src, dst)),
+            shape=(nC, nC),
+            dtype=np.float32
+        )
+
+        # Symmetrize by union: if either i -> j or j -> i exists, connect the pair
+        # in both directions so the MRF graph is undirected.
+        undirected = directed.maximum(directed.T)
+        return undirected.tocsr()
+
+    def init_mrf_weights(self):
+        # The neighbour graph is static in the current algorithm, so build the
+        # MRF weight matrix once and reuse it across iterations.
+        self.mrf_weights = self.build_mrf_weights()
+
+    def calc_mrf(self):
+        if self.mrf_weights is None:
+            self.init_mrf_weights()
+        mrf = self.mrf_weights @ self.classProb
+        mrf = np.asarray(mrf, dtype=np.float32)
+        mrf[0] = 0.0
+        mrf[:, -1] = 0.0  # do not spatially smooth the Zero class
+        return mrf * self.config["mrf_beta"]
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):

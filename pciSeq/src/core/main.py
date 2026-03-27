@@ -176,6 +176,7 @@ class VarBayes:
         """
         self.cellTypes.ini_prior()
         self.cells.nbrs = self.cells.nearest_neighbours()
+        self.cells.init_mrf_weights()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
         self.genes.init_eta(self.config['rGene'], self.config['rGene'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
