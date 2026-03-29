@@ -291,6 +291,8 @@ class VarBayes:
                 # if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
                 #     self.gaussian_upd()
 
+                self.rho_upd()
+
                 # 5. assign spots to cells
                 self.spots_to_cell()
 
@@ -497,10 +499,11 @@ class VarBayes:
         logeta_bar = self.genes.logeta_bar[self.spots.gene_id]
 
         # misread = self.spot_misread_density()
-        misread = self.spots.misread_density(self.genes)
+        # misread = self.spots.misread_density(self.genes)
+        misread = self.spots.logrho_bar
 
         # pre-populate last column
-        wSpotCell[:, -1] = np.log(misread)
+        wSpotCell[:, -1] = misread
         mvn_loglik_arr = np.zeros(wSpotCell.shape)
         attention = np.zeros(wSpotCell.shape)
         expr_fluctuations = np.zeros(wSpotCell.shape)
@@ -813,6 +816,22 @@ class VarBayes:
 
         self.cells.calc_theta(alpha, beta)
         print('ok')
+
+    def rho_upd(self):
+        w = self.config["img_dim"]["w"]
+        h = self.config["img_dim"]["h"]
+        n_planes = self.config["img_dim"]["n_planes"]
+
+        rho_0 = self.config["MisreadDensity"]["default"]
+        rRho1 = 1
+        background_spots = np.bincount(self.spots.plane_id, self.spots.parent_cell_prob[:, -1], minlength=n_planes)
+
+        bRho2 = rRho1/rho_0
+        area = w * h * np.ones(n_planes)
+
+        shape = rRho1 + background_spots
+        rate = bRho2 + area
+        self.spots.calc_rho(shape, rate)
 
     # -------------------------------------------------------------------- #
     def diagnostics_upd(self) -> None:

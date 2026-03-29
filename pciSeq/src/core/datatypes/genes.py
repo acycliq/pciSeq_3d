@@ -102,6 +102,7 @@ class Genes(object):
         self._eta_bar = a / b
         self._logeta_bar = self._digamma(a, b)
 
+
     def _digamma(self, a, b):
         """
         Calculates the digamma function for eta calculation.

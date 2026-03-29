@@ -9,6 +9,7 @@ import scipy
 import opt_einsum as oe
 from dask.delayed import delayed
 from collections import defaultdict
+from ..utils.geometry import anisotropy_calc
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,9 @@ class Spots(object):
         self.attention = None
         self.expr_fluctuations = None
         self.cell_inefficiency = None
+        self._plane_id = None
+        self._rho_bar = None
+        self._logrho_bar = None
         self.gamma_terms = defaultdict(list) # placeholder to keep gamma per iteration (for debugging)
 
     def __getstate__(self):
@@ -155,6 +159,24 @@ class Spots(object):
         bonus_mask[:, -1] = False
 
         return bonus_mask
+
+    @property
+    def plane_id(self) -> np.ndarray:
+        """Returns the z-plane index for each cell, derived from the centroid z-coordinate."""
+        if self._plane_id is None:
+            cell_coords = anisotropy_calc(self.xyz_coords, voxel_size=self.config['voxel_size'], inverse=True)
+            self._plane_id = np.floor(cell_coords[:, -1]).astype(np.int32)
+        return self._plane_id
+
+    @property
+    def rho_bar(self):
+        """Returns the rho bar values for genes."""
+        return self._rho_bar
+
+    @property
+    def logrho_bar(self):
+        """Returns the log rho bar for genes (estimated mean of the posterior)."""
+        return self._logrho_bar
 
     # ---------------- METHODS ---------------- #
     def init_gamma(self, a, b, dim):
@@ -421,4 +443,11 @@ class Spots(object):
         v = np.array(list(misread_dict.values()))
         v = v[self.gene_id]  # Align with spots
         return v
+
+    def calc_rho(self, a, b):
+        plane_id = self.plane_id
+        shape = a[plane_id]
+        rate = b[plane_id]
+        self._rho_bar = shape / rate
+        self._logrho_bar = self._digamma(shape, rate)
 
