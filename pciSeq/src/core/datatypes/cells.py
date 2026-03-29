@@ -61,7 +61,7 @@ class Cells(object):
         self._theta_bar = None
         self._logtheta_bar = None
         self._nbrs = None
-        self._mrf_W = None  # cached symmetric MRF weight matrix
+        self.mrf_weights = None  # cached symmetric MRF weight matrix
 
     # -------- PROPERTIES -------- #
     @property
@@ -188,7 +188,7 @@ class Cells(object):
     @nbrs.setter
     def nbrs(self, val):
         self._nbrs = val
-        self._mrf_W = None
+        self.mrf_weights = None
 
     # -------- METHODS -------- #
 
@@ -342,29 +342,35 @@ class Cells(object):
         }
         return out
 
+    def build_mrf_weights(self):
+        """Build a symmetric, row-normalised sparse weight matrix for the MRF."""
+        nbrs_idx = self.nbrs['indices']
+        nbrs_dist = self.nbrs['distances']
+        nC = self.nC
+        nN = nbrs_idx.shape[1]
+
+        # Build sparse weight matrix from k-NN (1/distance weights)
+        rows = np.repeat(np.arange(nC), nN)
+        cols = nbrs_idx.ravel()
+        weights = (1.0 / nbrs_dist).ravel()
+        w = scipy.sparse.csr_matrix((weights, (rows, cols)), shape=(nC, nC))
+
+        # Symmetrize: include edge if either cell considers the other a neighbor
+        w = w.maximum(w.T)
+
+        # Normalize rows to sum to nN (preserve MRF budget per cell)
+        row_sums = np.array(w.sum(axis=1)).ravel()
+        row_sums[row_sums == 0] = 1
+        return (scipy.sparse.diags(nN / row_sums) @ w).tocsr()
+
+    def init_mrf_weights(self):
+        """Build and cache the MRF weight matrix."""
+        self.mrf_weights = self.build_mrf_weights()
+
     def calc_mrf(self):
-        if self._mrf_W is None:
-            nbrs_idx = self.nbrs['indices']
-            nbrs_dist = self.nbrs['distances']
-            nC = self.nC
-            nN = nbrs_idx.shape[1]
-
-            # Build sparse weight matrix from k-NN (1/distance weights)
-            rows = np.repeat(np.arange(nC), nN)
-            cols = nbrs_idx.ravel()
-            weights = (1.0 / nbrs_dist).ravel()
-            W = scipy.sparse.csr_matrix((weights, (rows, cols)), shape=(nC, nC))
-
-            # Symmetrize: include edge if either cell considers the other a neighbor
-            W = W.maximum(W.T)
-
-            # Normalize rows to sum to nN (preserve MRF budget per cell)
-            row_sums = np.array(W.sum(axis=1)).ravel()
-            row_sums[row_sums == 0] = 1
-            self._mrf_W = (scipy.sparse.diags(nN / row_sums) @ W).tocsr()
-
-        # Proximity-weighted sum of neighbour class probabilities (zeta)
-        mrf = self._mrf_W @ self.classProb
+        if self.mrf_weights is None:
+            self.init_mrf_weights()
+        mrf = self.mrf_weights @ self.classProb
         return np.asarray(mrf) * self.config["mrf_beta"]
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
