@@ -6,7 +6,6 @@ from typing import Tuple, Dict, Any
 import numpy as np
 import pandas as pd
 import scipy
-import scipy.sparse
 from natsort import natsort_keygen
 from sklearn.neighbors import NearestNeighbors
 import numpy_groupies as npg
@@ -61,7 +60,6 @@ class Cells(object):
         self._theta_bar = None
         self._logtheta_bar = None
         self._nbrs = None
-        self._mrf_W = None  # cached symmetric MRF weight matrix
 
     # -------- PROPERTIES -------- #
     @property
@@ -188,7 +186,6 @@ class Cells(object):
     @nbrs.setter
     def nbrs(self, val):
         self._nbrs = val
-        self._mrf_W = None
 
     # -------- METHODS -------- #
 
@@ -343,29 +340,21 @@ class Cells(object):
         return out
 
     def calc_mrf(self):
-        if self._mrf_W is None:
-            nbrs_idx = self.nbrs['indices']
-            nbrs_dist = self.nbrs['distances']
-            nC = self.nC
-            nN = nbrs_idx.shape[1]
+        nbrs_idx = self.nbrs['indices']
 
-            # Build sparse weight matrix from k-NN (1/distance weights)
-            rows = np.repeat(np.arange(nC), nN)
-            cols = nbrs_idx.ravel()
-            weights = (1.0 / nbrs_dist).ravel()
-            W = scipy.sparse.csr_matrix((weights, (rows, cols)), shape=(nC, nC))
-
-            # Symmetrize: include edge if either cell considers the other a neighbor
-            W = W.maximum(W.T)
-
-            # Normalize rows to sum to nN (preserve MRF budget per cell)
-            row_sums = np.array(W.sum(axis=1)).ravel()
-            row_sums[row_sums == 0] = 1
-            self._mrf_W = (scipy.sparse.diags(nN / row_sums) @ W).tocsr()
+        # Weight each neighbor by 1/distance so closer cells have more influence.
+        # Normalise so the weights sum to nNeighbors (e.g. 9), matching the
+        # scale of zeta (class probs sum to 1 per neighbor, 9 neighbors total).
+        # This way proximity and zeta contribute equally to the MRF potential.
+        nbrs_prxmty = 1/self.nbrs['distances']
+        nbrs_prxmty = nbrs_prxmty / nbrs_prxmty.sum(axis=1, keepdims=True) * nbrs_idx.shape[1]
 
         # Proximity-weighted sum of neighbour class probabilities (zeta)
-        mrf = self._mrf_W @ self.classProb
-        return np.asarray(mrf) * self.config["mrf_beta"]
+        nbr_probs = self.classProb[nbrs_idx]  # (nC, nN, nK)
+        mrf = (nbr_probs * nbrs_prxmty[:, :, None]).sum(axis=1)
+        out = mrf * self.config["mrf_beta"]
+
+        return out
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):
