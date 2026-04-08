@@ -297,9 +297,6 @@ class VarBayes:
                 # 6. assign cells to cell types
                 self.cell_to_cellType()
 
-                # 5. assign spots to cells
-                self.spots_to_cell()
-
                 # 7. update the dirichlet distribution
                 if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
                     self.dalpha_upd()
@@ -307,6 +304,9 @@ class VarBayes:
                 # 8. Update single cell data
                 if self.single_cell.isMissing:
                     self.mu_upd()
+
+                # 5. assign spots to cells
+                self.spots_to_cell()
 
                 # # Calculate ELBO
                 # elbo = calc_elbo(self)
