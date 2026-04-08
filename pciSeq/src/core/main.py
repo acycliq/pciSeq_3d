@@ -277,13 +277,16 @@ class VarBayes:
                 # 1. For each cell, calc the expected gene counts
                 self.geneCount_upd()
 
-                # 2. calc the gene inefficiency
+                # 2. update per-plane misread density
+                self.rho_upd()
+
+                # 3. calc the gene inefficiency
                 self.eta_upd()
 
-                # 3. calc the cell inefficiency
+                # 4. calc the cell inefficiency
                 self.theta_upd()
 
-                # 4. calc expected gamma
+                # 5. calc expected gamma
                 self.gamma_upd()
 
                 logger.info("gaussian_upd step has been removed in this version of the software")
@@ -291,13 +294,11 @@ class VarBayes:
                 # if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
                 #     self.gaussian_upd()
 
-                self.rho_upd()
+                # 6. assign cells to cell types
+                self.cell_to_cellType()
 
                 # 5. assign spots to cells
                 self.spots_to_cell()
-
-                # 6. assign cells to cell types
-                self.cell_to_cellType()
 
                 # 7. update the dirichlet distribution
                 if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
@@ -504,6 +505,13 @@ class VarBayes:
 
         # pre-populate last column
         wSpotCell[:, -1] = misread
+        if self.config['is3D']:
+            # The 3D Gaussian pays a z-normalization cost: -0.5*log(2*pi*sigma_z^2).
+            # The per-plane background has no z-term, creating an asymmetry that
+            # systematically favours background. Add the same z-normalization to
+            # the background score so both sides compete fairly.
+            sigma_z_sq = self.cells.cov[0, 2, 2]
+            wSpotCell[:, -1] += -0.5 * np.log(2 * np.pi * sigma_z_sq)
         mvn_loglik_arr = np.zeros(wSpotCell.shape)
         attention = np.zeros(wSpotCell.shape)
         expr_fluctuations = np.zeros(wSpotCell.shape)
