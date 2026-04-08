@@ -826,19 +826,36 @@ class VarBayes:
         print('ok')
 
     def rho_upd(self):
+        """Update misread density posterior, indexed by (gene, plane).
+
+        Each (g, z) bin has its own Gamma posterior. The shape gets the
+        expected number of background spots of gene g on plane z, the rate
+        gets the per-bin exposure (one plane's area, the same for every bin
+        because any gene can land on any pixel of any plane).
+        """
         w = self.config["img_dim"]["w"]
         h = self.config["img_dim"]["h"]
         n_planes = self.config["img_dim"]["n_planes"]
+        n_genes = self.nG
 
         rho_0 = self.config["MisreadDensity"]["default"]
         rRho1 = 1
-        background_spots = np.bincount(self.spots.plane_id, self.spots.parent_cell_prob[:, -1], minlength=n_planes)
 
-        bRho2 = rRho1/rho_0
-        area = w * h * np.ones(n_planes)
+        # 2D bincount over (gene, plane) via linear indexing.
+        # Index layout: bin_id = gene_id * n_planes + plane_id, so the
+        # reshape below puts genes on axis 0 and planes on axis 1.
+        bin_id = self.spots.gene_id.astype(np.int64) * n_planes + self.spots.plane_id
+        background_spots = np.bincount(
+            bin_id,
+            self.spots.parent_cell_prob[:, -1],
+            minlength=n_genes * n_planes,
+        ).reshape(n_genes, n_planes)
 
-        shape = rRho1 + background_spots
-        rate = bRho2 + area
+        bRho2 = rRho1 / rho_0
+        area = w * h * np.ones((n_genes, n_planes))
+
+        shape = rRho1 + background_spots   # (nG, n_planes)
+        rate = bRho2 + area                # (nG, n_planes)
         self.spots.calc_rho(shape, rate)
 
     # -------------------------------------------------------------------- #

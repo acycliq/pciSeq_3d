@@ -447,9 +447,19 @@ class Spots(object):
         return v
 
     def calc_rho(self, a, b):
+        """Per-spot lookup of the (gene, plane)-indexed Gamma posterior.
+
+        Parameters
+        ----------
+        a : np.ndarray
+            Shape parameter, shape (nG, n_planes).
+        b : np.ndarray
+            Rate parameter, shape (nG, n_planes).
+        """
         plane_id = self.plane_id
-        shape = a[plane_id]
-        rate = b[plane_id]
+        gene_id = self.gene_id
+        shape = a[gene_id, plane_id]
+        rate = b[gene_id, plane_id]
         self._rho_bar = shape / rate
         self._logrho_bar = self._digamma(shape, rate)
 
