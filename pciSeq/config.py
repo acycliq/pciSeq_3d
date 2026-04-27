@@ -161,6 +161,7 @@ DEFAULT = {
     # With rRho=1 the prior is weak and the data drives the estimate.
     "rRho": 1000.0,
     "similarity_pairs": None,
+    "birth_enabled": False,
     # *******************************************************************************
     # Realtime viewer (optional visualization feature)
     # *******************************************************************************

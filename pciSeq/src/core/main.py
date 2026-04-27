@@ -64,6 +64,7 @@ import numpy_groupies as npg
 import pandas as pd
 from dask.delayed import delayed
 from scipy.special import softmax
+from sklearn.cluster import DBSCAN
 import opt_einsum as oe
 
 # Local imports
@@ -111,6 +112,13 @@ class VarBayes:
         self.iter_delta = []
         self.has_converged = False
         self.on_iteration_callback = None  # Optional callback for real-time visualization
+
+        # Birth-debug tracking: filled in by birth_cells the first time it
+        # actually creates cells. _birth_debug_dump uses these to log the
+        # evolution of those specific spots/cells every iteration.
+        self._birth_debug_spots: Optional[np.ndarray] = None
+        self._birth_debug_cells: Optional[np.ndarray] = None
+        self._birth_debug_iter: Optional[int] = None
 
         # Initialize components
         self._validate_config(config)
@@ -309,6 +317,21 @@ class VarBayes:
 
                 # 9. assign spots to cells
                 self.spots_to_cell()
+
+                # 10. birth move: instantiate new cells over blobs of
+                # background-dominated spots (see detect_birth_candidates /
+                # birth_cells). Gated on config + warmup + cadence.
+                if self.config.get('birth_enabled', False) \
+                        and i >= self.config.get('birth_warmup_iters', 5) \
+                        and (i - self.config.get('birth_warmup_iters', 5)) \
+                            % self.config.get('birth_every', 5) == 0:
+                    candidate_spots = self.detect_birth_candidates()
+                    if candidate_spots.size > 0:
+                        self.birth_cells(candidate_spots)
+
+                # Per-iter trace of tracked birthed cells/spots (no-op if
+                # nothing has been birthed yet)
+                self._birth_debug_dump()
 
                 # # Calculate ELBO
                 # elbo = calc_elbo(self)
@@ -857,6 +880,236 @@ class VarBayes:
 
         self.cells.calc_theta(alpha, beta)
         print('ok')
+
+    # -------------------------------------------------------------------- #
+    def detect_birth_candidates(self) -> np.ndarray:
+        """Find background-dominated spots that cluster into dense regions.
+
+        A spot is "background-dominated" if the misread column wins argmax
+        across its nN candidates (no fixed threshold on bg prob). DBSCAN then
+        filters out isolated spots: only spots inside a cluster of
+        >= birth_min_blob_size survive.
+
+        Returns a 1D array of qualifying spot indices. Each one will become
+        a new cell centered at its own xyz coords. Overlap between newly
+        birthed cells is expected and will be resolved by a later merge move.
+        """
+        pcp = self.spots.parent_cell_prob
+        mask = np.argmax(pcp, axis=1) == (self.nN - 1)
+
+        min_samples = self.config.get('birth_min_blob_size', 5)
+        if mask.sum() < min_samples:
+            return np.empty(0, dtype=np.int64)
+
+        members_global = np.where(mask)[0]
+        coords_full = self.spots.xyz_coords[mask]
+        # 2D data has constant z, so drop it for clustering distance
+        coords = coords_full if self.config['is3D'] else coords_full[:, :2]
+
+        eps = self.config.get('birth_eps', float(self.cells.mcr))
+        labels = DBSCAN(eps=eps, min_samples=min_samples, n_jobs=-1).fit_predict(coords)
+
+        # Keep only spots that landed inside a cluster (drop noise label -1)
+        in_cluster = labels >= 0
+        qualifying = members_global[in_cluster]
+
+        if len(qualifying) > 0:
+            n_clusters = len(np.unique(labels[in_cluster]))
+            logger.info(f"birth: {len(qualifying)} spots in {n_clusters} cluster(s) "
+                        f"out of {mask.sum()} background-dominated spots")
+
+        # ------------------------------------------------------------------
+        # TEMP DEBUG GATE: replace the bg/DBSCAN-derived `qualifying` with
+        # ALL spots inside a sphere of radius cell_radius around a fixed
+        # centre. This widens the sample beyond bg-dominated Pvalb-only
+        # spots so birthed cells start with multi-gene evidence and a
+        # chance to push classProb away from the prior. Remove once the
+        # real cluster-quality filtering is in place.
+        # ------------------------------------------------------------------
+        _centre = np.array([4550.0, 3240.0, 175.0], dtype=np.float32)
+        _radius = float(self.cells.mcr)
+        _spot_xyz = self.spots.xyz_coords
+        if self.config['is3D']:
+            _dist = np.linalg.norm(_spot_xyz - _centre, axis=1)
+        else:
+            _dist = np.linalg.norm(_spot_xyz[:, :2] - _centre[:2], axis=1)
+        qualifying = np.where(_dist <= _radius)[0].astype(np.int64)
+        n_genes = self.spots.data.gene_name.iloc[qualifying].nunique() if len(qualifying) else 0
+        logger.info(
+            f"birth: TEMP sphere filter (r={_radius:.1f} @ {_centre.tolist()}) "
+            f"→ {len(qualifying)} spots across {n_genes} unique gene(s)"
+        )
+        return qualifying
+
+    # -------------------------------------------------------------------- #
+    def birth_cells(self, spot_indices: np.ndarray) -> None:
+        """Birth one cell per qualifying spot, centered at the spot's xyz.
+
+        Cells are 1-to-1 with spot_indices: new cell i is centered exactly
+        at spot spot_indices[i] and inherits that spot's background prob mass.
+        Overlapping cells (nearby spots in the same DBSCAN cluster) are
+        expected, and a future merge move will collapse them.
+
+        Steps:
+          1. Extend Cells (one new cell per spot, centroid = spot xyz)
+          2. Extend spots._gamma_bar with prior 1.0 (gamma_upd will refresh
+             properly at step 5 of the next iteration)
+          3. Rebuild parent_cell_id for the blob spots via fresh kNN against
+             the extended cell set, and reset parent_cell_prob to a uniform
+             1/nN over all slots, same convention as ini_cellProb at iter 0.
+             A blob spot now sees its own birthed cell (closest, distance 0)
+             plus the next nN-2 closest cells (typically other birthed cells
+             from the same blob, then some real ones), letting them compete
+             for each other's spots and accumulate enough counts to escape
+             the "1-spot cell looks like Zero class" trap.
+          4. Sync self.nC
+
+        Non-blob spots are NOT touched.
+        """
+        spot_indices = np.asarray(spot_indices)
+        if spot_indices.size == 0:
+            return
+
+        B = spot_indices.size
+        # one cell per spot, centered at that spot's own coords
+        centroids = self.spots.xyz_coords[spot_indices].astype(np.float32)
+
+        # 1. Extend Cells
+        new_ids = self.cells.add_cells(centroids, self.cellTypes.prior)
+
+        # 2. Extend spots._gamma_bar with prior expectation E[gamma]=1.
+        # Only read once at step 3 (eta_upd) of the next iter; gamma_upd at
+        # step 5 then rebuilds it with proper posterior values.
+        gb = self.spots.gamma_bar.compute()
+        new_gb = np.ones((B, self.nG, self.nK), dtype=gb.dtype)
+        gb_ext = np.concatenate([gb, new_gb], axis=0)
+        self.spots._gamma_bar = delayed(gb_ext)
+
+        # 3. Rebuild parent_cell_id for the blob spots via kNN against the
+        # extended cell set. Use a BINARY inside-cell rule for parent_cell_prob:
+        # for each blob spot, set prob=1.0 for every cell whose centroid is
+        # within cell_radius of the spot (i.e. the spot is "inside" that cell).
+        # If the spot lies inside no cell, send all its mass to background.
+        # This intentionally double-counts: a spot inside K overlapping cells
+        # contributes prob=1.0 to each of them, so per-cell counts scale up
+        # to ~(blob size) instead of ~1, giving cells enough mass to push
+        # classProb away from the uniform/Zero prior. The over-counting is
+        # one-shot: spots_to_cell at the end of the next iteration restores
+        # a proper softmax. The merge move (TBD) will collapse the overlapping
+        # cells once they've established a class.
+        nbrs = self.cells.nn()
+        spot_zyx = self.spots.data[['z', 'y', 'x']].values[spot_indices]
+        distances, neighbor_ids = nbrs.kneighbors(spot_zyx)
+        neighbor_ids[:, -1] = 0  # last slot reserved for background
+
+        radius = float(self.cells.mcr)
+        inside = distances < radius           # (B, nN) bool
+        inside[:, -1] = False                 # bg slot is never "inside"
+
+        new_prob = np.zeros_like(distances, dtype=np.float32)
+        new_prob[inside] = 1.0
+        # spots inside no cell → fully background
+        no_cell = ~inside.any(axis=1)
+        new_prob[no_cell, -1] = 1.0
+
+        self.spots.parent_cell_id[spot_indices] = neighbor_ids.astype(
+            self.spots.parent_cell_id.dtype
+        )
+        self.spots.parent_cell_prob[spot_indices] = new_prob
+
+        n_in = int(inside.sum())
+        n_per_spot = inside.sum(axis=1)
+        logger.info(
+            f"birth: binary rule: {n_in} (cell, spot) inside-pairs over "
+            f"{B} spots (avg {n_in / max(B, 1):.1f} cells/spot, "
+            f"max {int(n_per_spot.max()) if B else 0}, "
+            f"{int(no_cell.sum())} spot(s) inside nothing → bg)"
+        )
+
+        # 4. Sync VarBayes nC cache
+        self.nC = self.cells.nC
+
+        logger.info(f"birth: instantiated {B} cell(s); nC={self.nC}")
+
+        # Capture the first birth batch for debug tracking
+        if self._birth_debug_spots is None:
+            self._birth_debug_spots = np.asarray(spot_indices).copy()
+            self._birth_debug_cells = new_ids.copy()
+            self._birth_debug_iter = self.iter_num
+            gene_names = self.spots.data.gene_name.iloc[self._birth_debug_spots].values
+            xyz = self.spots.xyz_coords[self._birth_debug_spots]
+            logger.info("=" * 80)
+            logger.info(f"BIRTH-DEBUG: tracking {B} spot/cell pair(s) born at iter {self.iter_num}")
+            for i, (s, c, g, p) in enumerate(zip(self._birth_debug_spots,
+                                                 self._birth_debug_cells,
+                                                 gene_names, xyz)):
+                logger.info(f"  [{i}] spot={s} gene={g:<10} "
+                            f"xyz=({p[0]:.1f},{p[1]:.1f},{p[2]:.1f}) → cell={c}")
+            logger.info("=" * 80)
+
+    # -------------------------------------------------------------------- #
+    def _birth_debug_dump(self) -> None:
+        """Per-iteration trace of the tracked birthed cells and source spots.
+
+        Logs, for each tracked cell:
+          - total geneCount, count of nonzero genes, top-3 contributing genes
+          - top class (name + prob), and its closest competitor
+
+        And for each tracked spot:
+          - bg prob, prob assigned to its OWN birthed cell, slot index
+          - top non-self neighbor + prob (in case the spot has migrated away)
+        """
+        if self._birth_debug_spots is None:
+            return
+
+        spots = self._birth_debug_spots
+        cells = self._birth_debug_cells
+        iters_since = self.iter_num - self._birth_debug_iter
+
+        # ----- per-cell view -----
+        gc = self.cells.geneCount[cells]                 # (B, nG)
+        cp = self.cells.classProb[cells]                 # (B, nK)
+        gene_panel = np.asarray(self.genes.gene_panel)
+        class_names = np.asarray(self.cells.class_names)
+
+        logger.info(f"BIRTH-DEBUG iter={self.iter_num} (+{iters_since}): "
+                    f"tracked {len(cells)} cells")
+        for i, (s, c) in enumerate(zip(spots, cells)):
+            total = float(gc[i].sum())
+            nz = int((gc[i] > 0).sum())
+            # top-3 genes (counts, then names)
+            top_g = np.argsort(gc[i])[::-1][:3]
+            top_g = [(gene_panel[g], float(gc[i, g])) for g in top_g if gc[i, g] > 0]
+            # top-2 classes
+            top_k = np.argsort(cp[i])[::-1][:2]
+            top_k = [(class_names[k], float(cp[i, k])) for k in top_k]
+
+            # spot-side: where is this spot now?
+            pcid_row = self.spots.parent_cell_id[s]
+            pcp_row = self.spots.parent_cell_prob[s]
+            bg_prob = float(pcp_row[-1])
+            self_slot = np.where(pcid_row == c)[0]
+            self_prob = float(pcp_row[self_slot[0]]) if self_slot.size else float('nan')
+            # best non-bg, non-self neighbor
+            mask_other = (pcid_row != c) & (np.arange(self.nN) != self.nN - 1)
+            if mask_other.any():
+                other_idx = np.argmax(np.where(mask_other, pcp_row, -np.inf))
+                other_cell = int(pcid_row[other_idx])
+                other_prob = float(pcp_row[other_idx])
+            else:
+                other_cell, other_prob = -1, float('nan')
+
+            top_g_str = ", ".join(f"{n}={v:.2f}" for n, v in top_g) or "(none)"
+            top_k_str = ", ".join(f"{n}={v:.3f}" for n, v in top_k)
+            logger.info(
+                f"  [{i}] cell={c}: counts={total:.2f} "
+                f"(nz={nz}) top_genes=[{top_g_str}] top_classes=[{top_k_str}]"
+            )
+            logger.info(
+                f"      spot={s}: bg={bg_prob:.3f} "
+                f"self={self_prob:.3f} (slot={self_slot.tolist()}) "
+                f"other_top=cell={other_cell} p={other_prob:.3f}"
+            )
 
     # -------------------------------------------------------------------- #
     def diagnostics_upd(self) -> None:

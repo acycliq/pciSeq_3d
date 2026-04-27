@@ -389,6 +389,93 @@ class Cells(object):
 
         return out
 
+    def add_cells(self, centroids: np.ndarray, class_prior: np.ndarray) -> np.ndarray:
+        """Append B newly-birthed cells. Returns the positional IDs of the new cells.
+
+        centroids:   (B, 3) array of (x, y, z) coordinates
+        class_prior: (nK,) prior class probabilities to seed the new cells with
+        """
+        B = centroids.shape[0]
+        if B == 0:
+            return np.empty(0, dtype=np.int64)
+
+        new_ids = np.arange(self.nC, self.nC + B)
+
+        # 1. ini_cell_props (every cell-axis-shaped entry must grow)
+        max_label = int(self.ini_cell_props['cell_label'].max())
+        new_labels = np.arange(max_label + 1, max_label + 1 + B, dtype=np.uint32)
+        self.ini_cell_props['cell_label'] = np.concatenate(
+            [self.ini_cell_props['cell_label'], new_labels]
+        )
+        self.ini_cell_props['area_factor'] = np.concatenate(
+            [self.ini_cell_props['area_factor'], np.ones(B, dtype=np.float32)]
+        )
+        self.ini_cell_props['rel_radius'] = np.concatenate(
+            [self.ini_cell_props['rel_radius'], np.ones(B, dtype=np.float32)]
+        )
+        self.ini_cell_props['area'] = np.concatenate(
+            [self.ini_cell_props['area'], np.zeros(B, dtype=self.ini_cell_props['area'].dtype)]
+        )
+        self.ini_cell_props['x0'] = np.concatenate(
+            [self.ini_cell_props['x0'], centroids[:, 0].astype(np.float32)]
+        )
+        self.ini_cell_props['y0'] = np.concatenate(
+            [self.ini_cell_props['y0'], centroids[:, 1].astype(np.float32)]
+        )
+        self.ini_cell_props['z0'] = np.concatenate(
+            [self.ini_cell_props['z0'], centroids[:, 2].astype(np.float32)]
+        )
+        if 'cell_label_old' in self.ini_cell_props:
+            self.ini_cell_props['cell_label_old'] = np.concatenate(
+                [self.ini_cell_props['cell_label_old'], new_labels]
+            )
+
+        # 2. centroid DataFrame
+        new_centroid_df = pd.DataFrame(
+            {'x': centroids[:, 0], 'y': centroids[:, 1], 'z': centroids[:, 2]},
+            index=new_labels.astype(self._centroid.index.dtype),
+        )
+        new_centroid_df.index.name = 'cell_label'
+        self._centroid = pd.concat([self._centroid, new_centroid_df])
+
+        # 3. Covariance + eigendecomposition (prior cov for all new cells)
+        dim = 3 if self.config['is3D'] else 2
+        prior_cov = (self.mcr * self.mcr * np.eye(dim, dtype=np.float32))
+        new_cov = np.tile(prior_cov, (B, 1, 1))
+        new_vals, new_vecs = np.linalg.eigh(new_cov)
+        self._cov = np.concatenate([self._cov, new_cov], axis=0)
+        self._eig_vals = np.concatenate([self._eig_vals, new_vals], axis=0)
+        self._eig_vecs = np.concatenate([self._eig_vecs, new_vecs], axis=0)
+
+        # 4. classProb: tile the class prior
+        new_cp = np.tile(class_prior[None, :], (B, 1)).astype(self.classProb.dtype)
+        self.classProb = np.concatenate([self.classProb, new_cp], axis=0)
+
+        # 5. theta_bar: prior mean E[theta]=1 since theta ~ Gamma(rTheta, rTheta)
+        nK = self.classProb.shape[1]
+        new_tb = np.ones((B, nK), dtype=self._theta_bar.dtype)
+        self._theta_bar = np.concatenate([self._theta_bar, new_tb], axis=0)
+        if self._logtheta_bar is not None:
+            new_ltb = np.zeros((B, nK), dtype=self._logtheta_bar.dtype)  # log(1) = 0
+            self._logtheta_bar = np.concatenate([self._logtheta_bar, new_ltb], axis=0)
+
+        # 6. geneCount: zeros; geneCount_upd will overwrite next iteration anyway
+        if self._gene_counts is not None:
+            nG = self._gene_counts.shape[1]
+            new_gc = np.zeros((B, nG), dtype=self._gene_counts.dtype)
+            self._gene_counts = np.concatenate([self._gene_counts, new_gc], axis=0)
+
+        # 7. ini_gene_counts: new cells start with zero spots inside their (non-existent) footprint
+        if self._ini_gene_counts is not None:
+            new_igc = np.zeros(B, dtype=self._ini_gene_counts.dtype)
+            self._ini_gene_counts = np.concatenate([self._ini_gene_counts, new_igc])
+
+        # 8. nC + cell-to-cell neighbours (used by MRF)
+        self.nC += B
+        self._nbrs = self.nearest_neighbours()
+
+        return new_ids
+
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):
         """Calculate total (weighted by class prob) gene reads for each class.
