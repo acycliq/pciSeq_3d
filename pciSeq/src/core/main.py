@@ -924,16 +924,12 @@ class VarBayes:
                             f"out of {mask.sum()} background-dominated spots")
 
         # ------------------------------------------------------------------
-        # TEMP DEBUG GATE: spawn one blob per Pvalb sub-cluster centroid.
-        # The four centres come from single-link clustering of 14 hand-picked
-        # Pvalb spot ids at threshold ~13. Remove once real cluster-quality
-        # filtering is in.
+        # TEMP DEBUG GATE: spawn one blob at the centroid of 14 hand-picked
+        # Pvalb spot ids around the test region. Remove once real
+        # cluster-quality filtering is in.
         # ------------------------------------------------------------------
         _centres = np.array([
-            [4541.8, 3236.9, 185.8],  # cluster A (3 Pvalb)
-            [4557.6, 3226.4, 178.3],  # cluster B (2 Pvalb)
-            [4552.1, 3254.1, 175.8],  # cluster C (5 Pvalb)
-            [4567.6, 3245.9, 164.5],  # cluster D (2 Pvalb)
+            [4552.5, 3243.8, 176.8],  # mean of the 14 Pvalb spots
         ], dtype=np.float32)
         _radius = float(self.cells.mcr)
         _spot_xyz = self.spots.xyz_coords
