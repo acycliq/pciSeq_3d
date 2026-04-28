@@ -1009,24 +1009,17 @@ class VarBayes:
         distances, neighbor_ids = nbrs.kneighbors(spot_zyx)
         neighbor_ids[:, -1] = 0  # last slot reserved for background
 
-        radius = float(self.cells.mcr)
-        inside = distances < radius           # (n_spots, nN) bool
-        inside[:, -1] = False                 # bg slot is never "inside"
-
-        new_prob = np.zeros_like(distances, dtype=np.float32)
-        new_prob[inside] = 1.0
-        no_cell = ~inside.any(axis=1)
-        new_prob[no_cell, -1] = 1.0
+        nN = distances.shape[1]
+        new_prob = np.full_like(distances, 1.0 / nN, dtype=np.float32)
 
         self.spots.parent_cell_id[all_spots] = neighbor_ids.astype(
             self.spots.parent_cell_id.dtype
         )
         self.spots.parent_cell_prob[all_spots] = new_prob
 
-        n_in = int(inside.sum())
         logger.info(
-            f"birth: binary rule: {n_in} (cell, spot) inside-pairs over "
-            f"{len(all_spots)} blob spots ({int(no_cell.sum())} inside nothing -> bg)"
+            f"birth: uniform 1/{nN} rule applied to "
+            f"{len(all_spots)} blob spots over {nN} kNN slots"
         )
 
         # 4. Sync VarBayes nC cache
