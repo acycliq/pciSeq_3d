@@ -242,6 +242,14 @@ class VarBayes:
     # -------------------------------------------------------------------- #
     def run(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         self.initialise_state()
+        # Pre-loop birth: spawn new cells before iter 0 so all
+        # iteration-time updates (gamma, theta, eta, classProb) include
+        # them from the very first pass.
+        if self.config.get('birth_enabled', False):
+            self.iter_num = -1
+            blobs = self.detect_birth_candidates()
+            if blobs:
+                self.birth_cells(blobs)
         cell_df, gene_df = self.main_loop()
         return cell_df, gene_df
 
@@ -319,19 +327,9 @@ class VarBayes:
                 # 9. assign spots to cells
                 self.spots_to_cell()
 
-                # 10. birth move: instantiate new cells over blobs of
-                # background-dominated spots (see detect_birth_candidates /
-                # birth_cells). Gated on config + warmup + cadence.
-                if self.config.get('birth_enabled', False) \
-                        and i >= self.config.get('birth_warmup_iters', 5) \
-                        and (i - self.config.get('birth_warmup_iters', 5)) \
-                            % self.config.get('birth_every', 5) == 0:
-                    blobs = self.detect_birth_candidates()
-                    if blobs:
-                        self.birth_cells(blobs)
-
                 # Per-iter trace of tracked birthed cells/spots (no-op if
-                # nothing has been birthed yet)
+                # nothing has been birthed yet). Birth itself now happens
+                # once before the loop in run().
                 self._birth_debug_dump()
 
                 # # Calculate ELBO
@@ -926,31 +924,37 @@ class VarBayes:
                             f"out of {mask.sum()} background-dominated spots")
 
         # ------------------------------------------------------------------
-        # TEMP DEBUG GATE: replace the DBSCAN result with a single synthetic
-        # blob containing every spot inside a sphere of radius cell_radius
-        # around a fixed centre. The blob's centroid is the simple mean of
-        # those spots. Remove once real cluster-quality filtering is in.
+        # TEMP DEBUG GATE: spawn one blob per Pvalb sub-cluster centroid.
+        # The four centres come from single-link clustering of 14 hand-picked
+        # Pvalb spot ids at threshold ~13. Remove once real cluster-quality
+        # filtering is in.
         # ------------------------------------------------------------------
-        _centre = np.array([4550.0, 3240.0, 175.0], dtype=np.float32)
+        _centres = np.array([
+            [4541.8, 3236.9, 185.8],  # cluster A (3 Pvalb)
+            [4557.6, 3226.4, 178.3],  # cluster B (2 Pvalb)
+            [4552.1, 3254.1, 175.8],  # cluster C (5 Pvalb)
+            [4567.6, 3245.9, 164.5],  # cluster D (2 Pvalb)
+        ], dtype=np.float32)
         _radius = float(self.cells.mcr)
         _spot_xyz = self.spots.xyz_coords
-        if self.config['is3D']:
-            _dist = np.linalg.norm(_spot_xyz - _centre, axis=1)
-        else:
-            _dist = np.linalg.norm(_spot_xyz[:, :2] - _centre[:2], axis=1)
-        _idx = np.where(_dist <= _radius)[0].astype(np.int64)
-        if len(_idx) == 0:
-            blobs = []
-        else:
+        blobs = []
+        for k, _centre in enumerate(_centres):
+            if self.config['is3D']:
+                _dist = np.linalg.norm(_spot_xyz - _centre, axis=1)
+            else:
+                _dist = np.linalg.norm(_spot_xyz[:, :2] - _centre[:2], axis=1)
+            _idx = np.where(_dist <= _radius)[0].astype(np.int64)
+            if len(_idx) == 0:
+                continue
             _coords = _spot_xyz[_idx]
-            blobs = [{
+            blobs.append({
                 'spot_idx': _idx,
                 'centroid': _coords.mean(axis=0).astype(np.float32),
-            }]
+            })
             n_genes = self.spots.data.gene_name.iloc[_idx].nunique()
             logger.info(
-                f"birth: TEMP sphere filter (r={_radius:.1f} @ {_centre.tolist()}) "
-                f"-> 1 blob with {len(_idx)} spots across {n_genes} unique gene(s)"
+                f"birth: TEMP sphere {k} (r={_radius:.1f} @ {_centre.tolist()}) "
+                f"-> blob with {len(_idx)} spots across {n_genes} unique gene(s)"
             )
         return blobs
 
