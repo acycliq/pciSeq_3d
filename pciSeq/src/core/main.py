@@ -65,6 +65,8 @@ import pandas as pd
 from dask.delayed import delayed
 from scipy.special import softmax
 from sklearn.cluster import DBSCAN
+from scipy.spatial import cKDTree
+from scipy.ndimage import gaussian_filter, maximum_filter
 import opt_einsum as oe
 
 # Local imports
@@ -882,21 +884,24 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def detect_birth_candidates(self) -> List[Dict[str, Any]]:
-        """Find background-dominated blobs that look like missed cells.
+        """Find background density peaks that look like missed cells.
 
-        A spot is "background-dominated" if the misread column wins argmax
-        across its nN candidates (no fixed threshold on bg prob). DBSCAN
-        then filters out isolated spots: only spots inside a cluster of
-        >= birth_min_blob_size survive.
+        Strategy: take all spots whose segmentation label is 0 (i.e. they
+        fell on a background pixel, not inside any cell mask), drop the
+        ones that sit within `mcr` of any existing cell (those belong to
+        that cell, not to a missed one), then look for local density peaks
+        in the remaining "remote" bg-spot pool. Each peak with at least
+        `birth_min_blob_size` spots within `mcr` becomes one candidate.
 
-        Returns a list of blob dicts, one per cluster. Each dict has:
-            spot_idx: (n_spots,) global spot indices in this blob
-            centroid: (3,) bg-prob-weighted xyz centroid of the blob
-        Each blob will become exactly one new cell at the centroid; the
-        blob's spots will all rewire to that cell.
+        Note: `label` here is the cell-mask label from segmentation, not
+        the spot id. label==0 means the spot landed on background.
+
+        Returns a list of blob dicts, one per peak. Each dict has:
+            spot_idx: (n_spots,) global spot indices for spots within mcr
+                      of the peak
+            centroid: (3,) xyz centroid of those spots (simple mean)
         """
-        pcp = self.spots.parent_cell_prob
-        mask = np.argmax(pcp, axis=1) == (self.nN - 1)
+        mask = self.spots.data.label.values == 0
 
         min_samples = self.config.get('birth_min_blob_size', 5)
         blobs: List[Dict[str, Any]] = []
@@ -904,24 +909,71 @@ class VarBayes:
         if mask.sum() >= min_samples:
             members_global = np.where(mask)[0]
             coords_full = self.spots.xyz_coords[mask]
-            # 2D data has constant z, so drop it for clustering distance
-            coords = coords_full if self.config['is3D'] else coords_full[:, :2]
-            bg_weights = pcp[mask, -1]
 
-            eps = self.config.get('birth_eps', float(self.cells.mcr))
-            labels = DBSCAN(eps=eps, min_samples=min_samples, n_jobs=-1).fit_predict(coords)
+            mcr = float(self.cells.mcr)
 
-            for lab in np.unique(labels[labels >= 0]):
-                sel = labels == lab
-                idx = members_global[sel]
-                w = bg_weights[sel]
-                centroid = (coords_full[sel] * w[:, None]).sum(axis=0) / w.sum()
-                blobs.append({'spot_idx': idx, 'centroid': centroid.astype(np.float32)})
+            # 1. drop bg spots that sit within mcr of an existing cell
+            existing_xyz = self.cells.centroid[['x', 'y', 'z']].values.astype(np.float32)
+            tree_existing = cKDTree(existing_xyz)
+            d_to_cell, _ = tree_existing.query(coords_full, k=1)
+            remote = d_to_cell > mcr
+
+            n_remote = int(remote.sum())
+            if n_remote >= min_samples:
+                remote_xyz = coords_full[remote]
+                remote_global = members_global[remote]
+
+                # 2. 3D density histogram over the remote pool
+                bin_size = mcr / 2.0
+                mins = remote_xyz.min(axis=0) - bin_size
+                maxs = remote_xyz.max(axis=0) + bin_size
+                edges = [np.arange(mins[i], maxs[i] + bin_size, bin_size)
+                         for i in range(3)]
+                density, _ = np.histogramdd(remote_xyz, bins=edges)
+
+                # 3. smooth and find local maxima of the density field.
+                # A bin is a peak if it equals its own 3x3x3-neighbourhood max
+                # (so peaks are at least ~1.5*mcr apart). The actual "is this
+                # peak a real cell?" check happens later via min_samples on
+                # the spot membership count within mcr of the peak.
+                smoothed = gaussian_filter(density, sigma=1.0)
+                local_max = (smoothed == maximum_filter(smoothed, size=3)) \
+                            & (smoothed > 0)
+
+                if local_max.any():
+                    # 4. peak xyz = bin centre; gather member spots within mcr
+                    peak_idx = np.argwhere(local_max)
+                    peak_xyz = np.stack([
+                        edges[i][peak_idx[:, i]] + bin_size / 2.0
+                        for i in range(3)
+                    ], axis=1).astype(np.float32)
+
+                    tree_remote = cKDTree(remote_xyz)
+                    member_lists = tree_remote.query_ball_point(peak_xyz, r=mcr)
+
+                    for members in member_lists:
+                        if len(members) < min_samples:
+                            continue
+                        idx = remote_global[members]
+                        coords = remote_xyz[members]
+                        centroid = coords.mean(axis=0)
+                        blobs.append({
+                            'spot_idx': idx,
+                            'centroid': centroid.astype(np.float32),
+                        })
 
             if blobs:
                 n_total = sum(len(b['spot_idx']) for b in blobs)
-                logger.info(f"birth: {n_total} spots in {len(blobs)} cluster(s) "
-                            f"out of {mask.sum()} background-dominated spots")
+                logger.info(
+                    f"birth: density-peak detector found {len(blobs)} candidate(s) "
+                    f"({n_total} spots), pool was {n_remote} remote bg spots "
+                    f"out of {int(mask.sum())} bg-dominated total"
+                )
+            else:
+                logger.info(
+                    f"birth: density-peak detector found 0 candidates, pool was "
+                    f"{n_remote} remote bg spots out of {int(mask.sum())} bg-dominated"
+                )
 
         # ------------------------------------------------------------------
         # TEMP DEBUG GATE: spawn one blob at the centroid of 14 hand-picked
