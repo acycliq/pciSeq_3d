@@ -41,18 +41,23 @@ class CellClass(object):
         self._names = single_cell.classes
         self._alpha = None
         self.config = config
+        self.nK = len(self.names)
         self.single_cell_data_missing = single_cell.isMissing
+        self._cov = None
+
+    @property
+    def cov(self):
+        return self._cov
+
+    @cov.setter
+    def cov(self, val):
+        self._cov = val
 
     @property
     def names(self) -> np.ndarray:
         """Returns the names of cell types."""
         assert self._names[-1] == 'Zero', "Last label should be the Zero class"
         return self._names
-
-    @property
-    def nK(self) -> int:
-        """Returns the number of cell types."""
-        return len(self.names)
 
     @property
     def alpha(self) -> np.ndarray:
@@ -165,3 +170,7 @@ class CellClass(object):
         weights = np.array([specified.get(name, default_weight) for name in self.names], dtype=np.float64)
         weights /= weights.sum()
         return weights
+
+    def init_cov(self, nG):
+        self.cov = np.tile(np.eye(nG, dtype=np.float32), [self.nK, 1, 1])
+

@@ -175,8 +175,10 @@ class VarBayes:
         been applied directly to the expression data from scRNAseq
         """
         self.cellTypes.ini_prior()
+        self.cellTypes.init_cov(self.nG)
         self.cells.nbrs = self.cells.nearest_neighbours()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
+        self.cells.init_b(self.nG)
         self.genes.init_eta(self.config['rGene'], self.config['rGene'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
@@ -290,6 +292,9 @@ class VarBayes:
 
                 # 5. calc expected gamma
                 self.gamma_upd()
+
+                # update the cov of the gene counts give the class
+                self.b_upd()
 
                 logger.info("gaussian_upd step has been removed in this version of the software")
                 # 3 update correlation matrix and variance of the gaussian distribution
@@ -437,7 +442,7 @@ class VarBayes:
         self.spots._post_rate = beta
         self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
         self.spots._gamma_bar = delayed(self.spots.gammaExpectation(rho, beta))
-        self.spots.my_gamma_bar = self.spots._gamma_bar.compute()
+        # self.spots.my_gamma_bar = self.spots._gamma_bar.compute()
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self) -> None:
@@ -857,6 +862,46 @@ class VarBayes:
 
         self.cells.calc_theta(alpha, beta)
         print('ok')
+
+
+    def b_upd(self):
+        mu = self.single_cell.mean_expression_adj              # (nG, nK)
+        Ac = self.cells.ini_cell_props["area_factor"]          # (nC,)
+        eta_bar = self.genes.eta_bar                           # (nG,)
+        theta_bar = self.cells.theta_bar                       # (nC, nK)
+        gamma_bar = self.spots.gamma_bar.compute()             # (nC, nG, nK)
+
+        b = self.cells.b                                       # (nC, nG, nK)
+
+        precision = np.linalg.inv(self.cellTypes.cov)          # (nK, nG, nG)
+
+        Lambda = np.einsum(
+            "gk,c,g,ck,cgk->cgk",
+            mu, Ac, eta_bar, theta_bar, gamma_bar,
+            optimize=True
+        )                                                      # (nC, nG, nK)
+
+        term_1 = Lambda * np.exp(b)                            # (nC, nG, nK)
+
+        term_2 = np.einsum(
+            "kgh,chk->cgk",
+            precision, b,
+            optimize=True
+        )                                                      # (nC, nG, nK)
+
+        gradient = self.cells.geneCount[:, :, None] - term_1 - term_2
+
+        # First Newton-Raphson step
+        for c in range(self.nC):
+            for k in range(self.nK):
+                H_ck = -np.diag(term_1[c, :, k]) - precision[k]   # (nG, nG)
+
+                step = np.linalg.solve(H_ck, gradient[c, :, k])   # no inverse
+
+                b[c, :, k] -= step
+
+        self.cells.b = b
+
 
     # -------------------------------------------------------------------- #
     def diagnostics_upd(self) -> None:
