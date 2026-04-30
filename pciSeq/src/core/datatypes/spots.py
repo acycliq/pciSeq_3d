@@ -66,8 +66,8 @@ class Spots(object):
             dict: Attributes to be serialized.
         """
         attributes = self.__dict__.copy()
-        del attributes['_gamma_bar']
-        del attributes['_log_gamma_bar']
+        # del attributes['_gamma_bar']
+        # del attributes['_log_gamma_bar']
         return attributes
 
     # ---------------- PROPERTIES ---------------- #
