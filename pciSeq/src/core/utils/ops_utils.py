@@ -11,8 +11,33 @@ import opt_einsum as oe
 
 def b_upd_naive(b, mu, Ac, eta, theta, gamma, precision, counts):
     """
-    Naive implementation of b_upd based on Section 4.2 of the notes.
+    Newton-Raphson update for the expression bias term 'b'.
+    This is a naive implementation based on Section 4.2 of the pciSeq notes.
     Used for mathematical verification and clarity.
+
+    Parameters
+    ----------
+    b : np.ndarray
+        Array of shape (nC, nG, nK) containing the log-expression bias.
+    mu : np.ndarray
+        Array of shape (nG, nK) containing the mean expression values.
+    Ac : np.ndarray
+        Array of shape (nC,) containing the cell area factors.
+    eta : np.ndarray
+        Array of shape (nG,) containing the gene efficiency terms.
+    theta : np.ndarray
+        Array of shape (nC, nK) containing the cell inefficiency terms.
+    gamma : np.ndarray
+        Array of shape (nC, nG, nK) containing the spot-cell scale factors.
+    precision : np.ndarray
+        Array of shape (nK, nG, nG) containing the precision matrices (inverse covariance).
+    counts : np.ndarray
+        Array of shape (nC, nG) containing the observed gene counts per cell.
+
+    Returns
+    -------
+    np.ndarray
+        Updated expression bias array 'b' of shape (nC, nG, nK).
     """
     nC, nG, nK = b.shape
     b_out = b.copy()
@@ -40,9 +65,41 @@ def b_upd_naive(b, mu, Ac, eta, theta, gamma, precision, counts):
 
 
 @numba.njit(parallel=True, fastmath=True)
-def b_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob, tol=1e-3, max_iter=5):
+def b_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob, tol=1e-3, max_iter=20):
     """
-    Lightning-fast implementation of b_upd using Sparse PCG and Numba.
+    Fast implementation of b_upd using Sparse PCG and Numba.
+    Optimizes each cell's expression bias by solving the Newton step using
+    Conjugate Gradient, parallelized across all CPU cores.
+
+    Parameters
+    ----------
+    b : np.ndarray
+        Array of shape (nC, nG, nK) containing current log-expression bias values.
+    mu : np.ndarray
+        Mean expression array of shape (nG, nK).
+    Ac : np.ndarray
+        Cell area factors array of shape (nC,).
+    eta : np.ndarray
+        Gene efficiency terms array of shape (nG,).
+    theta : np.ndarray
+        Cell inefficiency terms array of shape (nC, nK).
+    gamma : np.ndarray
+        Spot-cell scale factors array of shape (nC, nG, nK).
+    precision : np.ndarray
+        Precision matrices array of shape (nK, nG, nG).
+    counts : np.ndarray
+        Observed gene counts array of shape (nC, nG).
+    class_prob : np.ndarray
+        Class assignment probabilities array of shape (nC, nK).
+    tol : float, optional
+        Threshold for class probability. Classes below this are skipped. Default 1e-3.
+    max_iter : int, optional
+        Maximum number of PCG iterations per solve. Default 20.
+
+    Returns
+    -------
+    np.ndarray
+        Updated expression bias array 'b' of shape (nC, nG, nK).
     """
     nC, nG, nK = b.shape
     f4 = np.float32
