@@ -865,42 +865,18 @@ class VarBayes:
 
 
     def b_upd(self):
-        mu = self.single_cell.mean_expression_adj              # (nG, nK)
+        mu = self.single_cell.mean_expression_adj.values      # (nG, nK)
         Ac = self.cells.ini_cell_props["area_factor"]          # (nC,)
         eta_bar = self.genes.eta_bar                           # (nG,)
         theta_bar = self.cells.theta_bar                       # (nC, nK)
         gamma_bar = self.spots.gamma_bar.compute()             # (nC, nG, nK)
-
         b = self.cells.b                                       # (nC, nG, nK)
-
         precision = np.linalg.inv(self.cellTypes.cov)          # (nK, nG, nG)
+        counts = self.cells.geneCount                          # (nC, nG)
+        classProb = self.cells.classProb                       # (nC, nK)
 
-        Lambda = np.einsum(
-            "gk,c,g,ck,cgk->cgk",
-            mu, Ac, eta_bar, theta_bar, gamma_bar,
-            optimize=True
-        )                                                      # (nC, nG, nK)
-
-        term_1 = Lambda * np.exp(b)                            # (nC, nG, nK)
-
-        term_2 = np.einsum(
-            "kgh,chk->cgk",
-            precision, b,
-            optimize=True
-        )                                                      # (nC, nG, nK)
-
-        gradient = self.cells.geneCount[:, :, None] - term_1 - term_2
-
-        # First Newton-Raphson step
-        for c in range(self.nC):
-            for k in range(self.nK):
-                H_ck = -np.diag(term_1[c, :, k]) - precision[k]   # (nG, nG)
-
-                step = np.linalg.solve(H_ck, gradient[c, :, k])   # no inverse
-
-                b[c, :, k] -= step
-
-        self.cells.b = b
+        # Call the lightning-fast optimized version
+        self.cells.b = utils.b_upd_optimized(b, mu, Ac, eta_bar, theta_bar, gamma_bar, precision, counts, classProb)
 
 
     # -------------------------------------------------------------------- #

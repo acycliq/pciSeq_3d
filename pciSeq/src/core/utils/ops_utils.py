@@ -1,10 +1,101 @@
 """Statistical calculation utilities."""
 import numpy as np
 import pandas as pd
+import numba
 import numpy_groupies as npg
 from typing import Tuple, Optional, Any, Union
 import logging
 import opt_einsum as oe
+
+# ... existing code ...
+
+def b_upd_naive(b, mu, Ac, eta, theta, gamma, precision, counts):
+    """
+    Naive implementation of b_upd based on Section 4.2 of the notes.
+    Used for mathematical verification and clarity.
+    """
+    nC, nG, nK = b.shape
+    b_out = b.copy()
+    for c in range(nC):
+        for k in range(nK):
+            # Λ_c|k (Expected counts based on current class)
+            Lambda = mu[:, k] * Ac[c] * eta * theta[c, k] * gamma[c, :, k]
+            
+            # term_1 = Λ ⊙ e^b
+            term_1 = Lambda * np.exp(b_out[c, :, k])
+            
+            # term_2 = Σ^-1 b
+            term_2 = precision[k] @ b_out[c, :, k]
+            
+            # Gradient ∇L = N - term_1 - term_2
+            grad = counts[c] - term_1 - term_2
+            
+            # Hessian H = -diag(term_1) - Σ^-1
+            H = -np.diag(term_1) - precision[k]
+            
+            # Newton-Raphson update: b = b - H^-1 @ grad
+            step = np.linalg.solve(H, grad)
+            b_out[c, :, k] -= step
+    return b_out
+
+
+@numba.njit(parallel=True, fastmath=True)
+def b_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob, tol=1e-3, max_iter=5):
+    """
+    Lightning-fast implementation of b_upd using Sparse PCG and Numba.
+    """
+    nC, nG, nK = b.shape
+    f4 = np.float32
+    for c in numba.prange(nC):
+        Ac_c = Ac[c]
+        gc_c = counts[c]
+        for k in range(nK):
+            if class_prob[c, k] < tol:
+                continue
+                
+            Pk = precision[k]
+            diag_Pk = np.diag(Pk)
+            theta_ck = theta[c, k]
+            
+            b_ck = np.ascontiguousarray(b[c, :, k]).astype(f4)
+            gamma_ck = gamma[c, :, k].astype(f4)
+            
+            Dk = np.empty(nG, dtype=f4)
+            rk = np.empty(nG, dtype=f4)
+            
+            term_2 = np.dot(Pk, b_ck)
+            
+            for g in range(nG):
+                lk = mu[g, k] * Ac_c * eta[g] * theta_ck * gamma_ck[g]
+                Dk[g] = lk * np.exp(b_ck[g])
+                rk[g] = gc_c[g] - Dk[g] - term_2[g]
+                
+            M_inv = f4(1.0) / (Dk + diag_Pk)
+            zk = rk * M_inv
+            pk = zk.copy()
+            rz_old = f4(np.sum(rk * zk))
+            
+            xk = np.zeros(nG, dtype=f4)
+            
+            for i in range(max_iter):
+                Apk = np.dot(Pk, pk) + Dk * pk
+                pAp = f4(np.sum(pk * Apk))
+                if pAp == 0: break
+                
+                alpha = rz_old / pAp
+                xk += alpha * pk
+                rk -= alpha * Apk
+                
+                zk = rk * M_inv
+                rz_new = f4(np.sum(rk * zk))
+                beta = rz_new / (rz_old + f4(1e-12))
+                pk = zk + beta * pk
+                rz_old = rz_new
+                
+            for g in range(nG):
+                b[c, g, k] += xk[g]
+    return b
+
 from pandas import DataFrame, Series
 import matplotlib.pyplot as plt
 import plotly.express as px
