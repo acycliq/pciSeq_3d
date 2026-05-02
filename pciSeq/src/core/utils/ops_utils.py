@@ -145,7 +145,7 @@ def b_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
     return b, avg_rel_res
 
 
-    from pandas import DataFrame, Series
+from pandas import DataFrame, Series
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
