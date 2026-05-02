@@ -145,12 +145,11 @@ def b_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
             if r0_norm > 1e-9:
                 rel = np.sqrt(np.sum(rk * rk)) / r0_norm
                 res_sum += rel
-                if rel > res_max:
-                    res_max = rel
+                res_max = max(res_max, rel)
+                res_count += 1
             
             if hit_limit:
                 n_hit_max += 1
-            res_count += 1
 
             for g in range(nG):
                 b[c, g, k] += xk[g]
