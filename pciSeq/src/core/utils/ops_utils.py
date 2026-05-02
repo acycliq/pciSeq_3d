@@ -65,7 +65,7 @@ def b_upd_naive(b, mu, Ac, eta, theta, gamma, precision, counts):
 
 
 @numba.njit(parallel=True, fastmath=True)
-def b_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob, tol=1e-3, max_iter=20):
+def b_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob, tol=1e-3, max_iter=5):
     """
     Fast implementation of b_upd using Sparse PCG and Numba.
     Optimizes each cell's expression bias by solving the Newton step using
