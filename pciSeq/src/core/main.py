@@ -884,8 +884,9 @@ class VarBayes:
         counts = self.cells.geneCount                          # (nC, nG)
         classProb = self.cells.classProb                       # (nC, nK)
 
-        # Call the optimized version
-        self.cells.b = utils.b_upd_optimized(b, mu, Ac, eta_bar, theta_bar, gamma_bar, precision, counts, classProb)
+        # Call the lightning-fast optimized version
+        self.cells.b, rel_res = utils.b_upd_optimized(b, mu, Ac, eta_bar, theta_bar, gamma_bar, precision, counts, classProb)
+        logger.info(f"Iteration {self.iter_num}: expression bias (b) updated. PCG mean relative residual: {rel_res:.2e}")
 
 
     # -------------------------------------------------------------------- #

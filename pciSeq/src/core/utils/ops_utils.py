@@ -71,89 +71,81 @@ def b_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
     Optimizes each cell's expression bias by solving the Newton step using
     Conjugate Gradient, parallelized across all CPU cores.
 
-    Parameters
-    ----------
-    b : np.ndarray
-        Array of shape (nC, nG, nK) containing current log-expression bias values.
-    mu : np.ndarray
-        Mean expression array of shape (nG, nK).
-    Ac : np.ndarray
-        Cell area factors array of shape (nC,).
-    eta : np.ndarray
-        Gene efficiency terms array of shape (nG,).
-    theta : np.ndarray
-        Cell inefficiency terms array of shape (nC, nK).
-    gamma : np.ndarray
-        Spot-cell scale factors array of shape (nC, nG, nK).
-    precision : np.ndarray
-        Precision matrices array of shape (nK, nG, nG).
-    counts : np.ndarray
-        Observed gene counts array of shape (nC, nG).
-    class_prob : np.ndarray
-        Class assignment probabilities array of shape (nC, nK).
-    tol : float, optional
-        Threshold for class probability. Classes below this are skipped. Default 1e-3.
-    max_iter : int, optional
-        Maximum number of PCG iterations per solve. Default 20.
-
     Returns
     -------
-    np.ndarray
-        Updated expression bias array 'b' of shape (nC, nG, nK).
+    tuple (np.ndarray, float)
+        Updated expression bias array 'b' and the mean relative residual.
     """
     nC, nG, nK = b.shape
     f4 = np.float32
+
+    # Residual tracking
+    res_sum = 0.0
+    res_count = 0
+
     for c in numba.prange(nC):
         Ac_c = Ac[c]
         gc_c = counts[c]
         for k in range(nK):
             if class_prob[c, k] < tol:
                 continue
-                
+
             Pk = precision[k]
             diag_Pk = np.diag(Pk)
             theta_ck = theta[c, k]
-            
+
             b_ck = np.ascontiguousarray(b[c, :, k]).astype(f4)
             gamma_ck = gamma[c, :, k].astype(f4)
-            
+
             Dk = np.empty(nG, dtype=f4)
             rk = np.empty(nG, dtype=f4)
-            
+
             term_2 = np.dot(Pk, b_ck)
-            
+
             for g in range(nG):
                 lk = mu[g, k] * Ac_c * eta[g] * theta_ck * gamma_ck[g]
                 Dk[g] = lk * np.exp(b_ck[g])
                 rk[g] = gc_c[g] - Dk[g] - term_2[g]
-                
+
+            # Initial residual norm for monitoring
+            r0_norm = np.sqrt(np.sum(rk * rk))
+
             M_inv = f4(1.0) / (Dk + diag_Pk)
             zk = rk * M_inv
             pk = zk.copy()
             rz_old = f4(np.sum(rk * zk))
-            
+
             xk = np.zeros(nG, dtype=f4)
-            
+
             for i in range(max_iter):
                 Apk = np.dot(Pk, pk) + Dk * pk
                 pAp = f4(np.sum(pk * Apk))
                 if pAp == 0: break
-                
+
                 alpha = rz_old / pAp
                 xk += alpha * pk
                 rk -= alpha * Apk
-                
+
                 zk = rk * M_inv
                 rz_new = f4(np.sum(rk * zk))
                 beta = rz_new / (rz_old + f4(1e-12))
                 pk = zk + beta * pk
                 rz_old = rz_new
-                
+
+            # Final residual norm
+            rk_final_norm = np.sqrt(np.sum(rk * rk))
+            if r0_norm > 1e-9:
+                res_sum += (rk_final_norm / r0_norm)
+            res_count += 1
+
             for g in range(nG):
                 b[c, g, k] += xk[g]
-    return b
 
-from pandas import DataFrame, Series
+    avg_rel_res = res_sum / res_count if res_count > 0 else 0.0
+    return b, avg_rel_res
+
+
+    from pandas import DataFrame, Series
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
