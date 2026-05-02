@@ -73,15 +73,18 @@ def b_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
 
     Returns
     -------
-    tuple (np.ndarray, float)
-        Updated expression bias array 'b' and the mean relative residual.
+    tuple (np.ndarray, float, float, int)
+        Updated expression bias array 'b', mean relative residual, max relative residual, 
+        and count of systems hitting max_iter.
     """
     nC, nG, nK = b.shape
     f4 = np.float32
 
     # Residual tracking
     res_sum = 0.0
+    res_max = 0.0
     res_count = 0
+    n_hit_max = 0
 
     for c in numba.prange(nC):
         Ac_c = Ac[c]
@@ -116,11 +119,14 @@ def b_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
             rz_old = f4(np.sum(rk * zk))
 
             xk = np.zeros(nG, dtype=f4)
-
+            
+            hit_limit = True
             for i in range(max_iter):
                 Apk = np.dot(Pk, pk) + Dk * pk
                 pAp = f4(np.sum(pk * Apk))
-                if pAp == 0: break
+                if pAp == 0:
+                    hit_limit = False
+                    break
 
                 alpha = rz_old / pAp
                 xk += alpha * pk
@@ -128,21 +134,29 @@ def b_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
 
                 zk = rk * M_inv
                 rz_new = f4(np.sum(rk * zk))
+                if rz_new < 1e-10:
+                    hit_limit = False
+                    break
                 beta = rz_new / (rz_old + f4(1e-12))
                 pk = zk + beta * pk
                 rz_old = rz_new
 
-            # Final residual norm
-            rk_final_norm = np.sqrt(np.sum(rk * rk))
+            # Final residual norm tracking
             if r0_norm > 1e-9:
-                res_sum += (rk_final_norm / r0_norm)
+                rel = np.sqrt(np.sum(rk * rk)) / r0_norm
+                res_sum += rel
+                if rel > res_max:
+                    res_max = rel
+            
+            if hit_limit:
+                n_hit_max += 1
             res_count += 1
 
             for g in range(nG):
                 b[c, g, k] += xk[g]
 
     avg_rel_res = res_sum / res_count if res_count > 0 else 0.0
-    return b, avg_rel_res
+    return b, avg_rel_res, res_max, n_hit_max
 
 
 from pandas import DataFrame, Series

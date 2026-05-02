@@ -885,8 +885,13 @@ class VarBayes:
         classProb = self.cells.classProb                       # (nC, nK)
 
         # Call the lightning-fast optimized version
-        self.cells.b, rel_res = utils.b_upd_optimized(b, mu, Ac, eta_bar, theta_bar, gamma_bar, precision, counts, classProb)
-        logger.info(f"Iteration {self.iter_num}: expression bias (b) updated. PCG mean relative residual: {rel_res:.2e}")
+        self.cells.b, avg_res, max_res, n_hit = utils.b_upd_optimized(b, mu, Ac, eta_bar, theta_bar, gamma_bar, precision, counts, classProb)
+        
+        msg = f"Iteration {self.iter_num}: bias (b) updated. PCG rel residual mean: {avg_res:.2e}, max: {max_res:.2e}. Systems hitting max_iter: {n_hit}"
+        if avg_res > 1e-2 or max_res > 1e-1:
+            logger.warning(msg)
+        else:
+            logger.info(msg)
 
 
     # -------------------------------------------------------------------- #
