@@ -871,8 +871,12 @@ class VarBayes:
         per-type factor, capturing correlations between gene counts that are not
         explained by the global cell-type means.
 
-        Uses a high-performance Sparse Preconditioned Conjugate Gradient
-        implementation to solve the Newton-Raphson update in sub-second time.
+        Uses the GPU-batched Jacobi-PCG implementation when CuPy + an NVIDIA
+        GPU are available (`b_upd_gpu`, ~9x faster on real data).
+        Otherwise falls back to the CPU numba implementation
+        (`b_upd_optimized`). Both share the same algorithm and tolerances.
+        Routing is decided once per process at module import time via the
+        `utils._HAS_CUPY` flag.
         """
         mu = self.single_cell.mean_expression_adj.values      # (nG, nK)
         Ac = self.cells.ini_cell_props["area_factor"]          # (nC,)
@@ -884,8 +888,9 @@ class VarBayes:
         counts = self.cells.geneCount                          # (nC, nG)
         classProb = self.cells.classProb                       # (nC, nK)
 
-        # Call the optimized version
-        self.cells.b = utils.b_upd_optimized(b, mu, Ac, eta_bar, theta_bar, gamma_bar, precision, counts, classProb)
+        # GPU when available, CPU otherwise. Same signature, same algorithm.
+        b_upd_fn = utils.b_upd_gpu if utils._HAS_CUPY else utils.b_upd_optimized
+        self.cells.b = b_upd_fn(b, mu, Ac, eta_bar, theta_bar, gamma_bar, precision, counts, classProb)
 
 
     # -------------------------------------------------------------------- #

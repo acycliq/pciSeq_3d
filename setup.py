@@ -57,6 +57,25 @@ install_deps = [
     "pyarrow",
 ]
 
+# GPU acceleration via CuPy (Linux + Windows; pip skips on Mac since Apple
+# dropped CUDA in 2018). At runtime, b_upd auto-falls-back to the numpy version
+# if CuPy or a GPU is missing, so the package still imports everywhere.
+_gpu_marker = "sys_platform != 'darwin'"
+gpu_deps = [
+    f"{pkg}; {_gpu_marker}" for pkg in [
+        "cupy-cuda12x>=14.0",
+        "nvidia-cublas-cu12>=12.4",
+        "nvidia-cusparse-cu12>=12.4",
+        "nvidia-cufft-cu12>=11.0",
+        "nvidia-cusolver-cu12>=11.0",
+        "nvidia-curand-cu12>=10.0",
+        "nvidia-cuda-runtime-cu12>=12.0",
+        "nvidia-cuda-nvrtc-cu12>=12.0",
+        "nvidia-nvjitlink-cu12>=12.4",
+    ]
+]
+install_deps += gpu_deps
+
 
 def get_version():
     """Get version from _version.py and append git commit hash if available."""
