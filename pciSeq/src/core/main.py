@@ -549,13 +549,13 @@ class VarBayes:
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
             log_gamma_bar = log_gamma_bar_arr[self.spots.parent_cell_id[:, n], self.spots.gene_id]
-            b = self.cells.beta[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+            beta = self.cells.beta[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
 
             term_3 = np.einsum('ij, ij -> i', cp, log_theta_bar)
 
-            term_4 = np.einsum("ij, ij -> i", cp, b)
+            term_4 = np.einsum("ij, ij -> i", cp, beta)
 
             # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
@@ -682,7 +682,7 @@ class VarBayes:
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
         theta_bar = self.cells.theta_bar
-        b = self.cells.beta
+        beta = self.cells.beta
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
@@ -698,7 +698,7 @@ class VarBayes:
                                          mu.values[:, :-1],
                                          area_factor,
                                          gamma_bar[:, :, :-1],
-                                         np.exp(b[:,:,:-1]),
+                                         np.exp(beta[:,:,:-1]),
                                          theta_bar[:,:-1], optimize='optimal')
         # background_counts = self.cells.background_counts
         background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
@@ -858,12 +858,12 @@ class VarBayes:
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
         eta_bar = self.genes.eta_bar
-        b = self.cells.beta
+        beta = self.cells.beta
 
         rate = np.einsum('c, cgk, cgk, g, gk -> ck',
                          area_factor,
                          gamma_bar,
-                         np.exp(b),
+                         np.exp(beta),
                          eta_bar,
                          mu) + self.config['rTheta']
 
@@ -890,29 +890,29 @@ class VarBayes:
         eta_bar = self.genes.eta_bar                           # (nG,)
         theta_bar = self.cells.theta_bar                       # (nC, nK)
         gamma_bar = self.spots.gamma_bar.compute()             # (nC, nG, nK)
-        b = self.cells.beta                                       # (nC, nG, nK)
+        beta = self.cells.beta                                 # (nC, nG, nK)
         precision = np.linalg.inv(self.cellTypes.cov)          # (nK, nG, nG)
         counts = self.cells.geneCount                          # (nC, nG)
         classProb = self.cells.classProb                       # (nC, nK)
 
         # GPU when available, CPU otherwise. Same signature, same algorithm.
-        b_upd_fn = utils.beta_upd_gpu if utils._HAS_CUPY else utils.beta_upd_optimized
-        logger.info(f"beta_upd: starting ({b_upd_fn.__name__})")
-        self.cells.beta = b_upd_fn(b, mu, Ac, eta_bar, theta_bar, gamma_bar, precision, counts, classProb)
+        beta_upd_fn = utils.beta_upd_gpu if utils._HAS_CUPY else utils.beta_upd_optimized
+        logger.info(f"beta_upd: starting ({beta_upd_fn.__name__})")
+        self.cells.beta = beta_upd_fn(beta, mu, Ac, eta_bar, theta_bar, gamma_bar, precision, counts, classProb)
 
-        # Diagnostic: locate the argmax of |b| and dump the surrounding inputs.
-        b_arr = self.cells.beta
-        c_max, g_max, k_max = np.unravel_index(np.argmax(np.abs(b_arr)), b_arr.shape)
-        b_val = b_arr[c_max, g_max, k_max]
+        # Diagnostic: locate the argmax of |beta| and dump the surrounding inputs.
+        beta_arr = self.cells.beta
+        c_max, g_max, k_max = np.unravel_index(np.argmax(np.abs(beta_arr)), beta_arr.shape)
+        beta_val = beta_arr[c_max, g_max, k_max]
         cnt_val = counts[c_max, g_max]
         lam_val = (mu[g_max, k_max] * Ac[c_max] * eta_bar[g_max]
                    * theta_bar[c_max, k_max] * gamma_bar[c_max, g_max, k_max])
         pkk_val = precision[k_max, g_max, g_max]
         cp_val = classProb[c_max, k_max]
         logger.info(
-            f"beta_upd: done; max|beta|={np.abs(b_arr).max():.3g} "
+            f"beta_upd: done; max|beta|={np.abs(beta_arr).max():.3g} "
             f"at (c={c_max}, g={g_max}, k={k_max}); "
-            f"b={b_val:.3g}, counts={cnt_val:.3g}, Lambda={lam_val:.3g}, "
+            f"beta={beta_val:.3g}, counts={cnt_val:.3g}, Lambda={lam_val:.3g}, "
             f"Pk[g,g]={pkk_val:.3g}, classProb={cp_val:.3g}"
         )
 

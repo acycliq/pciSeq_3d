@@ -19,15 +19,15 @@ except Exception:
 
 # ... existing code ...
 
-def beta_upd_naive(b, mu, Ac, eta, theta, gamma, precision, counts):
+def beta_upd_naive(beta, mu, Ac, eta, theta, gamma, precision, counts):
     """
-    Newton-Raphson update for the expression bias term 'b'.
+    Newton-Raphson update for the expression bias term 'beta'.
     This is a naive implementation based on Section 4.2 of the pciSeq notes.
     Used for mathematical verification and clarity.
 
     Parameters
     ----------
-    b : np.ndarray
+    beta : np.ndarray
         Array of shape (nC, nG, nK) containing the log-expression bias.
     mu : np.ndarray
         Array of shape (nG, nK) containing the mean expression values.
@@ -47,35 +47,35 @@ def beta_upd_naive(b, mu, Ac, eta, theta, gamma, precision, counts):
     Returns
     -------
     np.ndarray
-        Updated expression bias array 'b' of shape (nC, nG, nK).
+        Updated expression bias array 'beta' of shape (nC, nG, nK).
     """
-    nC, nG, nK = b.shape
-    b_out = b.copy()
+    nC, nG, nK = beta.shape
+    beta_out = beta.copy()
     for c in range(nC):
         for k in range(nK):
             # Λ_c|k (Expected counts based on current class)
             Lambda = mu[:, k] * Ac[c] * eta * theta[c, k] * gamma[c, :, k]
-            
-            # term_1 = Λ ⊙ e^b
-            term_1 = Lambda * np.exp(b_out[c, :, k])
-            
-            # term_2 = Σ^-1 b
-            term_2 = precision[k] @ b_out[c, :, k]
-            
+
+            # term_1 = Λ ⊙ e^beta
+            term_1 = Lambda * np.exp(beta_out[c, :, k])
+
+            # term_2 = Σ^-1 beta
+            term_2 = precision[k] @ beta_out[c, :, k]
+
             # Gradient ∇L = N - term_1 - term_2
             grad = counts[c] - term_1 - term_2
-            
+
             # Hessian H = -diag(term_1) - Σ^-1
             H = -np.diag(term_1) - precision[k]
-            
-            # Newton-Raphson update: b = b - H^-1 @ grad
+
+            # Newton-Raphson update: beta = beta - H^-1 @ grad
             step = np.linalg.solve(H, grad)
-            b_out[c, :, k] -= step
-    return b_out
+            beta_out[c, :, k] -= step
+    return beta_out
 
 
 @numba.njit(parallel=True, fastmath=True)
-def beta_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob, tol=1e-3, max_iter=20):
+def beta_upd_optimized(beta, mu, Ac, eta, theta, gamma, precision, counts, class_prob, tol=1e-3, max_iter=20):
     """
     Fast implementation of beta_upd using Sparse PCG and Numba.
     Optimizes each cell's expression bias by solving the Newton step using
@@ -83,7 +83,7 @@ def beta_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_pr
 
     Parameters
     ----------
-    b : np.ndarray
+    beta : np.ndarray
         Array of shape (nC, nG, nK) containing current log-expression bias values.
     mu : np.ndarray
         Mean expression array of shape (nG, nK).
@@ -109,9 +109,9 @@ def beta_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_pr
     Returns
     -------
     np.ndarray
-        Updated expression bias array 'b' of shape (nC, nG, nK).
+        Updated expression bias array 'beta' of shape (nC, nG, nK).
     """
-    nC, nG, nK = b.shape
+    nC, nG, nK = beta.shape
     f4 = np.float32
     for c in numba.prange(nC):
         Ac_c = Ac[c]
@@ -119,52 +119,58 @@ def beta_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_pr
         for k in range(nK):
             if class_prob[c, k] < tol:
                 continue
-                
+
             Pk = precision[k]
             diag_Pk = np.diag(Pk)
             theta_ck = theta[c, k]
-            
-            b_ck = np.ascontiguousarray(b[c, :, k]).astype(f4)
+
+            # Current beta vector for this (cell, class) pair, shape (nG,).
+            beta_ck = np.ascontiguousarray(beta[c, :, k]).astype(f4)
             gamma_ck = gamma[c, :, k].astype(f4)
-            
-            Dk = np.empty(nG, dtype=f4)
-            rk = np.empty(nG, dtype=f4)
-            
-            term_2 = np.dot(Pk, b_ck)
-            
+
+            Dk = np.empty(nG, dtype=f4)   # data Hessian diagonal: lambda * exp(beta)
+            rk = np.empty(nG, dtype=f4)   # residual = gradient of log-posterior at current beta
+
+            # Prior contribution to the gradient: Pk @ beta_ck.
+            term_2 = np.dot(Pk, beta_ck)
+
+            # Build Dk and the initial residual rk = counts - lambda*exp(beta) - Pk@beta.
             for g in range(nG):
-                lk = mu[g, k] * Ac_c * eta[g] * theta_ck * gamma_ck[g]
-                Dk[g] = lk * np.exp(b_ck[g])
-                rk[g] = gc_c[g] - Dk[g] - term_2[g]
-                
+                lk = mu[g, k] * Ac_c * eta[g] * theta_ck * gamma_ck[g]   # lambda for gene g
+                Dk[g] = lk * np.exp(beta_ck[g])                          # data Hessian diag entry
+                rk[g] = gc_c[g] - Dk[g] - term_2[g]                      # gradient (= initial CG residual)
+
+            # Jacobi preconditioner: M = diag(D + diag(Pk)). M_inv used as 1/M elementwise.
             M_inv = f4(1.0) / (Dk + diag_Pk)
-            zk = rk * M_inv
-            pk = zk.copy()
-            rz_old = f4(np.sum(rk * zk))
-            
-            xk = np.zeros(nG, dtype=f4)
-            
+            zk = rk * M_inv      # preconditioned residual z = M_inv * r
+            pk = zk.copy()       # initial search direction p0 = z0
+            rz_old = f4(np.sum(rk * zk))   # <r, z>, the current "energy"
+
+            xk = np.zeros(nG, dtype=f4)    # CG solution accumulator (the Newton step delta)
+
+            # PCG inner loop: solve (D + Pk) xk = rk_initial.
             for i in range(max_iter):
-                Apk = np.dot(Pk, pk) + Dk * pk
-                pAp = f4(np.sum(pk * Apk))
-                if pAp == 0: break
-                
-                alpha = rz_old / pAp
-                xk += alpha * pk
-                rk -= alpha * Apk
-                
-                zk = rk * M_inv
-                rz_new = f4(np.sum(rk * zk))
-                beta = rz_new / (rz_old + f4(1e-12))
-                pk = zk + beta * pk
+                Apk = np.dot(Pk, pk) + Dk * pk     # Hessian-vector product A @ pk
+                pAp = f4(np.sum(pk * Apk))         # quadratic form pk^T A pk
+                if pAp == 0: break                 # degenerate direction, stop
+
+                alpha = rz_old / pAp               # CG step size along pk
+                xk += alpha * pk                   # advance solution
+                rk -= alpha * Apk                  # update residual
+
+                zk = rk * M_inv                    # apply preconditioner to new residual
+                rz_new = f4(np.sum(rk * zk))       # new energy <r, z>
+                b = rz_new / (rz_old + f4(1e-12))  # CG mixing coefficient (Fletcher-Reeves)
+                pk = zk + b * pk                   # new search direction conjugate to previous
                 rz_old = rz_new
-                
+
+            # Apply Newton step in place: beta <- beta + delta.
             for g in range(nG):
-                b[c, g, k] += xk[g]
-    return b
+                beta[c, g, k] += xk[g]
+    return beta
 
 
-def beta_upd_gpu(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
+def beta_upd_gpu(beta, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
               tol=1e-3, max_iter=20):
     """
     GPU implementation of beta_upd. Same Jacobi-PCG algorithm as beta_upd_optimized
@@ -195,7 +201,7 @@ def beta_upd_gpu(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
     ------
     Accepts either numpy or cupy arrays for every argument.
     - numpy in: the function uploads inputs to GPU, runs, and copies the
-      updated `b` back to the host array in place. True drop-in.
+      updated `beta` back to the host array in place. True drop-in.
     - cupy in (recommended for outer loops): runs entirely on GPU, no PCIe
       transfer per call. Caller uploads inputs once before the outer loop.
 
@@ -206,7 +212,7 @@ def beta_upd_gpu(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
       * iter 2  (lucky=5, ~120 K active pairs):  ~480 ms
       * iter 1  (lucky=39, ~950 K active):       ~3.5 s
 
-    With numpy inputs the per-call PCIe upload of `b` and `gamma` (~1.6 GB)
+    With numpy inputs the per-call PCIe upload of `beta` and `gamma` (~1.6 GB)
     adds ~150-300 ms. Still faster end-to-end than the CPU production path.
 
     Parameters
@@ -228,9 +234,10 @@ def beta_upd_gpu(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
     cp = _cp
 
     # Detect input array module so we can return numpy results to a numpy caller.
-    is_numpy_in = isinstance(b, np.ndarray)
+    is_numpy_in = isinstance(beta, np.ndarray)
     if is_numpy_in:
-        b_g           = cp.asarray(b)
+        # Upload everything to the GPU once.
+        beta_g        = cp.asarray(beta)
         mu_g          = cp.asarray(mu)
         Ac_g          = cp.asarray(Ac)
         eta_g         = cp.asarray(eta)
@@ -240,15 +247,17 @@ def beta_upd_gpu(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
         counts_g      = cp.asarray(counts)
         class_prob_g  = cp.asarray(class_prob)
     else:
-        b_g, mu_g, Ac_g       = b, mu, Ac
+        # Inputs are already cupy arrays, just alias them.
+        beta_g, mu_g, Ac_g    = beta, mu, Ac
         eta_g, theta_g        = eta, theta
         gamma_g, precision_g  = gamma, precision
         counts_g, class_prob_g = counts, class_prob
 
-    nC, nG, nK = b_g.shape
+    nC, nG, nK = beta_g.shape
     f4 = cp.float32
 
     for k in range(nK):
+        # Skip cells whose probability of being class k is below tolerance.
         active = cp.where(class_prob_g[:, k] >= tol)[0]
         n_a = int(active.size)
         if n_a == 0:
@@ -258,46 +267,48 @@ def beta_upd_gpu(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
         diag_Pk = cp.diag(Pk).astype(f4)
 
         # Stack all active cells of class k as columns of (nG, n_a) matrices.
-        b_k       = cp.ascontiguousarray(b_g[active, :, k].T).astype(f4)
+        beta_k    = cp.ascontiguousarray(beta_g[active, :, k].T).astype(f4)   # current beta, per gene per active cell
         gamma_k   = cp.ascontiguousarray(gamma_g[active, :, k].T).astype(f4)
         counts_a  = cp.ascontiguousarray(counts_g[active, :].T).astype(f4)
-        scale     = (Ac_g[active] * theta_g[active, k]).astype(f4)
-        Lambda    = ((mu_g[:, k] * eta_g).astype(f4))[:, None] * scale[None, :] * gamma_k
-        Dk        = Lambda * cp.exp(b_k)
+        scale     = (Ac_g[active] * theta_g[active, k]).astype(f4)            # Ac * theta per active cell
+        Lambda    = ((mu_g[:, k] * eta_g).astype(f4))[:, None] * scale[None, :] * gamma_k   # expected count per (g, c)
+        Dk        = Lambda * cp.exp(beta_k)                                    # data Hessian diagonal
 
-        # Initial residual r0 = grad(b) = counts - D - Pk @ b.
-        rk = counts_a - Dk - Pk @ b_k
+        # Initial CG residual r0 = grad(beta) = counts - D - Pk @ beta.
+        rk = counts_a - Dk - Pk @ beta_k
 
-        # Jacobi preconditioner M = diag(D + diag(Pk)). Same as beta_upd_optimized.
+        # Jacobi preconditioner: M = diag(D + diag(Pk)). Same as beta_upd_optimized.
         M_inv = (f4(1.0) / (Dk + diag_Pk[:, None])).astype(f4)
 
-        zk = rk * M_inv
-        pk = zk.copy()
-        rz_old = (rk * zk).sum(axis=0).astype(f4)
-        xk = cp.zeros((nG, n_a), dtype=f4)
+        zk = rk * M_inv             # preconditioned residual z = M_inv * r
+        pk = zk.copy()              # initial search direction p0 = z0
+        rz_old = (rk * zk).sum(axis=0).astype(f4)   # per-cell <r, z>
+        xk = cp.zeros((nG, n_a), dtype=f4)          # solution accumulator (the Newton step delta)
 
+        # Batched PCG inner loop, one sgemm per iteration across all active cells of class k.
         for _ in range(max_iter):
-            Apk = Pk @ pk + Dk * pk
-            pAp = (pk * Apk).sum(axis=0).astype(f4)
-            safe_pAp = cp.where(pAp != 0, pAp, f4(1.0))
-            alpha = (rz_old / safe_pAp).astype(f4)
-            xk += alpha[None, :] * pk
-            rk -= alpha[None, :] * Apk
-            zk = rk * M_inv
-            rz_new = (rk * zk).sum(axis=0).astype(f4)
-            beta = (rz_new / (rz_old + f4(1e-12))).astype(f4)
-            pk = zk + beta[None, :] * pk
+            Apk = Pk @ pk + Dk * pk                                  # Hessian-vector product per cell
+            pAp = (pk * Apk).sum(axis=0).astype(f4)                  # quadratic form pk^T A pk per cell
+            safe_pAp = cp.where(pAp != 0, pAp, f4(1.0))              # guard against degenerate direction
+            alpha = (rz_old / safe_pAp).astype(f4)                   # CG step size per cell
+            xk += alpha[None, :] * pk                                # advance solution
+            rk -= alpha[None, :] * Apk                               # update residual
+            zk = rk * M_inv                                          # apply preconditioner
+            rz_new = (rk * zk).sum(axis=0).astype(f4)                # new energy <r, z>
+            b = (rz_new / (rz_old + f4(1e-12))).astype(f4)           # CG mixing coefficient (Fletcher-Reeves)
+            pk = zk + b[None, :] * pk                                # new search direction conjugate to previous
             rz_old = rz_new
 
-        b_g[active, :, k] = (b_k + xk).T
+        # Write the Newton-updated beta back into the full (nC, nG, nK) tensor.
+        beta_g[active, :, k] = (beta_k + xk).T
 
     if is_numpy_in:
         # Copy result back into the caller's numpy array, in place.
-        b[:] = cp.asnumpy(b_g)
-    return b
+        beta[:] = cp.asnumpy(beta_g)
+    return beta
 
 
-def beta_upd_fixed_point(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
+def beta_upd_fixed_point(beta, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
                       tol=1e-3, max_iter=3):
     """
     Fixed-point splitting Newton-step solver. Drop-in signature with the other
@@ -349,10 +360,11 @@ def beta_upd_fixed_point(b, mu, Ac, eta, theta, gamma, precision, counts, class_
     ------
     Accepts numpy or cupy arrays. Same auto-detection as `beta_upd_gpu`.
     """
-    is_cupy_in = (_HAS_CUPY and isinstance(b, _cp.ndarray))
+    # Auto-detect array module so the same code path runs on CPU or GPU.
+    is_cupy_in = (_HAS_CUPY and isinstance(beta, _cp.ndarray))
     xp = _cp if is_cupy_in else np
 
-    nC, nG, nK = b.shape
+    nC, nG, nK = beta.shape
     f4 = xp.float32
 
     # Precompute Pk^(-1) once per class. (Mathematically the per-class
@@ -360,6 +372,7 @@ def beta_upd_fixed_point(b, mu, Ac, eta, theta, gamma, precision, counts, class_
     P_inv = xp.stack([xp.linalg.inv(precision[k]) for k in range(nK)])
 
     for k in range(nK):
+        # Skip cells whose probability of being class k is below tolerance.
         active = xp.where(class_prob[:, k] >= tol)[0]
         n_a = int(active.size)
         if n_a == 0:
@@ -368,23 +381,26 @@ def beta_upd_fixed_point(b, mu, Ac, eta, theta, gamma, precision, counts, class_
         Pk = precision[k]
         Pk_inv = P_inv[k]
 
-        b_k       = xp.ascontiguousarray(b[active, :, k].T).astype(f4)
+        # Gather the per-(g, c) tensors for the active cells of this class.
+        beta_k    = xp.ascontiguousarray(beta[active, :, k].T).astype(f4)   # current beta, shape (nG, n_a)
         gamma_k   = xp.ascontiguousarray(gamma[active, :, k].T).astype(f4)
         counts_a  = xp.ascontiguousarray(counts[active, :].T).astype(f4)
         scale     = (Ac[active] * theta[active, k]).astype(f4)
-        Lambda    = ((mu[:, k] * eta).astype(f4))[:, None] * scale[None, :] * gamma_k
-        Dk        = Lambda * xp.exp(b_k)
+        Lambda    = ((mu[:, k] * eta).astype(f4))[:, None] * scale[None, :] * gamma_k   # expected count per (g, c)
+        Dk        = Lambda * xp.exp(beta_k)                                              # data Hessian diagonal
 
-        grad = counts_a - Dk - Pk @ b_k
+        # Newton gradient at the current beta.
+        grad = counts_a - Dk - Pk @ beta_k
 
-        # Fixed-point split: Pk x_new = grad - D x_old, starting x_0 = 0.
+        # Fixed-point split: solve (Pk + D) x = grad as Pk x_new = grad - D x_old, x_0 = 0.
         xk = Pk_inv @ grad
         for _ in range(max_iter - 1):
             xk = Pk_inv @ (grad - Dk * xk)
 
-        b[active, :, k] = (b_k + xk).T
+        # Write the Newton-updated beta back into the full (nC, nG, nK) tensor.
+        beta[active, :, k] = (beta_k + xk).T
 
-    return b
+    return beta
 
 
 from pandas import DataFrame, Series
