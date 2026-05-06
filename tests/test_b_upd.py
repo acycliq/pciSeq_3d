@@ -2,16 +2,16 @@
 import numpy as np
 import pytest
 from pciSeq.src.core.utils.ops_utils import (
-    b_upd_naive,
-    b_upd_optimized,
-    b_upd_gpu,
-    b_upd_fixed_point,
+    beta_upd_naive,
+    beta_upd_optimized,
+    beta_upd_gpu,
+    beta_upd_fixed_point,
     _HAS_CUPY,
 )
 
 
 def _make_test_inputs(seed=42, nC=5, nG=50, nK=3):
-    """Build a small synthetic problem matching test_b_upd_mathematical_consistency."""
+    """Build a small synthetic problem matching test_beta_upd_mathematical_consistency."""
     np.random.seed(seed)
     mu     = np.random.rand(nG, nK).astype(np.float32)
     Ac     = np.random.rand(nC).astype(np.float32)
@@ -28,7 +28,7 @@ def _make_test_inputs(seed=42, nC=5, nG=50, nK=3):
     return b_init, mu, Ac, eta, theta, gamma, precision, counts, class_prob
 
 
-def test_b_upd_mathematical_consistency():
+def test_beta_upd_mathematical_consistency():
     """
     Verifies that the optimized PCG implementation matches
     the naive Newton-Raphson implementation derived from the paper.
@@ -36,19 +36,19 @@ def test_b_upd_mathematical_consistency():
     b_init, mu, Ac, eta, theta, gamma, precision, counts, class_prob = _make_test_inputs()
 
     # Run Naive
-    b_naive = b_upd_naive(b_init, mu, Ac, eta, theta, gamma, precision, counts)
+    b_naive = beta_upd_naive(b_init, mu, Ac, eta, theta, gamma, precision, counts)
 
     # Run Optimized; high max_iter so we hit the float32 floor against naive
-    b_opt = b_upd_optimized(b_init.copy(), mu, Ac, eta, theta, gamma,
+    b_opt = beta_upd_optimized(b_init.copy(), mu, Ac, eta, theta, gamma,
                             precision, counts, class_prob, max_iter=50)
 
     max_diff = np.abs(b_naive - b_opt).max()
     print(f"Max difference between Naive and Optimized: {max_diff:.2e}")
-    assert max_diff < 1e-3, f"Optimized b_upd diverges from naive. Max diff: {max_diff}"
+    assert max_diff < 1e-3, f"Optimized beta_upd diverges from naive. Max diff: {max_diff}"
 
 
 @pytest.mark.skipif(not _HAS_CUPY, reason="CuPy/GPU not available")
-def test_b_upd_gpu_consistency():
+def test_beta_upd_gpu_consistency():
     """
     Verifies that the GPU PCG implementation matches the naive Newton-Raphson
     gold standard. Same problem and tolerance as the CPU optimized test.
@@ -56,19 +56,19 @@ def test_b_upd_gpu_consistency():
     b_init, mu, Ac, eta, theta, gamma, precision, counts, class_prob = _make_test_inputs()
 
     # Naive (CPU, float64 LU)
-    b_naive = b_upd_naive(b_init, mu, Ac, eta, theta, gamma, precision, counts)
+    b_naive = beta_upd_naive(b_init, mu, Ac, eta, theta, gamma, precision, counts)
 
     # GPU PCG with numpy inputs (drop-in mode: function uploads/downloads internally)
-    b_gpu = b_upd_gpu(b_init.copy(), mu, Ac, eta, theta, gamma,
+    b_gpu = beta_upd_gpu(b_init.copy(), mu, Ac, eta, theta, gamma,
                       precision, counts, class_prob, max_iter=50)
 
     max_diff = np.abs(b_naive - b_gpu).max()
     print(f"Max difference between Naive and GPU: {max_diff:.2e}")
-    assert max_diff < 1e-3, f"GPU b_upd diverges from naive. Max diff: {max_diff}"
+    assert max_diff < 1e-3, f"GPU beta_upd diverges from naive. Max diff: {max_diff}"
 
 
 @pytest.mark.skipif(not _HAS_CUPY, reason="CuPy/GPU not available")
-def test_b_upd_gpu_matches_cpu_optimized():
+def test_beta_upd_gpu_matches_cpu_optimized():
     """
     Verifies that GPU PCG produces the same b as the CPU optimized PCG
     when run with identical inputs. Both run the same Jacobi-PCG inner loop;
@@ -77,14 +77,14 @@ def test_b_upd_gpu_matches_cpu_optimized():
     """
     b_init, mu, Ac, eta, theta, gamma, precision, counts, class_prob = _make_test_inputs()
 
-    b_cpu = b_upd_optimized(b_init.copy(), mu, Ac, eta, theta, gamma,
+    b_cpu = beta_upd_optimized(b_init.copy(), mu, Ac, eta, theta, gamma,
                             precision, counts, class_prob, max_iter=20)
-    b_gpu = b_upd_gpu(b_init.copy(), mu, Ac, eta, theta, gamma,
+    b_gpu = beta_upd_gpu(b_init.copy(), mu, Ac, eta, theta, gamma,
                       precision, counts, class_prob, max_iter=20)
 
     max_diff = np.abs(b_cpu - b_gpu).max()
     print(f"Max difference between CPU optimized and GPU: {max_diff:.2e}")
-    assert max_diff < 1e-3, f"GPU b_upd disagrees with CPU optimized. Max diff: {max_diff}"
+    assert max_diff < 1e-3, f"GPU beta_upd disagrees with CPU optimized. Max diff: {max_diff}"
 
 
 def _make_realistic_inputs(seed=42, nC=50, nG=50, nK=3, mu_max=65.0,
@@ -112,16 +112,16 @@ def _make_realistic_inputs(seed=42, nC=50, nG=50, nK=3, mu_max=65.0,
     return b_init, mu, Ac, eta, theta, gamma, precision, counts, class_prob
 
 
-def test_b_upd_fixed_point_safe_regime():
+def test_beta_upd_fixed_point_safe_regime():
     """
     In the friendly synthetic regime (small mu, strong prior `Pk = AA^T + 5I`)
     the fixed-point solver converges in ~3 iterations to within 1e-3 of naive.
-    Same problem and tolerance as test_b_upd_mathematical_consistency.
+    Same problem and tolerance as test_beta_upd_mathematical_consistency.
     """
     b_init, mu, Ac, eta, theta, gamma, precision, counts, class_prob = _make_test_inputs()
 
-    b_naive = b_upd_naive(b_init, mu, Ac, eta, theta, gamma, precision, counts)
-    b_fp    = b_upd_fixed_point(b_init.copy(), mu, Ac, eta, theta, gamma,
+    b_naive = beta_upd_naive(b_init, mu, Ac, eta, theta, gamma, precision, counts)
+    b_fp    = beta_upd_fixed_point(b_init.copy(), mu, Ac, eta, theta, gamma,
                                 precision, counts, class_prob, max_iter=5)
 
     max_diff = np.abs(b_naive - b_fp).max()
@@ -132,7 +132,7 @@ def test_b_upd_fixed_point_safe_regime():
     )
 
 
-def test_b_upd_fixed_point_diverges_in_realistic_regime():
+def test_beta_upd_fixed_point_diverges_in_realistic_regime():
     """
     Documents the failure mode: in pciSeq's actual operating regime
     (heavy-tailed mu, weak prior), `||Pk^(-1) D||_2 > 1` for some (c, k)
@@ -141,14 +141,14 @@ def test_b_upd_fixed_point_diverges_in_realistic_regime():
     will trip the assertion and force a re-evaluation of the assumptions.
 
     If you want fixed-point to actually solve a real-pciSeq-shape problem,
-    you need either a stronger prior or a robust solver (b_upd_optimized).
+    you need either a stronger prior or a robust solver (beta_upd_optimized).
     """
     b_init, mu, Ac, eta, theta, gamma, precision, counts, class_prob = (
         _make_realistic_inputs(prior_floor=0.05)
     )
 
-    b_naive = b_upd_naive(b_init, mu, Ac, eta, theta, gamma, precision, counts)
-    b_fp    = b_upd_fixed_point(b_init.copy(), mu, Ac, eta, theta, gamma,
+    b_naive = beta_upd_naive(b_init, mu, Ac, eta, theta, gamma, precision, counts)
+    b_fp    = beta_upd_fixed_point(b_init.copy(), mu, Ac, eta, theta, gamma,
                                 precision, counts, class_prob, max_iter=5)
 
     max_diff = np.abs(b_naive - b_fp).max()
@@ -162,7 +162,7 @@ def test_b_upd_fixed_point_diverges_in_realistic_regime():
     )
 
 
-def test_b_upd_optimized_robust_in_realistic_regime():
+def test_beta_upd_optimized_robust_in_realistic_regime():
     """
     Counterpart to the previous test: PCG/Jacobi remains stable in the same
     realistic regime where fixed-point diverges. With max_iter=50 the worst
@@ -173,8 +173,8 @@ def test_b_upd_optimized_robust_in_realistic_regime():
         _make_realistic_inputs(prior_floor=0.05)
     )
 
-    b_naive = b_upd_naive(b_init, mu, Ac, eta, theta, gamma, precision, counts)
-    b_pcg   = b_upd_optimized(b_init.copy(), mu, Ac, eta, theta, gamma,
+    b_naive = beta_upd_naive(b_init, mu, Ac, eta, theta, gamma, precision, counts)
+    b_pcg   = beta_upd_optimized(b_init.copy(), mu, Ac, eta, theta, gamma,
                               precision, counts, class_prob, max_iter=50)
 
     max_diff = np.abs(b_naive - b_pcg).max()
@@ -188,12 +188,12 @@ def test_b_upd_optimized_robust_in_realistic_regime():
 
 
 if __name__ == "__main__":
-    test_b_upd_mathematical_consistency()
-    test_b_upd_fixed_point_safe_regime()
-    test_b_upd_fixed_point_diverges_in_realistic_regime()
-    test_b_upd_optimized_robust_in_realistic_regime()
+    test_beta_upd_mathematical_consistency()
+    test_beta_upd_fixed_point_safe_regime()
+    test_beta_upd_fixed_point_diverges_in_realistic_regime()
+    test_beta_upd_optimized_robust_in_realistic_regime()
     if _HAS_CUPY:
-        test_b_upd_gpu_consistency()
-        test_b_upd_gpu_matches_cpu_optimized()
+        test_beta_upd_gpu_consistency()
+        test_beta_upd_gpu_matches_cpu_optimized()
     else:
         print("CuPy not available; skipping GPU tests.")

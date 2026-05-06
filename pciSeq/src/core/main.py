@@ -178,7 +178,7 @@ class VarBayes:
         self.cellTypes.init_cov(self.nG)
         self.cells.nbrs = self.cells.nearest_neighbours()
         self.cells.classProb = np.tile(self.cellTypes.prior, (self.nC, 1))
-        self.cells.init_b(self.nG)
+        self.cells.init_beta(self.nG)
         self.genes.init_eta(self.config['rGene'], self.config['rGene'])
         self.spots.parent_cell_id = self.spots.cells_nearby(self.cells)[0]
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
@@ -294,7 +294,7 @@ class VarBayes:
                 self.gamma_upd()
 
                 # update the cov of the gene counts give the class
-                self.b_upd()
+                self.beta_upd()
 
                 logger.info("gaussian_upd step has been removed in this version of the software")
                 # 3 update correlation matrix and variance of the gaussian distribution
@@ -435,7 +435,7 @@ class VarBayes:
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                                     self.single_cell.mean_expression_adj.values))
 
-        rate = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :] * np.exp(self.cells.b) + cfg['rSpot']
+        rate = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :] * np.exp(self.cells.beta) + cfg['rSpot']
         shape = cfg['rSpot'] + cells.geneCount
 
         self.spots._post_shape = shape
@@ -549,7 +549,7 @@ class VarBayes:
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
             log_gamma_bar = log_gamma_bar_arr[self.spots.parent_cell_id[:, n], self.spots.gene_id]
-            b = self.cells.b[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+            b = self.cells.beta[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
 
@@ -682,7 +682,7 @@ class VarBayes:
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
         theta_bar = self.cells.theta_bar
-        b = self.cells.b
+        b = self.cells.beta
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
@@ -858,7 +858,7 @@ class VarBayes:
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
         eta_bar = self.genes.eta_bar
-        b = self.cells.b
+        b = self.cells.beta
 
         rate = np.einsum('c, cgk, cgk, g, gk -> ck',
                          area_factor,
@@ -870,18 +870,18 @@ class VarBayes:
         self.cells.calc_theta(shape, rate)
 
 
-    def b_upd(self):
+    def beta_upd(self):
         """
-        Updates the gene expression latent factor 'b' for each cell and cell type.
+        Updates the gene expression latent factor 'beta' for each cell and cell type.
 
         This step adjusts the expected gene counts by a latent per-cell,
         per-type factor, capturing correlations between gene counts that are not
         explained by the global cell-type means.
 
         Uses the GPU-batched Jacobi-PCG implementation when CuPy + an NVIDIA
-        GPU are available (`b_upd_gpu`, ~9x faster on real data).
+        GPU are available (`beta_upd_gpu`, ~9x faster on real data).
         Otherwise falls back to the CPU numba implementation
-        (`b_upd_optimized`). Both share the same algorithm and tolerances.
+        (`beta_upd_optimized`). Both share the same algorithm and tolerances.
         Routing is decided once per process at module import time via the
         `utils._HAS_CUPY` flag.
         """
@@ -890,18 +890,18 @@ class VarBayes:
         eta_bar = self.genes.eta_bar                           # (nG,)
         theta_bar = self.cells.theta_bar                       # (nC, nK)
         gamma_bar = self.spots.gamma_bar.compute()             # (nC, nG, nK)
-        b = self.cells.b                                       # (nC, nG, nK)
+        b = self.cells.beta                                       # (nC, nG, nK)
         precision = np.linalg.inv(self.cellTypes.cov)          # (nK, nG, nG)
         counts = self.cells.geneCount                          # (nC, nG)
         classProb = self.cells.classProb                       # (nC, nK)
 
         # GPU when available, CPU otherwise. Same signature, same algorithm.
-        b_upd_fn = utils.b_upd_gpu if utils._HAS_CUPY else utils.b_upd_optimized
-        logger.info(f"b_upd: starting ({b_upd_fn.__name__})")
-        self.cells.b = b_upd_fn(b, mu, Ac, eta_bar, theta_bar, gamma_bar, precision, counts, classProb)
+        b_upd_fn = utils.beta_upd_gpu if utils._HAS_CUPY else utils.beta_upd_optimized
+        logger.info(f"beta_upd: starting ({b_upd_fn.__name__})")
+        self.cells.beta = b_upd_fn(b, mu, Ac, eta_bar, theta_bar, gamma_bar, precision, counts, classProb)
 
         # Diagnostic: locate the argmax of |b| and dump the surrounding inputs.
-        b_arr = self.cells.b
+        b_arr = self.cells.beta
         c_max, g_max, k_max = np.unravel_index(np.argmax(np.abs(b_arr)), b_arr.shape)
         b_val = b_arr[c_max, g_max, k_max]
         cnt_val = counts[c_max, g_max]
@@ -910,7 +910,7 @@ class VarBayes:
         pkk_val = precision[k_max, g_max, g_max]
         cp_val = classProb[c_max, k_max]
         logger.info(
-            f"b_upd: done; max|b|={np.abs(b_arr).max():.3g} "
+            f"beta_upd: done; max|beta|={np.abs(b_arr).max():.3g} "
             f"at (c={c_max}, g={g_max}, k={k_max}); "
             f"b={b_val:.3g}, counts={cnt_val:.3g}, Lambda={lam_val:.3g}, "
             f"Pk[g,g]={pkk_val:.3g}, classProb={cp_val:.3g}"

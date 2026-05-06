@@ -8,7 +8,7 @@ import logging
 import opt_einsum as oe
 
 # Optional GPU support via CuPy. The module imports cleanly even without it;
-# b_upd_gpu raises a clear error if called without a working GPU.
+# beta_upd_gpu raises a clear error if called without a working GPU.
 try:
     import cupy as _cp
     _cp.cuda.runtime.getDeviceCount()  # raises if no driver / no GPU visible
@@ -19,7 +19,7 @@ except Exception:
 
 # ... existing code ...
 
-def b_upd_naive(b, mu, Ac, eta, theta, gamma, precision, counts):
+def beta_upd_naive(b, mu, Ac, eta, theta, gamma, precision, counts):
     """
     Newton-Raphson update for the expression bias term 'b'.
     This is a naive implementation based on Section 4.2 of the pciSeq notes.
@@ -75,9 +75,9 @@ def b_upd_naive(b, mu, Ac, eta, theta, gamma, precision, counts):
 
 
 @numba.njit(parallel=True, fastmath=True)
-def b_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob, tol=1e-3, max_iter=20):
+def beta_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob, tol=1e-3, max_iter=20):
     """
-    Fast implementation of b_upd using Sparse PCG and Numba.
+    Fast implementation of beta_upd using Sparse PCG and Numba.
     Optimizes each cell's expression bias by solving the Newton step using
     Conjugate Gradient, parallelized across all CPU cores.
 
@@ -164,29 +164,29 @@ def b_upd_optimized(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
     return b
 
 
-def b_upd_gpu(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
+def beta_upd_gpu(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
               tol=1e-3, max_iter=20):
     """
-    GPU implementation of b_upd. Same Jacobi-PCG algorithm as b_upd_optimized
+    GPU implementation of beta_upd. Same Jacobi-PCG algorithm as beta_upd_optimized
     above, but vectorised across all active cells of each class so the
     dominant work becomes batched cuBLAS sgemm. Drop-in replacement: same
     signature, same defaults, same in-place + return contract.
 
     Relation to the other implementations
     -------------------------------------
-    - `b_upd_naive`: gold-standard reference. One full dense `np.linalg.solve`
+    - `beta_upd_naive`: gold-standard reference. One full dense `np.linalg.solve`
        per (c, k). Exact to float64 rounding. O(nC * nK * nG^3); too slow for
        production but used as the verification oracle in tests/test_b_upd.py.
-    - `b_upd_optimized`: production CPU. Same Jacobi-PCG inner loop as this
+    - `beta_upd_optimized`: production CPU. Same Jacobi-PCG inner loop as this
        function, but loops cell-by-cell inside `numba.prange` and uses one
        sgemv per cell per iteration.
-    - `b_upd_gpu`: same algorithm again, but batches all active cells of
+    - `beta_upd_gpu`: same algorithm again, but batches all active cells of
        each class into a single (nG, n_a) matrix so each PCG iteration
        collapses to one sgemm `Pk @ pk_matrix`. Runs on GPU via CuPy.
 
     Numerical equivalence
     ---------------------
-    Bit-for-bit equivalence to b_upd_optimized is not guaranteed because the
+    Bit-for-bit equivalence to beta_upd_optimized is not guaranteed because the
     sums in the per-cell dot products execute in different orders, but
     agreement is within float32 rounding (~1e-4). Both implementations meet
     the existing 1e-3 tolerance in tests/test_b_upd.py.
@@ -211,19 +211,19 @@ def b_upd_gpu(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
 
     Parameters
     ----------
-    Same as `b_upd_optimized`. See its docstring above.
+    Same as `beta_upd_optimized`. See its docstring above.
 
     Raises
     ------
     RuntimeError
         If CuPy is not installed or no compatible GPU is visible. Use
-        `b_upd_optimized` instead in that case.
+        `beta_upd_optimized` instead in that case.
     """
     if not _HAS_CUPY:
         raise RuntimeError(
             "CuPy/GPU not available. "
             "Install GPU dependencies (see pciSeq_3d/setup.py) or fall back "
-            "to b_upd_optimized."
+            "to beta_upd_optimized."
         )
     cp = _cp
 
@@ -268,7 +268,7 @@ def b_upd_gpu(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
         # Initial residual r0 = grad(b) = counts - D - Pk @ b.
         rk = counts_a - Dk - Pk @ b_k
 
-        # Jacobi preconditioner M = diag(D + diag(Pk)). Same as b_upd_optimized.
+        # Jacobi preconditioner M = diag(D + diag(Pk)). Same as beta_upd_optimized.
         M_inv = (f4(1.0) / (Dk + diag_Pk[:, None])).astype(f4)
 
         zk = rk * M_inv
@@ -297,13 +297,13 @@ def b_upd_gpu(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
     return b
 
 
-def b_upd_fixed_point(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
+def beta_upd_fixed_point(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
                       tol=1e-3, max_iter=3):
     """
     Fixed-point splitting Newton-step solver. Drop-in signature with the other
-    b_upd_* functions. Provided for experimentation and accuracy/speed
+    beta_upd_* functions. Provided for experimentation and accuracy/speed
     comparison; **not recommended as a production replacement for
-    b_upd_optimized / b_upd_gpu** because of the convergence caveat below.
+    beta_upd_optimized / beta_upd_gpu** because of the convergence caveat below.
 
     Algorithm
     ---------
@@ -327,7 +327,7 @@ def b_upd_fixed_point(b, mu, Ac, eta, theta, gamma, precision, counts, class_pro
     pairs** measured on a representative pickle (see
     `notes/b_upd_methods.md` for the diagnostic). For those pairs the
     iteration diverges. PCG with Jacobi preconditioning (the production
-    `b_upd_optimized`) is unconditionally stable and should be preferred
+    `beta_upd_optimized`) is unconditionally stable and should be preferred
     for production use.
 
     When this function is fast and accurate
@@ -340,14 +340,14 @@ def b_upd_fixed_point(b, mu, Ac, eta, theta, gamma, precision, counts, class_pro
 
     Parameters
     ----------
-    Same as `b_upd_optimized`. See its docstring above.
+    Same as `beta_upd_optimized`. See its docstring above.
     Note: `max_iter` defaults to 3 (vs 20 for PCG) because each fixed-point
     iteration is a single Pk^(-1) matvec and convergence (when it occurs)
     is geometric with a small contraction factor.
 
     Inputs
     ------
-    Accepts numpy or cupy arrays. Same auto-detection as `b_upd_gpu`.
+    Accepts numpy or cupy arrays. Same auto-detection as `beta_upd_gpu`.
     """
     is_cupy_in = (_HAS_CUPY and isinstance(b, _cp.ndarray))
     xp = _cp if is_cupy_in else np
@@ -503,7 +503,7 @@ def compute_gene_loglikelihood_matrix(obj) -> np.ndarray:
     scaled_means = obj.scaled_exp.compute()
 
     # Calculate scaled expression adjusted by gene efficiency and regularization
-    ScaledExp = np.einsum('cgk,cgk,g,ck->cgk', scaled_means, np.exp(obj.cells.b), obj.genes.eta_bar, obj.cells.theta_bar) + obj.config['SpotReg']
+    ScaledExp = np.einsum('cgk,cgk,g,ck->cgk', scaled_means, np.exp(obj.cells.beta), obj.genes.eta_bar, obj.cells.theta_bar) + obj.config['SpotReg']
 
     # Calculate negative binomial probabilities
     pNegBin = ScaledExp / (obj.config['rSpot'] + ScaledExp)

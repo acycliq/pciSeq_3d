@@ -61,7 +61,7 @@ class Cells(object):
         self._theta_bar = None
         self._logtheta_bar = None
         self._nbrs = None
-        self._b = None
+        self._beta = None
 
     # -------- PROPERTIES -------- #
     @property
@@ -199,12 +199,12 @@ class Cells(object):
         self._nbrs = val
 
     @property
-    def b(self):
-        return self._b # nC, nG, nK
+    def beta(self):
+        return self._beta # nC, nG, nK
 
-    @b.setter
-    def b(self, val):
-        self._b = val
+    @beta.setter
+    def beta(self, val):
+        self._beta = val
 
     # -------- METHODS -------- #
 
@@ -220,9 +220,9 @@ class Cells(object):
         self._theta_bar = np.ones([self.nC, nK], dtype=np.float32) * (a / b)
         self._logtheta_bar = np.ones([self.nC, nK], dtype=np.float32) * self._digamma(a, b)
 
-    def init_b(self, nG):
+    def init_beta(self, nG):
         nK = self.class_names.shape[0]
-        self.b = np.zeros([self.nC, nG, nK], dtype=np.float32)
+        self.beta = np.zeros([self.nC, nG, nK], dtype=np.float32)
 
     def calc_theta(self, a, b):
         """
