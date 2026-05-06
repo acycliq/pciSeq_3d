@@ -176,7 +176,7 @@ def beta_upd_gpu(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
     -------------------------------------
     - `beta_upd_naive`: gold-standard reference. One full dense `np.linalg.solve`
        per (c, k). Exact to float64 rounding. O(nC * nK * nG^3); too slow for
-       production but used as the verification oracle in tests/test_b_upd.py.
+       production but used as the verification oracle in tests/test_beta_upd.py.
     - `beta_upd_optimized`: production CPU. Same Jacobi-PCG inner loop as this
        function, but loops cell-by-cell inside `numba.prange` and uses one
        sgemv per cell per iteration.
@@ -189,7 +189,7 @@ def beta_upd_gpu(b, mu, Ac, eta, theta, gamma, precision, counts, class_prob,
     Bit-for-bit equivalence to beta_upd_optimized is not guaranteed because the
     sums in the per-cell dot products execute in different orders, but
     agreement is within float32 rounding (~1e-4). Both implementations meet
-    the existing 1e-3 tolerance in tests/test_b_upd.py.
+    the existing 1e-3 tolerance in tests/test_beta_upd.py.
 
     Inputs
     ------
