@@ -172,5 +172,5 @@ class CellClass(object):
         return weights
 
     def init_cov(self, nG):
-        self.cov = np.tile(np.eye(nG, dtype=np.float32), [self.nK, 1, 1])
+        self.cov = np.tile(1/200 * np.eye(nG, dtype=np.float32), [self.nK, 1, 1])
 

@@ -435,7 +435,7 @@ class VarBayes:
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                                     self.single_cell.mean_expression_adj.values))
 
-        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :]+ cfg['rSpot']
+        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :] * np.exp(self.cells.b) + cfg['rSpot']
         rho = cfg['rSpot'] + cells.geneCount
 
         self.spots._post_shape = rho
@@ -549,14 +549,17 @@ class VarBayes:
             term_1 = np.einsum('ij, ij -> i', expected_counts, cp)
 
             log_gamma_bar = log_gamma_bar_arr[self.spots.parent_cell_id[:, n], self.spots.gene_id]
+            b = self.cells.b[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
             term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
 
             term_3 = np.einsum('ij, ij -> i', cp, log_theta_bar)
 
+            term_4 = np.einsum("ij, ij -> i", cp, b)
+
             # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
-            wSpotCell[:, n] = term_1 + term_2 + term_3 + logeta_bar + mvn_loglik
+            wSpotCell[:, n] = term_1 + term_2 + term_3 + term_4 + logeta_bar + mvn_loglik
             mvn_loglik_arr[:, n] = mvn_loglik
             attention[:, n] = term_1
             expr_fluctuations[:, n] = term_2
@@ -679,6 +682,7 @@ class VarBayes:
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
         theta_bar = self.cells.theta_bar
+        b = self.cells.b
 
         zero_prob = classProb[:, -1]  # probability a cell being a zero expressing cell
         zero_class_counts = self.spots.zero_class_counts(self.spots.gene_id, zero_prob)
@@ -689,11 +693,12 @@ class VarBayes:
         # Note. We should exclude the "cell" that is meant to keep the
         # misreads, ie exclude the background, hence the relevant indexing below
         # starts at 1
-        class_total_counts = oe.contract('ck, gk, c, cgk, ck -> g',
+        class_total_counts = oe.contract('ck, gk, c, cgk, cgk, ck -> g',
                                          classProb[:, :-1],
                                          mu.values[:, :-1],
                                          area_factor,
                                          gamma_bar[:, :, :-1],
+                                         np.exp(b[:,:,:-1]),
                                          theta_bar[:,:-1], optimize='optimal')
         # background_counts = self.cells.background_counts
         background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
@@ -853,10 +858,12 @@ class VarBayes:
         area_factor = self.cells.ini_cell_props['area_factor']
         gamma_bar = self.spots.gamma_bar.compute()
         eta_bar = self.genes.eta_bar
+        b = self.cells.b
 
-        beta = np.einsum('c, cgk, g, gk -> ck',
+        beta = np.einsum('c, cgk, cgk, g, gk -> ck',
                          area_factor,
                          gamma_bar,
+                         np.exp(b),
                          eta_bar,
                          mu) + self.config['rTheta']
 
@@ -878,7 +885,7 @@ class VarBayes:
         Routing is decided once per process at module import time via the
         `utils._HAS_CUPY` flag.
         """
-        mu = self.single_cell.mean_expression_adj.values      # (nG, nK)
+        mu = self.single_cell.mean_expression_adj.values  + self.config['SpotReg']    # (nG, nK)
         Ac = self.cells.ini_cell_props["area_factor"]          # (nC,)
         eta_bar = self.genes.eta_bar                           # (nG,)
         theta_bar = self.cells.theta_bar                       # (nC, nK)
@@ -890,7 +897,24 @@ class VarBayes:
 
         # GPU when available, CPU otherwise. Same signature, same algorithm.
         b_upd_fn = utils.b_upd_gpu if utils._HAS_CUPY else utils.b_upd_optimized
+        logger.info(f"b_upd: starting ({b_upd_fn.__name__})")
         self.cells.b = b_upd_fn(b, mu, Ac, eta_bar, theta_bar, gamma_bar, precision, counts, classProb)
+
+        # Diagnostic: locate the argmax of |b| and dump the surrounding inputs.
+        b_arr = self.cells.b
+        c_max, g_max, k_max = np.unravel_index(np.argmax(np.abs(b_arr)), b_arr.shape)
+        b_val = b_arr[c_max, g_max, k_max]
+        cnt_val = counts[c_max, g_max]
+        lam_val = (mu[g_max, k_max] * Ac[c_max] * eta_bar[g_max]
+                   * theta_bar[c_max, k_max] * gamma_bar[c_max, g_max, k_max])
+        pkk_val = precision[k_max, g_max, g_max]
+        cp_val = classProb[c_max, k_max]
+        logger.info(
+            f"b_upd: done; max|b|={np.abs(b_arr).max():.3g} "
+            f"at (c={c_max}, g={g_max}, k={k_max}); "
+            f"b={b_val:.3g}, counts={cnt_val:.3g}, Lambda={lam_val:.3g}, "
+            f"Pk[g,g]={pkk_val:.3g}, classProb={cp_val:.3g}"
+        )
 
 
     # -------------------------------------------------------------------- #
