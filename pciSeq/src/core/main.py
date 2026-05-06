@@ -435,13 +435,13 @@ class VarBayes:
         self._scaled_exp = delayed(utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                                     self.single_cell.mean_expression_adj.values))
 
-        beta = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :] * np.exp(self.cells.b) + cfg['rSpot']
-        rho = cfg['rSpot'] + cells.geneCount
+        rate = self.scaled_exp.compute() * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :] * np.exp(self.cells.b) + cfg['rSpot']
+        shape = cfg['rSpot'] + cells.geneCount
 
-        self.spots._post_shape = rho
-        self.spots._post_rate = beta
-        self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(rho, beta))
-        self.spots._gamma_bar = delayed(self.spots.gammaExpectation(rho, beta))
+        self.spots._post_shape = shape
+        self.spots._post_rate = rate
+        self.spots._log_gamma_bar = delayed(self.spots.logGammaExpectation(shape, rate))
+        self.spots._gamma_bar = delayed(self.spots.gammaExpectation(shape, rate))
         # self.spots.my_gamma_bar = self.spots._gamma_bar.compute()
 
     # -------------------------------------------------------------------- #
@@ -852,7 +852,7 @@ class VarBayes:
     # -------------------------------------------------------------------- #
     def theta_upd(self):
         geneCounts = self.cells.geneCount.sum(axis=1)
-        alpha = geneCounts + self.config['rTheta'] - 1
+        shape = geneCounts + self.config['rTheta'] - 1
 
         mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
         area_factor = self.cells.ini_cell_props['area_factor']
@@ -860,14 +860,14 @@ class VarBayes:
         eta_bar = self.genes.eta_bar
         b = self.cells.b
 
-        beta = np.einsum('c, cgk, cgk, g, gk -> ck',
+        rate = np.einsum('c, cgk, cgk, g, gk -> ck',
                          area_factor,
                          gamma_bar,
                          np.exp(b),
                          eta_bar,
                          mu) + self.config['rTheta']
 
-        self.cells.calc_theta(alpha, beta)
+        self.cells.calc_theta(shape, rate)
 
 
     def b_upd(self):
