@@ -43,7 +43,10 @@ class CellClass(object):
         self.config = config
         self.nK = len(self.names)
         self.single_cell_data_missing = single_cell.isMissing
+        self._cov_0 = None
         self._cov = None
+        self._nu_0 = None
+        self._nu = None
 
     @property
     def cov(self):
@@ -52,6 +55,30 @@ class CellClass(object):
     @cov.setter
     def cov(self, val):
         self._cov = val
+
+    @property
+    def cov_0(self):
+        return self._cov_0
+
+    @cov_0.setter
+    def cov_0(self, val):
+        self._cov_0 = val
+
+    @property
+    def nu_0(self):
+        return self._nu_0
+
+    @nu_0.setter
+    def nu_0(self, val):
+        self._nu_0 = val
+
+    @property
+    def nu(self):
+        return self._nu
+
+    @nu.setter
+    def nu(self, val):
+        self._nu = val
 
     @property
     def names(self) -> np.ndarray:
@@ -171,6 +198,12 @@ class CellClass(object):
         weights /= weights.sum()
         return weights
 
-    def init_cov(self, nG):
-        self.cov = np.tile(1/200 * np.eye(nG, dtype=np.float32), [self.nK, 1, 1])
+    def init_cov(self, nG, nu_0=20):
+        # nu_0 is the IW prior degrees of freedom (a "pseudo-count of cells").
+        # For the prior to be proper and have a finite mean we need nu_0 > nG + 1.
+        # TODO: the 1/200 scale on V_0 is a magic number, make it user-defined.
+        self.cov_0 = np.tile(1/200 * np.eye(nG, dtype=np.float32), [self.nK, 1, 1])
+        self.cov = self.cov_0.copy()
+        self.nu_0 = float(nu_0)
+        self.nu = np.full(self.nK, self.nu_0, dtype=np.float32)
 

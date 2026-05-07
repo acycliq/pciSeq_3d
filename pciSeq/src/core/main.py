@@ -291,28 +291,37 @@ class VarBayes:
                 self.theta_upd()
 
                 # 5. calc expected gamma
+                # gamma has an independent Gamma prior per (c, g, k). It controls
+                # overdispersion (variance > mean in spot counts). Different
+                # genes for the same cell are independent under this prior.
                 self.gamma_upd()
 
-                # update the cov of the gene counts give the class
+                # 6. calc expected beta
+                # beta has a multivariate normal prior with the per-class
+                # covariance Sigma_k. It controls gene-gene dependence:
+                # correlated co-expression patterns within a class.
                 self.beta_upd()
 
+                # 7. update the per-class gene-gene covariance Sigma_k.
+                self.class_cov_upd()
+
                 logger.info("gaussian_upd step has been removed in this version of the software")
-                # 3 update correlation matrix and variance of the gaussian distribution
+                # 8. update correlation matrix and variance of the gaussian distribution
                 # if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
                 #     self.gaussian_upd()
 
-                # 6. assign cells to cell types
+                # 9. assign cells to cell types
                 self.cell_to_cellType()
 
-                # 7. update the dirichlet distribution
+                # 10. update the dirichlet distribution
                 if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
                     self.dalpha_upd()
 
-                # 8. Update single cell data
+                # 11. Update single cell data
                 if self.single_cell.isMissing:
                     self.mu_upd()
 
-                # 9. assign spots to cells
+                # 12. assign spots to cells
                 self.spots_to_cell()
 
                 # # Calculate ELBO
@@ -891,7 +900,8 @@ class VarBayes:
         theta_bar = self.cells.theta_bar                       # (nC, nK)
         gamma_bar = self.spots.gamma_bar.compute()             # (nC, nG, nK)
         beta = self.cells.beta                                 # (nC, nG, nK)
-        precision = np.linalg.inv(self.cellTypes.cov)          # (nK, nG, nG)
+        # E[Sigma_k^{-1}] under IW(nu_k, V_k) is nu_k * V_k^{-1}.
+        precision = self.cellTypes.nu[:, None, None] * np.linalg.inv(self.cellTypes.cov)  # (nK, nG, nG)
         counts = self.cells.geneCount                          # (nC, nG)
         classProb = self.cells.classProb                       # (nC, nK)
 
@@ -916,6 +926,40 @@ class VarBayes:
             f"Pk[g,g]={pkk_val:.3g}, classProb={cp_val:.3g}"
         )
 
+    def class_cov_upd(self):
+        """Inverse-Wishart posterior update for the per-class covariance Sigma_k.
+
+            nu_k = nu_0 + sum_c zeta_{c,k}
+            V_k  = V_0  + sum_c zeta_{c,k} b_{c,:,k} b_{c,:,k}^T
+
+        GPU path when CuPy is available (~10x faster than the naive CPU loop),
+        naive per-class loop kept as the CPU fallback because it reads cleanly.
+        """
+        classProb = self.cells.classProb     # (nC, nK)
+        beta = self.cells.beta               # (nC, nG, nK)
+
+        self.cellTypes.nu = self.cellTypes.nu_0 + classProb.sum(axis=0)
+
+        if utils._HAS_CUPY:
+            import cupy as cp
+            mempool = cp.get_default_memory_pool()
+            mempool.free_all_blocks()              # release leftovers from beta_upd_gpu
+            beta_g = cp.asarray(beta)
+            zeta_g = cp.asarray(classProb)
+            V_g = cp.empty((self.nK, self.nG, self.nG), dtype=beta.dtype)
+            for k in range(self.nK):
+                bk = cp.ascontiguousarray(beta_g[:, :, k])     # (nC, nG)
+                V_g[k] = (bk * zeta_g[:, k, None]).T @ bk
+            V = cp.asnumpy(V_g)
+            del beta_g, zeta_g, V_g
+            mempool.free_all_blocks()
+        else:
+            V = np.empty_like(self.cellTypes.cov_0)
+            for k in range(self.nK):
+                bk = np.ascontiguousarray(beta[:, :, k])
+                V[k] = (bk * classProb[:, k, None]).T @ bk
+
+        self.cellTypes.cov = self.cellTypes.cov_0 + V
 
     # -------------------------------------------------------------------- #
     def diagnostics_upd(self) -> None:
