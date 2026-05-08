@@ -57,6 +57,12 @@ class CellClass(object):
         self._cov = val
 
     @property
+    def corr(self):
+        """Per-class correlation matrix derived from cov, shape (nK, nG, nG)."""
+        diag = np.diagonal(self.cov, axis1=1, axis2=2)            # (nK, nG)
+        return self.cov / np.sqrt(np.einsum('km,kn->kmn', diag, diag))
+
+    @property
     def cov_0(self):
         return self._cov_0
 
