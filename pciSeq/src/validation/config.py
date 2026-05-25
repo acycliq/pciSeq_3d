@@ -159,7 +159,6 @@ class Config(dict):
 
         Updates:
             - is3D: Whether data is 3D (multiple planes)
-            - exclude_planes: Normalized to empty list if None
         """
 
         self["is3D"] = self._detect_3d(coo)

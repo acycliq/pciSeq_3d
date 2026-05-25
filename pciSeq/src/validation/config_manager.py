@@ -27,7 +27,6 @@ class ConfigManager:
     cell_radius: Optional[float]
     cell_type_prior: str
     voxel_size: list
-    exclude_planes: list
     is3D: Union[None, bool]
     remove_flat_cells: bool
     rRho: float
@@ -74,8 +73,6 @@ class ConfigManager:
         """
         self.is3D = self.check_is3D(coo)
 
-        # if exclude_planes is None set it to []
-        self.exclude_planes = self.exclude_planes or []
 
     def check_is3D(self, input_data: Union[coo_matrix, List[coo_matrix]]) -> bool:
         """
