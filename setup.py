@@ -19,7 +19,6 @@ def get_static_files(root):
             d.endswith(".html")
             or d.endswith(".js")
             or d.endswith(".css")
-            or d.endswith(".msi")
             or d.endswith(".so")
             or d.endswith(".json")
             or d.endswith("PotreeConverter")
@@ -32,22 +31,15 @@ install_deps = [
     "pandas",
     "dask",
     "scipy",
-    "streamlit",
-    "altair",
-    "scikit-image",
     "scikit-learn",
     "tqdm",
     "flask",
     "flask-socketio",
     "fastremap",
-    "numexpr",
     "diplib",
     "pyvips[binary]",
     "natsort",
-    "redis",
     "matplotlib",
-    "laspy",
-    "tomlkit",
     "colorlog",
     "shapely",
     "alphashape",
@@ -105,9 +97,6 @@ setup(
     url="https://github.com/acycliq/pciSeq_3d",
     packages=find_packages(),
     install_requires=install_deps,
-    extras_require={
-        "interactive": ["matplotlib>=2.2.0", "jupyter"],
-    },
     include_package_data=True,
     package_data={
         "pciSeq": get_static_files(os.path.join("pciSeq", "src", "realtime_viewer"))
