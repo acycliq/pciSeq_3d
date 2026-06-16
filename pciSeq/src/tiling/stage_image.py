@@ -1,9 +1,11 @@
 import shutil
 import os
+import re
 import tempfile
 import pyvips
 import logging
 import numpy as np
+from tqdm.auto import tqdm  # picks widget bars in a notebook, text bars in a terminal
 
 from .mbtiles import disk_to_mbtiles, buffer_to_mbtiles
 
@@ -142,7 +144,7 @@ def _prepare_plane(im, zoom_levels):
     """
     # Normalize to 8-bit if not already
     if im.format != 'uchar':
-        logger.info(f"Converting {im.format} to uchar with normalization")
+        logger.debug(f"Converting {im.format} to uchar with normalization")
         mn = im.min()
         mx = im.max()
         if mx > mn:
@@ -155,7 +157,7 @@ def _prepare_plane(im, zoom_levels):
     dim = map_image_size(zoom_levels)
     factor = dim / max(im.width, im.height)
     im = im.resize(factor)
-    logger.info('Resized to %d by %d' % (im.width, im.height))
+    logger.debug('Resized to %d by %d' % (im.width, im.height))
 
     assert max(im.width, im.height) == dim, \
         'Image not scaled properly. Expected %d pixels on longest side' % dim
@@ -184,7 +186,7 @@ def _process_single_plane(im, zoom_levels, plane_out_dir):
     return [im.width, im.height]
 
 
-def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
+def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_", progress_bar=None):
     """
     Makes a pyramid of tiles from an image.
 
@@ -198,6 +200,8 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
         out_dir: (str) Output folder for the tile pyramid. Will be deleted and recreated if exists.
         plane_prefix: (str) Prefix for plane subdirectories when processing 3D images.
                       Default is "plane_" resulting in "plane_0", "plane_1", etc.
+        progress_bar: (tqdm, optional) if given, ticked once per plane instead of
+                      logging a per-plane line. Used by stage_image to drive its bars.
 
     Returns:
         dict with keys:
@@ -215,7 +219,7 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
 
     # Process each plane
     for z in range(num_planes):
-        if num_planes > 1:
+        if progress_bar is None and num_planes > 1:
             logger.info('Plane %d/%d' % (z + 1, num_planes))
 
         if isinstance(img, pyvips.Image):
@@ -227,6 +231,9 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
 
         _process_single_plane(plane, zoom_levels, os.path.join(out_dir, f"{plane_prefix}{z}"))
 
+        if progress_bar is not None:
+            progress_bar.update(1)
+
     logger.info('Done. Pyramid of tiles saved at: %s' % out_dir)
 
     return {
@@ -237,31 +244,51 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_"):
 
 
 def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, plane_prefix="plane_",
-                voxel_size=None, use_buffer=True):
+                use_buffer=True, tint=None, progress=True):
     """
-    Process an image into a viewable format (MBTiles).
+    Turn an image (or z-stack) into an MBTiles file the viewer can read.
 
-    Args:
-        img: One of:
-            - numpy array (H, W): single 2D grayscale image
-            - numpy array (Z, H, W): 3D stack of grayscale images
-            - numpy array (Z, H, W, C): 3D stack with channels
-            - str: path to a 2D image file (legacy support)
-        out_dir: (str) Output directory for the .mbtiles file. Default: system temp directory.
-        zoom_levels: (int) Number of zoom levels to produce. Default is 8.
-        name: (str) Short identifier for the dataset. Optional.
-                    Example: "WT94_DAPI"
-        description: (str) Detailed description of the dataset. Optional.
-                    Example: "DAPI background for WT94 mouse cortex, 84 z-planes at 0.9um spacing"
-        plane_prefix: (str) Prefix for plane directories/names. Default is "plane_".
-        voxel_size: (list/tuple) Size of a voxel in microns [x, y, z]. Optional.
-                    Example: [0.28, 0.28, 0.7] for 0.28 microns in x/y and 0.7 in z.
-        use_buffer: (bool) If True (default), tiles are created in memory via dzsave_buffer()
-                    and inserted directly into the MBTiles database. If False, tiles are written
-                    to disk first (uses more disk I/O but less memory).
+    This builds the tiled, multi-resolution background that pciSeq Viewer uses
+    as its slippy-map base layer. Give it a single 2D image or a whole 3D stack
+    and it writes one `.mbtiles` file.
 
-    Returns:
-        str: path to the created .mbtiles file.
+    Parameters
+    ----------
+    img : np.ndarray or str
+        The image to tile: a 2D array (H, W), a 3D stack (Z, H, W), a 3D stack
+        with channels (Z, H, W, C), or a path to a 2D image file (legacy).
+    out_dir : str, optional
+        Directory for the `.mbtiles` file. Defaults to the system temp directory.
+    zoom_levels : int, optional
+        Number of zoom levels to produce. Default is 8.
+    name : str, optional
+        Short identifier for the dataset. Also used as the output filename, e.g.
+        `name="S10_gcamp_10"` writes `S10_gcamp_10.mbtiles`. If empty, the file
+        is named `output.mbtiles`.
+    description : str, optional
+        Longer description of the dataset.
+    plane_prefix : str, optional
+        Prefix for the per-plane names. Default is "plane_".
+    use_buffer : bool, optional
+        If True (the default) the tiles are built in memory and inserted straight
+        into the MBTiles database. If False they are written to disk first, which
+        uses less memory but more disk I/O.
+    tint : str, optional
+        Hex colour like "#00FF00" the viewer uses to tint this grayscale layer.
+        If omitted, the layer is shown in plain grayscale.
+    progress : bool, optional
+        If True (the default) show two per-plane tqdm bars, one for tiling and
+        one for the db writing. Set to False for headless/quiet runs.
+
+    Returns
+    -------
+    str
+        Path to the created `.mbtiles` file.
+
+    Notes
+    -----
+    Requires libvips. If it is not installed, `pciSeq.stage_image()` falls back
+    to a stub that only logs a warning.
     """
     # Determine output directory
     if out_dir is None:
@@ -270,25 +297,33 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
 
-    mbtiles_path = os.path.join(out_dir, "output.mbtiles")
+    # name the output file after `name` so it is self-identifying and the viewer
+    # can use the filename stem as the channel id. Non filename-safe characters
+    # are replaced with '_'. If `name` is empty, fall back to output.mbtiles.
+    safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", name.strip()) if name and name.strip() else ""
+    mbtiles_path = os.path.join(out_dir, f"{safe_name}.mbtiles" if safe_name else "output.mbtiles")
 
     logger.info("Starting image processing...")
     logger.info("Output directory: %s" % out_dir)
 
     if use_buffer:
-        _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size)
+        _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, tint, progress)
     else:
-        _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size, out_dir)
+        _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, tint, progress)
 
     logger.info("Done! MBTiles file created at: %s" % mbtiles_path)
 
     return mbtiles_path
 
 
-def _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix):
-    """Yield one dzsave_buffer per plane. O(1) memory, only one plane's tiles in memory at a time."""
+def _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix, tile_bar=None):
+    """Yield one dzsave_buffer per plane. O(1) memory, only one plane's tiles in memory at a time.
+
+    If tile_bar is given it is ticked once per plane, right after that plane's
+    tiles are built, so the caller's "making tiles" bar stays in step with the work.
+    """
     for z in range(num_planes):
-        if num_planes > 1:
+        if tile_bar is None and num_planes > 1:
             logger.info('Plane %d/%d' % (z + 1, num_planes))
 
         if isinstance(img, pyvips.Image):
@@ -299,56 +334,76 @@ def _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix):
             plane = _numpy_to_vips(img[z])
 
         plane = _prepare_plane(plane, zoom_levels)
-        yield plane.dzsave_buffer(basename=f'{plane_prefix}{z}', layout='google', suffix='.jpg', background=0)
+        buf = plane.dzsave_buffer(basename=f'{plane_prefix}{z}', layout='google', suffix='.jpg', background=0)
+        if tile_bar is not None:
+            tile_bar.update(1)
+        yield buf
 
 
-def _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size):
-    """In-memory path: tiles never touch disk."""
+def _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, tint=None, progress=True):
+    """In-memory path: tiles never touch disk. The SQLite db is built in a
+    local temp directory and copied to mbtiles_path at the end, so that
+    SQLite never opens the db on a network filesystem (NFS/SMB locking is
+    unreliable and can corrupt the file)."""
     img, original_dims, num_planes = _get_img_details(img)
 
     logger.info('Processing %d plane(s), size: %dx%d' % (num_planes, original_dims[0], original_dims[1]))
     logger.info("Creating tile pyramids and packaging into MBTiles...")
 
-    bufs = _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix)
-    buffer_to_mbtiles(
-        bufs,
-        mbtiles_path,
-        format="jpg",
-        batch_size=50000,
-        width=original_dims[0],
-        height=original_dims[1],
-        name=name,
-        description=description,
-        voxel_size=voxel_size,
-    )
+    # Two per-plane bars. Because bufs is a lazy generator, tiling and db writing
+    # happen one plane at a time, so the two bars advance almost together (the db
+    # bar trails the tile bar by ~1 plane).
+    with tempfile.TemporaryDirectory() as tmpdir, \
+            tqdm(total=num_planes, desc="Making tiles", unit="plane", position=0, disable=not progress) as tile_bar, \
+            tqdm(total=num_planes, desc="Writing DB  ", unit="plane", position=1, disable=not progress) as db_bar:
+        local_mbtiles = os.path.join(tmpdir, "output.mbtiles")
+        bufs = _plane_buffer_generator(img, num_planes, zoom_levels, plane_prefix, tile_bar=tile_bar)
+        buffer_to_mbtiles(
+            bufs,
+            local_mbtiles,
+            format="jpg",
+            batch_size=50000,
+            width=original_dims[0],
+            height=original_dims[1],
+            name=name,
+            description=description,
+            tint=tint,
+            plane_bar=db_bar,
+        )
+        shutil.copy2(local_mbtiles, mbtiles_path)
 
 
-def _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, voxel_size, out_dir):
-    """Disk-based path: tiles are written to a temp directory, then imported into MBTiles."""
-    tiles_dir = os.path.join(out_dir, "_tiles_temp")
+def _stage_image_disk(img, mbtiles_path, zoom_levels, name, description, plane_prefix, tint=None, progress=True):
+    """Disk-based path: tiles AND db are built in a local temp directory,
+    then the finished db is copied to mbtiles_path. Local-first avoids
+    SQLite file-locking issues on network filesystems (NFS/SMB), and the
+    temp directory is auto-cleaned on exit (including on exception)."""
+    # plane count up front so we can size both bars. On this path the tile bar
+    # fills completely first, then the db bar, since all tiles are written to
+    # disk before any get read back into the db.
+    num_planes = _get_img_details(img)[2]
 
-    try:
-        logger.info("Step 1/3: Creating tile pyramids on disk...")
-        result = tile_maker(img, zoom_levels=zoom_levels, out_dir=tiles_dir, plane_prefix=plane_prefix)
+    with tempfile.TemporaryDirectory() as tmpdir, \
+            tqdm(total=num_planes, desc="Making tiles", unit="plane", position=0, disable=not progress) as tile_bar, \
+            tqdm(total=num_planes, desc="Writing DB  ", unit="plane", position=1, disable=not progress) as db_bar:
+        tiles_dir = os.path.join(tmpdir, "tiles")
+        local_mbtiles = os.path.join(tmpdir, "output.mbtiles")
 
-        logger.info("Step 2/3: Packaging tiles into MBTiles...")
+        result = tile_maker(img, zoom_levels=zoom_levels, out_dir=tiles_dir,
+                            plane_prefix=plane_prefix, progress_bar=tile_bar)
+
         disk_to_mbtiles(
             tiles_dir,
-            mbtiles_path,
+            local_mbtiles,
             format="jpg",
             batch_size=50000,
             width=result['original_dims'][0],
             height=result['original_dims'][1],
             name=name,
             description=description,
-            voxel_size=voxel_size,
+            tint=tint,
+            plane_bar=db_bar,
         )
 
-        logger.info("Step 3/3: Cleaning up temporary files...")
-        shutil.rmtree(tiles_dir)
-
-    except Exception:
-        if os.path.exists(tiles_dir):
-            shutil.rmtree(tiles_dir)
-        raise
+        shutil.copy2(local_mbtiles, mbtiles_path)
 
