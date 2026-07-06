@@ -62,7 +62,7 @@ import sys
 import numpy as np
 import numpy_groupies as npg
 import pandas as pd
-from scipy.special import softmax
+from scipy.special import softmax, psi
 import opt_einsum as oe
 
 # Local imports
@@ -76,7 +76,8 @@ from .utils.elbo import calc_elbo
 from .utils import ops_utils as utils
 from .utils import visualisation
 from .utils import iteration_diagnostics
-from .utils.numba_kernels import spots_to_cell_numba_kernel
+from .utils.numba_kernels import (spots_to_cell_numba_kernel, gamma_bar_kernel,
+                                  mvn_loglik_kernel)
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -415,13 +416,29 @@ class VarBayes:
         self._scaled_exp = utils.scaled_exp(cells.ini_cell_props['area_factor'],
                                             self.single_cell.mean_expression_adj.values)
 
-        beta = self.scaled_exp * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :]+ cfg['rSpot']
-        rho = cfg['rSpot'] + cells.geneCount
+        # This used to build beta, gamma_bar and log_gamma_bar with a handful of
+        # numpy expressions, each one making its own [nC, nG, nK] temporary and
+        # running on a single core. gamma_bar_kernel does the exact same maths in
+        # one pass over all cores (see utils.numba_kernels). psi(rho) does not
+        # depend on the class k, so we take the digamma once here on the small
+        # [nC, nG] array and hand it to the kernel.
+        scaled_exp = np.ascontiguousarray(self._scaled_exp)
+        eta_bar = np.ascontiguousarray(self.genes.eta_bar)
+        theta_bar = np.ascontiguousarray(self.cells.theta_bar)
+        rSpot = np.float32(cfg['rSpot'])
+        rho = rSpot + cells.geneCount
+        psi_rho = psi(rho)
+
+        beta = np.empty(scaled_exp.shape, dtype=scaled_exp.dtype)
+        gamma_bar = np.empty(scaled_exp.shape, dtype=scaled_exp.dtype)
+        log_gamma_bar = np.empty(scaled_exp.shape, dtype=scaled_exp.dtype)
+        gamma_bar_kernel(scaled_exp, eta_bar, theta_bar, rho, psi_rho, rSpot,
+                         gamma_bar, log_gamma_bar, beta)
 
         self.spots._post_shape = rho
         self.spots._post_rate = beta
-        self.spots._log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
-        self.spots._gamma_bar = self.spots.gammaExpectation(rho, beta)
+        self.spots._log_gamma_bar = log_gamma_bar
+        self.spots._gamma_bar = gamma_bar
         self.spots.my_gamma_bar = self.spots._gamma_bar
 
     # -------------------------------------------------------------------- #
@@ -591,12 +608,25 @@ class VarBayes:
                                    expected_counts, logeta_bar, nNb,
                                    wSpotCell, attention, expr_fluctuations, cell_inefficiency, gene_inefficiency)
 
-        # mvn_loglik is not in the kernel yet; compute per neighbour and add it in
-        for n in range(nNb):
-            sn = parent[:, n]
-            mvn = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
-            wSpotCell[:, n] += mvn
-            mvn_loglik_arr[:, n] = mvn
+        # mvn_loglik: the spatial (multivariate normal) term. In 3D this is a
+        # numba kernel over spots (see utils.numba_kernels); the old per-neighbour
+        # numpy loop ran on a single core. The 2D path is rare here, so it keeps
+        # the plain numpy loop for now.
+        if self.config['is3D']:
+            xyz = np.ascontiguousarray(self.spots.xyz_coords)
+            centroids = np.ascontiguousarray(self.cells.centroid.values)
+            eig_vals = np.ascontiguousarray(self.cells.eig_vals)
+            eig_vecs = np.ascontiguousarray(self.cells.eig_vecs)
+            mvn_out = np.zeros([nS, nNb])
+            mvn_loglik_kernel(xyz, parent, centroids, eig_vals, eig_vecs, nNb, mvn_out)
+            wSpotCell[:, :nNb] += mvn_out
+            mvn_loglik_arr[:, :nNb] = mvn_out
+        else:
+            for n in range(nNb):
+                sn = parent[:, n]
+                mvn = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
+                wSpotCell[:, n] += mvn
+                mvn_loglik_arr[:, n] = mvn
 
         bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
         wSpotCell += bonus_mask

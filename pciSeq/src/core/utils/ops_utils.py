@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
 from scipy.special import psi, softmax
+from .numba_kernels import gene_loglik_kernel
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -117,20 +118,21 @@ def compute_gene_loglikelihood_matrix(obj) -> np.ndarray:
                    where element [c,g,k] is the log-likelihood contribution of
                    gene g in cell c for cell type k
     """
-    # Compute scaled expression (expensive operation done once)
-    scaled_means = obj.scaled_exp
+    # This is the same negative-binomial log-likelihood as before, but instead of
+    # a chain of numpy expressions (ScaledExp -> pNegBin -> loglik), each building
+    # its own single-core [nC, nG, nK] temporary, gene_loglik_kernel does the whole
+    # element-wise calculation in one pass over all cores. The result is the same
+    # [nC, nG, nK] matrix; the caller still sums it over genes with numpy, so that
+    # reduction stays exactly as it was.
+    scaled_means = np.ascontiguousarray(obj.scaled_exp)
+    eta_bar = np.ascontiguousarray(obj.genes.eta_bar)
+    theta_bar = np.ascontiguousarray(obj.cells.theta_bar)
+    cgc = np.ascontiguousarray(obj.cells.geneCount)
+    rSpot = np.float32(obj.config['rSpot'])
+    SpotReg = np.float32(obj.config['SpotReg'])
 
-    # Calculate scaled expression adjusted by gene efficiency and regularization
-    ScaledExp = np.einsum('cgk,g,ck->cgk', scaled_means, obj.genes.eta_bar, obj.cells.theta_bar) + obj.config['SpotReg']
-
-    # Calculate negative binomial probabilities
-    pNegBin = ScaledExp / (obj.config['rSpot'] + ScaledExp)
-
-    # Get gene counts for all cells
-    cgc = obj.cells.geneCount
-
-    # Calculate log-likelihood contributions for all cells
-    contr = negative_binomial_loglikelihood(cgc, obj.config['rSpot'], pNegBin)
+    contr = np.empty(scaled_means.shape, dtype=scaled_means.dtype)
+    gene_loglik_kernel(scaled_means, eta_bar, theta_bar, cgc, rSpot, SpotReg, contr)
 
     return contr
 
