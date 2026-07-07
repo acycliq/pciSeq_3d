@@ -65,6 +65,7 @@ install_deps = [
     "scipy",
     "scikit-learn",
     "tqdm",
+    "ipywidgets",  # lets the stage_image progress bars show as nice widgets in a notebook
     "flask",
     "flask-socketio",
     "fastremap",

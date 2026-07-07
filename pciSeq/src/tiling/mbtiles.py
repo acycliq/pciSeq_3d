@@ -279,6 +279,8 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
     image_format = (image_format or "png").lower()
     batch_size = kwargs.get("batch_size", 1000)
     sample_every = max(10000, batch_size * 10)
+    # optional tqdm bar, ticked once per plane directory by stage_image
+    plane_bar = kwargs.get("plane_bar")
 
     if not silent:
         logger.info("Importing disk to MBTiles")
@@ -357,10 +359,13 @@ def disk_to_mbtiles(directory_path, mbtiles_file, **kwargs):
                         con.commit()
                         batch = []
                         if not silent:
-                            logger.info(
+                            logger.debug(
                                 " %s tiles inserted (%d tiles/sec)"
                                 % (count, count / (time.time() - start_time))
                             )
+
+        if plane_bar is not None:
+            plane_bar.update(1)
 
     # Insert remaining tiles in batch
     if batch:
@@ -403,6 +408,8 @@ def buffer_to_mbtiles(bufs, mbtiles_file, **kwargs):
     image_format = (image_format or "png").lower()
     batch_size = kwargs.get("batch_size", 1000)
     sample_every = max(10000, batch_size * 10)
+    # optional tqdm bar, ticked once per plane (per buffer) by stage_image
+    plane_bar = kwargs.get("plane_bar")
 
     if not silent:
         logger.info("Importing buffers to MBTiles")
@@ -467,10 +474,13 @@ def buffer_to_mbtiles(bufs, mbtiles_file, **kwargs):
                     con.commit()
                     batch = []
                     if not silent:
-                        logger.info(
+                        logger.debug(
                             " %s tiles inserted (%d tiles/sec)"
                             % (count, count / (time.time() - start_time))
                         )
+
+        if plane_bar is not None:
+            plane_bar.update(1)
 
     # Insert remaining tiles
     if batch:
