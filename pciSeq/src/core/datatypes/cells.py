@@ -350,11 +350,14 @@ class Cells(object):
         }
         return out
 
-    def calc_mrf(self):
+    def mrf_support(self):
         """
-        MRF term for the cell-typing step. For each cell c and class k it is
-        mrf_beta times the proximity-weighted, similarity-pooled support from
-        the cell's neighbours for class k.
+        Beta-free MRF support. For each cell c and class k this is the
+        proximity-weighted, similarity-pooled sum of the neighbours' class probs
+        (zeta) for class k. This is the quantity that later gets multiplied by
+        the MRF strength: either the flat mrf_beta (calc_mrf below) or the
+        per-cell-class capped beta (see main.py::cell_to_cellType and
+        docs/mrf_cap/loglik_ratio.tex).
 
         Returns an (nC, nK) array.
         """
@@ -415,7 +418,15 @@ class Cells(object):
 
         mrf = oe.contract('ck, kj -> cj', mrf, A)
 
-        return mrf * self.config["mrf_beta"]
+        return mrf
+
+    def calc_mrf(self):
+        """
+        Flat-beta MRF term: the support times the scalar mrf_beta. This is the
+        original uncapped MRF, still used by the ELBO and when apply_mrf_cap is
+        switched off. Returns an (nC, nK) array.
+        """
+        return self.mrf_support() * self.config["mrf_beta"]
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):

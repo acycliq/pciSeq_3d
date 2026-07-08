@@ -446,14 +446,85 @@ class VarBayes:
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
-        mrf = self.cells.calc_mrf()
+
+        # MRF term. With the cap on, the strength is limited per (cell, class)
+        # so neighbours cannot flip a cell out of Zero against its own data.
+        # With it off, the plain flat-beta MRF is used.
+        if self.config['apply_mrf_cap']:
+            mrf = self._capped_mrf(contr)
+        else:
+            mrf = self.cells.calc_mrf()
+
         # stash mrf for debugging (same pattern as nb_contr above)
         self.cells.mrf = mrf
-        # mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
         wCellClass = contr + self.cellTypes.log_prior + mrf
         pCellClass = softmax(wCellClass, axis=1)
 
         self.cells.classProb = pCellClass
+
+    def _capped_mrf(self, contr) -> np.ndarray:
+        """
+        MRF term with a per-(cell, class) cap on the strength, so the MRF can
+        never flip a cell out of Zero when its own gene evidence and the prior
+        both point at Zero. Full derivation in docs/mrf_cap/loglik_ratio.tex.
+
+        For each real class k we look at the log-odds of k against the Zero
+        class. The part that does not depend on the MRF strength is
+            D[c,k] = (NB loglik of k - NB loglik of Zero)
+                     + (log prior k - log prior Zero)
+        and the MRF adds beta * S[c,k] on top, with S the neighbour support. The
+        cell tips from Zero to k once beta passes -D[c,k]/S[c,k]. Capping exactly
+        there lands on a tie (Delta = 0), and the argmax then hands the label to
+        the real class because Zero is the last column. So instead we ask Zero to
+        win by a small margin tol in log-odds, i.e. target Delta = -tol, giving
+            beta*[c,k] = -(D[c,k] + tol) / S[c,k].
+        We reuse SpotReg as tol so there is no extra knob. We cap the user's
+        mrf_beta at beta*[c,k] wherever the data favours Zero (D < 0). Where the
+        data already wants k (D >= 0) there is nothing to protect, so the full
+        beta is kept. The Zero class gets no MRF support of its own
+        (beta_zero = 0), i.e. a cell is never pushed into Zero just because its
+        neighbours are Zero.
+
+        Parameters
+        ----------
+        contr : np.ndarray
+            (nC, nK) negative-binomial log-likelihood per cell and class, already
+            summed over genes.
+
+        Returns
+        -------
+        np.ndarray
+            (nC, nK) MRF term to add to the cell-class log-score.
+        """
+        zero = self.nK - 1  # Zero is the last class
+        beta = self.config['mrf_beta']
+        # tolerance: Zero must beat each capped class by this much in log-odds,
+        # so we target Delta = -tol (a strict win) rather than Delta = 0 (a tie).
+        # Reusing SpotReg keeps this parameter-free.
+        tol = self.config['SpotReg']
+
+        support = self.cells.mrf_support()  # (nC, nK), the beta-free support
+
+        # data + prior score of each class relative to Zero (Zero column is 0)
+        log_prior = self.cellTypes.log_prior
+        D = (contr - contr[:, [zero]]) + (log_prior - log_prior[zero])
+
+        # beta*[c,k] solves D + beta*S = -tol, i.e. beta = -(D+tol)/S. Where S = 0
+        # (no class-k neighbours) the MRF term is beta*S = 0 anyway, so the value
+        # there does not matter; errstate just keeps numpy quiet about the /0.
+        with np.errstate(divide='ignore', invalid='ignore'):
+            beta_star = -(D + tol) / support
+
+        # cap only where the data favours Zero (D < 0); otherwise keep full beta.
+        # max(0, .) guards the thin band -tol <= D < 0, where the target margin
+        # cannot be met with a non-negative beta, so we just drop the MRF there.
+        capped = np.where(D < 0, np.minimum(beta, np.maximum(0.0, beta_star)), beta)
+        # the Zero class is never promoted by the neighbourhood
+        capped[:, zero] = 0.0
+
+        # stash for diagnostics (same pattern as nb_contr / mrf above)
+        self.cells.effective_beta = capped
+        return capped * support
 
     # -------------------------------------------------------------------- #
     def spots_to_cell(self) -> None:

@@ -30,6 +30,12 @@ DEFAULT = {
     # MRF coefficient: controls how strongly neighboring cells' class assignments
     # influence each other. Higher values = more spatial smoothing.
     "mrf_beta": 1.0,
+    # When True, cap mrf_beta per (cell, class) so the MRF can never flip a cell
+    # out of the Zero class when its own gene evidence and the prior both favour
+    # Zero. Also stops neighbours from pushing a cell into Zero (beta_zero = 0).
+    # See docs/mrf_cap/loglik_ratio.tex for the derivation. When False the old
+    # flat mrf_beta is used everywhere.
+    "apply_mrf_cap": True,
     # MisreadDensity: Expected number of misread spots. A dictionary contains user-defined values
     # for gene misread densities used in the analysis.
     # The process to determine the misread density for each gene is as follows:

@@ -38,6 +38,7 @@ _TYPE_SPECS = {
     "realtime_viewer_fixed_radius": (type(None), float),
     "rRho": (int, float),
     "similarity_pairs": (type(None), list),
+    "apply_mrf_cap": bool,
     "mean_gene_counts_per_class": int,
     "mean_gene_counts_per_cell": int,
 }
