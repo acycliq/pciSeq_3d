@@ -80,7 +80,6 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         if cfg['save_data']:
             write_data(cellData, geneData, cellBoundaries, cellBoundaries_list, varBayes, cfg)
 
-        logger.info('Done')
         return cellData, geneData
 
     except Exception as e:
@@ -94,6 +93,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
                 logger.info('Stopped realtime viewer')
             except Exception as e:
                 logger.warning(f'Failed to stop realtime viewer: {e}')
+        logger.info("Done")
 
 
 def cell_type(
