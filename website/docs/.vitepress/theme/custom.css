@@ -151,3 +151,7 @@
 .donut-sub { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; opacity: 0.55; }
 .donut-legend text { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
 .donut-pct { opacity: 0.6; font-weight: 600; }
+
+/* empty-cell probability bar chart (how-it-works/warping-the-reference) */
+.barc-name { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; }
+.barc-pct { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; opacity: 0.6; }
