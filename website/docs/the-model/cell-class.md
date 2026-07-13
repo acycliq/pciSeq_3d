@@ -235,17 +235,23 @@ neighbours are frozen across iterations: roughly five are stably the real class
 $\sum_{c'\in\mathcal{N}_c}\bar\zeta_{c',030}$ is essentially constant, worth about $6$ in
 $\beta\cdot\text{support}$ units.
 
-On its own gene data the cell mildly prefers the real class `016 CA1-ProS Glut`, and because
-it has so few reads the class `030` sits right on the fence against Zero. So with the spatial
-term switched off,
+On its own gene data the cell prefers `016 CA1-ProS Glut`, and it also fits `030` a few
+log-odds units better than Zero (the run shows `030` ahead of Zero by about $+2$ to $+5$ every
+iteration). So on the reads alone the order is `016`, then `030`, then Zero. This near tie
+between `030` and Zero is not in the gene data. It is put there by the Zero prior: the
+`{Zero:0.3}` head start for Zero is about the same size as `030`'s lead over Zero on the genes,
+so once the prior is folded in the two nearly cancel and $D_{c,030}$, which carries that prior,
+lands right on $0$:
 
 $$
-D_{c,016} > 0 \quad(\text{winner}), \qquad D_{c,030} \approx 0 \quad(\text{straddles Zero}),
+D_{c,016} > 0 \quad(\text{winner}), \qquad D_{c,030} \approx 0 \quad(\text{level with Zero}).
 $$
 
-and the order the data alone would pick is `016`, then Zero, then `030`: the winner is a real
-class, Zero is only second, and the neighbour class `030` sits on the Zero fence. Now watch one
-full lap of the loop under the per-class cap:
+So with the spatial term switched off `016` is the clear winner, and `030` and Zero sit in a
+near tie just below it. Because the cell has so few reads, gaining or losing a single owned
+spot swings the gene term enough to push $D_{c,030}$ from just above $0$ to just below, and
+that back-and-forth is what the cap turns into a flip. Now watch one full lap of the loop under
+the per-class cap:
 
 - $D_{c,030}\ge 0$: cap off on `030`, the full neighbour vote ($\approx 6$) is applied. It
   beats the cell's own mild preference for `016`, so the cell is called `030`.
@@ -264,8 +270,8 @@ cap on the `030` channel, through $D_{c,030}$ crossing $0$. A $\approx 6$-unit t
 fully on and fully off, so the label flips even though the data term barely moves.
 
 The point to hold onto, and the reason this is a cap bug rather than a fact of life: **Zero is
-never this cell's winner.** On the evidence the cell is `016`, with Zero only second. The
-per-class cap fired on the `030` channel to keep Zero ahead of `030`, but the cell was never
+never this cell's winner.** On the evidence the cell is `016`, and Zero never reaches the top.
+The per-class cap fired on the `030` channel to keep Zero ahead of `030`, but the cell was never
 going to be Zero, so it was defending a label it would never take, and each time it did so it
 knocked out a legitimate neighbour clean to `030`.
 
@@ -292,10 +298,12 @@ settings ($\beta = 1$, `rTheta` $= 5$), and it holds across `rTheta` from 2 to 1
 Restricting the cap this way does not smooth it. The coupling is still a hard switch at
 $D_{c,k}=0$; it just never engages on a cell whose winner is a real class, which is where 22786
 and cells like it lived. A cell genuinely balanced between Zero and a single real class could
-in principle still chatter at that fence, but on the Espio data none do and the run converges.
+in principle still oscillate where its $D_{c,k}$ crosses $0$, but on the Espio data none do and
+the run converges.
 
 Raising `rTheta` also converged the old run, back when the cap fired on any class below Zero,
 because it shifts $\theta$ for the Zero class and so shifts $D_{c,k}$, sliding a stuck cell off
-the fence onto its neighbour class. But that only moves where the fence bites, it does not
-remove the misfire, so it is dataset specific: on a harder dataset another cell can land on the
-fence. Only capping when Zero wins removes the misfire itself, which is why it is the fix.
+the $D_{c,k}=0$ boundary onto its neighbour class. But that only moves where the boundary sits,
+it does not remove the misfire, so it is dataset specific: on a harder dataset another cell can
+land on the boundary. Only capping when Zero wins removes the misfire itself, which is why it
+is the fix.
