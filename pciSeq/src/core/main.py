@@ -509,10 +509,12 @@ class VarBayes:
         log_prior = self.cellTypes.log_prior
         D = (contr - contr[:, [zero]]) + (log_prior - log_prior[zero])
 
-        # beta*[c,k] solves D + beta*S = -tol, i.e. beta = -(D+tol)/S. Where S = 0
-        # (no class-k neighbours) the MRF term is beta*S = 0 anyway, so the value
-        # there does not matter; errstate just keeps numpy quiet about the /0.
-        with np.errstate(divide='ignore', invalid='ignore'):
+        # beta*[c,k] solves D + beta*S = -tol, i.e. beta = -(D+tol)/S. Where S is
+        # zero or tiny (no or vanishing class-k neighbours) the MRF term beta*S is
+        # ~0 anyway and beta_star gets clamped by the minimum below, so the huge
+        # or inf value there does not matter; errstate keeps numpy quiet about the
+        # /0 (divide) and the tiny-denominator blow-up (over).
+        with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
             beta_star = -(D + tol) / support
 
         # cap only where the data favours Zero (D < 0); otherwise keep full beta.
