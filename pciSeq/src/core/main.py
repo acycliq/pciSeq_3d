@@ -517,10 +517,24 @@ class VarBayes:
         with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
             beta_star = -(D + tol) / support
 
+        # Only cells whose own data actually points to Zero should be capped. Zero is
+        # the data winner for a cell exactly when every real class scores below Zero,
+        # i.e. D < 0 across the whole row (excluding the Zero column, which is 0 by
+        # build). For any other cell the winner is some real class, so there is no Zero
+        # label to protect and we leave the whole row at full beta, letting the
+        # neighbours clean the cell into a real class. Without this gate the cap fired
+        # per class on any class that happened to sit below Zero, even in a cell whose
+        # winner was a real class, and that is what made boundary cells like 22786
+        # oscillate (the neighbour class kept getting its coupling zeroed and restored).
+        real = np.arange(self.nK) != zero
+        zero_is_winner = (D[:, real] < 0).all(axis=1)  # (nC,)
+
         # cap only where the data favours Zero (D < 0); otherwise keep full beta.
         # max(0, .) guards the thin band -tol <= D < 0, where the target margin
         # cannot be met with a non-negative beta, so we just drop the MRF there.
-        capped = np.where(D < 0, np.minimum(beta, np.maximum(0.0, beta_star)), beta)
+        capped = np.where(zero_is_winner[:, None] & (D < 0),
+                          np.minimum(beta, np.maximum(0.0, beta_star)),
+                          beta)
         # Kill the whole Zero column of the MRF term (coupling 0 for the Zero class).
         # The guiding rule is: Zero membership is decided by the DATA alone, the
         # neighbours only shuffle cells among the real classes. This line enforces one
