@@ -173,23 +173,129 @@ $$
 $$
 
 Since $\sum_{c'\in\mathcal{N}_c}\bar\zeta_{c',k} > 0$, $\Delta_{c,k}$ increases with $\beta_{c,k}$, so $\beta^\star_{c,k}$ is
-the largest coupling that still keeps Zero ahead by the margin. Its sign follows $D_{c,k}$:
+the largest coupling that still keeps Zero ahead of class $k$ by the margin. When $D_{c,k} < 0$
+(the counts and prior favour Zero over $k$) it is positive, the most spatial strength Zero can
+absorb before $k$ overtakes it; when $D_{c,k} \ge 0$ ($k$ already beats Zero on the evidence)
+it is non-positive and there is nothing for the cap to hold back.
 
-- **$D_{c,k} < 0$** (counts and prior favour Zero): $\beta^\star_{c,k} > 0$. This is the most
-  spatial strength Zero can absorb before flipping, so we cap the applied coupling at it.
-- **$D_{c,k} \ge 0$** (counts and prior already favour class $k$): $\beta^\star_{c,k} \le 0$.
-  There is nothing to protect, the cell is $k$ on evidence alone, so no cap is applied.
+### Only cap the cells whose own data points to Zero
 
-The applied strength is the smaller of the user's $\beta$ (the `mrf_beta` setting) and the
-threshold:
+$\beta^\star_{c,k}$ answers a pairwise question: how much coupling keeps Zero ahead of *this
+one* class $k$. But the cap should only step in when Zero is where the cell actually belongs on
+its own evidence, and that is a statement about the whole cell, not a single class: Zero must
+beat *every* real class, not just $k$. That holds exactly when
+
+$$
+D_{c,j} < 0 \quad\text{for every real class } j,
+$$
+
+that is, when Zero is the class the counts and prior would pick with the spatial term switched
+off. On those cells, and only those, we cap each real class $k$ at $\beta^\star_{c,k}$ so the
+neighbours cannot overturn Zero. On any other cell some real class already beats Zero on the
+evidence, so there is no Zero label to protect: we keep the full $\beta$ and let the neighbours
+clean the cell from one real class to another, which is what the spatial prior is for. So the
+applied strength is the smaller of the user's $\beta$ (the `mrf_beta` setting) and the
+threshold, applied only when Zero wins the whole cell:
 
 $$
 \beta^{\text{cap}}_{c,k} =
 \begin{cases}
-\min\!\big(\beta,\ \max(0,\ \beta^\star_{c,k})\big), & D_{c,k} < 0, \\[4pt]
-\beta, & D_{c,k} \ge 0 .
+\min\!\big(\beta,\ \max(0,\ \beta^\star_{c,k})\big), & D_{c,j} < 0 \ \text{ for every real class } j, \\[4pt]
+\beta, & \text{otherwise.}
 \end{cases}
 $$
 
-The cap can only lower $\beta$, never raise it. It is switched on by the `apply_mrf_cap`
-setting (on by default); with it off, the flat $\beta$ is used everywhere.
+(Inside such a cell every $D_{c,j} < 0$, so the top branch runs for all its real classes at
+once.) The cap can only lower $\beta$, never raise it, and it never acts on a cell the data
+already assigns to a real class. It is switched on by the `apply_mrf_cap` setting (on by
+default); with it off, the flat $\beta$ is used everywhere.
+
+## Why the cap only fires when Zero wins: a cell that would otherwise oscillate
+
+Only capping the cells where Zero wins the whole row is not decoration. The tempting shortcut
+is to drop that and apply $\beta^\star_{c,k}$ wherever $D_{c,k} < 0$, one class at a time. On a
+genuinely empty cell that is the same thing, because there every real class loses to Zero. But
+on a cell whose winner is a real class the per-class version caps the wrong channel, and the
+cell never settles. This is exactly why the cap now only fires when Zero wins the whole cell,
+and it is worth walking through because it is what the cap did before.
+
+Read the per-class version as a function of $D_{c,k}$ with the neighbours held fixed. For
+$D_{c,k}\ge 0$ the class gets the full coupling $\beta$. For $D_{c,k}$ just below zero,
+$\beta^\star_{c,k}=-(D_{c,k}+\text{tol})/\sum_{c'\in\mathcal{N}_c}\bar\zeta_{c',k}$ goes negative
+and the $\max(0,\cdot)$ clamps it to $0$. So the applied coupling does not ease down as
+$D_{c,k}$ crosses zero, it jumps: full $\beta$ on one side, $0$ on the other. A cell sitting
+right on $D_{c,k}=0$ for some class it does not even belong to can get stuck bouncing across
+it, and the VB loop then never settles.
+
+### A real cell that never settles
+
+Take cell 22786 from an Espio 3D run. It has very few reads, about 10. Its nine spatial
+neighbours are frozen across iterations: roughly five are stably the real class
+`030 L6 CT CTX Glut` and the rest are Zero. They never flip, so the raw neighbour vote
+$\sum_{c'\in\mathcal{N}_c}\bar\zeta_{c',030}$ is essentially constant, worth about $6$ in
+$\beta\cdot\text{support}$ units.
+
+On its own gene data the cell mildly prefers the real class `016 CA1-ProS Glut`, and because
+it has so few reads the class `030` sits right on the fence against Zero. So with the spatial
+term switched off,
+
+$$
+D_{c,016} > 0 \quad(\text{winner}), \qquad D_{c,030} \approx 0 \quad(\text{straddles Zero}),
+$$
+
+and the order the data alone would pick is `016`, then Zero, then `030`: the winner is a real
+class, Zero is only second, and the neighbour class `030` sits on the Zero fence. Now watch one
+full lap of the loop under the per-class cap:
+
+- $D_{c,030}\ge 0$: cap off on `030`, the full neighbour vote ($\approx 6$) is applied. It
+  beats the cell's own mild preference for `016`, so the cell is called `030`.
+- Being `030` changes which handful of nearby spots the cell holds (the
+  [spot-to-cell step](../how-it-works/spots-to-cells.md)), which nudges its per-gene counts
+  $\bar N_{c,g}$. The nudged counts make it look slightly more empty, so $D_{c,030}$ dips
+  just below $0$.
+- $D_{c,030} < 0$: the per-class cap fires on `030` and the neighbour term collapses to
+  $\approx 0$. With the neighbours silenced the cell falls back to its own preferred class
+  `016`.
+- Being `016` shifts its spots again, $\bar N_{c,g}$ moves back, $D_{c,030}$ climbs back
+  above $0$, the cap releases, and the neighbours pull it back to `030`. Repeat forever.
+
+The neighbours do not change and the raw neighbour vote does not change. What toggles is the
+cap on the `030` channel, through $D_{c,030}$ crossing $0$. A $\approx 6$-unit term is switched
+fully on and fully off, so the label flips even though the data term barely moves.
+
+The point to hold onto, and the reason this is a cap bug rather than a fact of life: **Zero is
+never this cell's winner.** On the evidence the cell is `016`, with Zero only second. The
+per-class cap fired on the `030` channel to keep Zero ahead of `030`, but the cell was never
+going to be Zero, so it was defending a label it would never take, and each time it did so it
+knocked out a legitimate neighbour clean to `030`.
+
+### Why one cell can hold up the whole run
+
+Convergence is judged by the max (L-infinity) change in the spot-to-cell probabilities
+against the `CellCallTolerance` (0.02). Each flip of one boundary cell swings its few spots'
+assignment probabilities by a lot, from about 0.1 up to 0.5. So even one or two of these
+cells keep the max change well above tolerance forever, even though 99.9%+ of all spots
+settled long ago (the mean change is around $10^{-5}$). A couple of genuinely ambiguous
+cells hold the entire run hostage.
+
+### The fix: only cap when the cell's own winner is Zero
+
+Only capping when Zero wins, as in the boxed formula, removes this at the source. Cell 22786's
+counts-and-prior winner is `016`, a real class, so Zero does not win its row and the cap is not
+applied to it at all. The `030` channel keeps its full $\beta$ every iteration, the constant
+neighbour vote holds the cell at `030`, and it stops flipping. A genuinely empty cell (every
+$D_{c,j} < 0$) still has Zero as its winner and is still capped, so the protection the cap was
+built for is untouched. On the
+Espio run this converges on the existing L-infinity criterion at iteration 83 at the production
+settings ($\beta = 1$, `rTheta` $= 5$), and it holds across `rTheta` from 2 to 10.
+
+Restricting the cap this way does not smooth it. The coupling is still a hard switch at
+$D_{c,k}=0$; it just never engages on a cell whose winner is a real class, which is where 22786
+and cells like it lived. A cell genuinely balanced between Zero and a single real class could
+in principle still chatter at that fence, but on the Espio data none do and the run converges.
+
+Raising `rTheta` also converged the old run, back when the cap fired on any class below Zero,
+because it shifts $\theta$ for the Zero class and so shifts $D_{c,k}$, sliding a stuck cell off
+the fence onto its neighbour class. But that only moves where the fence bites, it does not
+remove the misfire, so it is dataset specific: on a harder dataset another cell can land on the
+fence. Only capping when Zero wins removes the misfire itself, which is why it is the fix.
