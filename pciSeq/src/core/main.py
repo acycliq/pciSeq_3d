@@ -521,7 +521,16 @@ class VarBayes:
         # max(0, .) guards the thin band -tol <= D < 0, where the target margin
         # cannot be met with a non-negative beta, so we just drop the MRF there.
         capped = np.where(D < 0, np.minimum(beta, np.maximum(0.0, beta_star)), beta)
-        # the Zero class is never promoted by the neighbourhood
+        # Kill the whole Zero column of the MRF term (coupling 0 for the Zero class).
+        # The guiding rule is: Zero membership is decided by the DATA alone, the
+        # neighbours only shuffle cells among the real classes. This line enforces one
+        # half of that: a cell can still be typed Zero when its own reads point to Zero
+        # (Zero's score is just contr[Zero] + log_prior, untouched), but the neighbours
+        # can never PUSH a cell into Zero, however many Zero neighbours it has. It is the
+        # mirror image of the cap above, which stops the neighbours pulling a cell OUT of
+        # Zero while its data still says Zero. It is also why the old A[-1,:] = 0 trick in
+        # cells.mrf_support is now redundant (that zeroed the Zero row so Zero neighbours
+        # donate nothing; zeroing the Zero column here already covers it when the cap is on).
         capped[:, zero] = 0.0
 
         # stash for diagnostics (same pattern as nb_contr / mrf above)
