@@ -423,8 +423,9 @@ class Cells(object):
     def calc_mrf(self):
         """
         Flat-beta MRF term: the support times the scalar mrf_beta. This is the
-        original uncapped MRF, still used by the ELBO and when apply_mrf_cap is
-        switched off. Returns an (nC, nK) array.
+        original uncapped MRF, used when apply_mrf_cap is switched off. The ELBO
+        no longer calls this directly, it reads cells.mrf so it scores whatever
+        the class update actually used. Returns an (nC, nK) array.
         """
         return self.mrf_support() * self.config["mrf_beta"]
 

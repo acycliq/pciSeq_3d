@@ -144,8 +144,17 @@ def mrf_prior(obj):
 
     The expected MRF contribution under q is:
         sum_{c,j} q(zeta_cj) * mrf_cj
+
+    Use the same mrf matrix that cell_to_cellType just used, which cells.mrf
+    holds. With apply_mrf_cap on that is the capped one, and calling calc_mrf()
+    here instead would score the uncapped MRF while the update used the capped
+    one, so the objective and the update would be two different models. That is
+    why the ELBO was going down on more than half the steps. Fall back to
+    calc_mrf() only if the ELBO is asked for before the first class update.
     """
-    mrf = obj.cells.calc_mrf()  # (nC, nK); already contains mrf_beta and matrix A
+    mrf = obj.cells.mrf  # (nC, nK); already contains mrf_beta and matrix A
+    if mrf is None:
+        mrf = obj.cells.calc_mrf()
     return np.sum(obj.cells.classProb * mrf)
 
 
