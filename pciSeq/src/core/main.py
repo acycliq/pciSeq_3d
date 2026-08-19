@@ -503,6 +503,11 @@ class VarBayes:
         those recent iterations. The average covers both sides of the swap, so
         the frozen row shows the cell as a tie between the two classes.
 
+        Only cells that swap with Zero are frozen, ie the ones that cannot make
+        up their mind about whether they are a cell at all. If two real classes
+        are arguing over a cell that is a different question, so those are left
+        alone.
+
         A frozen cell stays frozen. Everything else (spots, gamma, theta, eta and
         the neighbours' mrf votes) carries on as usual and settles down, now that
         what was moving underneath it has stopped.
@@ -524,6 +529,13 @@ class VarBayes:
                 idx = idx[came_back]
                 self._tie_returns[idx] += 1
                 newly = idx[self._tie_returns[idx] >= TIE_RETURNS]
+                # only freeze cells that swap with Zero, ie the "is this a cell
+                # at all" ones. Two real classes arguing is a different thing,
+                # leave those alone and let them sort themselves out.
+                if len(newly):
+                    zero = self.nK - 1
+                    recent = np.vstack([self._tie_labels[:, newly], labels[newly]])
+                    newly = newly[(recent == zero).any(axis=0)]
                 if len(newly):
                     # freeze at the mean of the stored rows plus the current one.
                     # If the cell was swapping every other iteration this is an
