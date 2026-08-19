@@ -356,7 +356,7 @@ class Cells(object):
         proximity-weighted, similarity-pooled sum of the neighbours' class probs
         (zeta) for class k. This is the quantity that later gets multiplied by
         the MRF strength: either the flat mrf_beta (calc_mrf below) or the
-        per-cell-class capped beta (see main.py::cell_to_cellType and
+        per-cell-class capped beta (see utils/mrf_cap.py::calc_capped_mrf and
         docs/mrf_cap/loglik_ratio.tex).
 
         Returns an (nC, nK) array.

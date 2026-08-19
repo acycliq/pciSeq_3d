@@ -1,5 +1,6 @@
 """
-Regression tests for the mrf cap gate in VarBayes._capped_mrf.
+Regression tests for the mrf cap gate in calc_capped_mrf
+(pciSeq/src/core/utils/mrf_cap.py).
 
 The cap is only meant to fire for cells whose OWN data (gene loglik + class
 prior, ignoring the neighbours) already puts Zero on top. For any other cell
@@ -16,35 +17,25 @@ also include the prior, not the gene loglik alone, which is what
 test_prior_counts_towards_the_winner pins down.
 """
 
-import types
-
 import numpy as np
 
-from pciSeq.src.core.main import VarBayes
+from pciSeq.src.core.utils.mrf_cap import calc_capped_mrf
 
 
 def _run_capped_mrf(contr, support, log_prior, beta=1.0, tol=0.1):
-    """Call VarBayes._capped_mrf with a stub self holding only what it reads.
+    """Call calc_capped_mrf, just tidying the inputs into float arrays first.
 
     Returns (mrf_term, effective_beta). effective_beta is the per (cell, class)
     coupling actually used (0 = neighbours silenced, beta = full pull); mrf_term
     is effective_beta * support, the value added to the class log-score.
     """
-    contr = np.asarray(contr, dtype=float)
-    support = np.asarray(support, dtype=float)
-    log_prior = np.asarray(log_prior, dtype=float)
-    nK = contr.shape[1]
-
-    cells = types.SimpleNamespace(mrf_support=lambda: support, effective_beta=None)
-    cellTypes = types.SimpleNamespace(log_prior=log_prior)
-    stub = types.SimpleNamespace(
-        nK=nK,
-        config={"mrf_beta": beta, "SpotReg": tol},
-        cells=cells,
-        cellTypes=cellTypes,
+    return calc_capped_mrf(
+        np.asarray(contr, dtype=float),
+        np.asarray(support, dtype=float),
+        np.asarray(log_prior, dtype=float),
+        beta,
+        tol,
     )
-    mrf = VarBayes._capped_mrf(stub, contr)
-    return mrf, cells.effective_beta
 
 
 # class layout used throughout: [real_A, real_B, Zero], Zero is the last column
