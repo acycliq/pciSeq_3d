@@ -489,70 +489,17 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def _freeze_ties(self, pCellClass) -> np.ndarray:
-        """Freezes cells that keep swapping between the same classes.
+        """Pin the class probabilities of cells stuck flip-flopping with Zero.
 
-        The loop itself converges, the ELBO goes flat quite early on. The trouble
-        is a few nearly empty cells sitting right on the Zero boundary: they keep
-        swapping between the same two classes forever, so the biggest spot change
-        never drops under the tolerance and the run never stops.
-
-        A cell that is still learning moves to a new class and stays there, a tie
-        cell goes back to where it just was. So we take the second time a cell
-        goes back as the sign it is a tie, and freeze its class probabilities to
-        the average of its recent iterations. The average covers both sides of
-        the swap, so the frozen row shows the cell as a tie between the two
-        classes.
-
-        Only cells that swap with Zero are frozen, ie the ones that cannot make
-        up their mind about whether they are a cell at all. If two real classes
-        are arguing over a cell that is a different question, so those are left
-        alone.
-
-        A frozen cell stays frozen. Everything else (spots, gamma, theta, eta and
-        the neighbours' mrf votes) carries on as usual and settles down, now that
-        what was moving underneath it has stopped.
-
-        The logic in the code below is as follows:
-          for each cell:
-
-              if the cell is frozen:
-                  put back its stored row and move on          # never changes again
-
-              if iteration <= TIE_START:                       # too early, still learning
-                  move on
-
-              if its class is the same as last iteration:      # nothing happened
-                  move on
-
-              if its new class is NOT one it held in the last TIE_HISTORY iterations:
-                  move on                                      # it moved somewhere new, fine
-
-              # so it came back to a class it had just left
-              returns[cell] += 1
-
-              if returns[cell] < TIE_RETURNS:                  # first time back, allow it
-                  move on
-
-              if Zero is not among its last TIE_HISTORY classes:   # two real classes arguing
-                  move on                                          # not our business
-
-              # it went back twice and Zero is involved, so freeze it
-              frozen_row[cell] = average of its last TIE_HISTORY probability rows
-                                 and the current one
-              frozen[cell] = True
-
-        For example, a cell whose most likely class goes like this:
-
-              Oligo, Zero, Zero, Oligo, Zero, ...
-
-                  - it is Oligo
-                  - it goes to Zero
-                  - it stays Zero, nothing happens
-                  - it comes back to Oligo <- first time it went back
-                  - it goes to Zero again <- second time, freeze it here
-
-        Once it is frozen it keeps that row for the rest of the run, so whatever
-        it would have done next never happens.
+        The ELBO flattens early, but a few nearly empty cells on the Zero
+        boundary keep swapping class every iteration, so the run never passes
+        its convergence check. A cell that is still learning moves somewhere
+        new and stays; a tie cell goes back to where it just was (e.g.
+        Oligo, Zero, Oligo, Zero, ...). So once a cell has come back twice to
+        a class it held in the last TIE_HISTORY iterations, and Zero is among
+        them, we freeze its probabilities to the mean of those recent rows (an
+        even mix of both sides of the swap) and keep that row for the rest of
+        the run. Cells argued over by two real classes are left alone.
         """
         # a frozen cell keeps its pinned row, whatever the update above said
         if self._tie_frozen.any():
@@ -562,43 +509,27 @@ class VarBayes:
         it = self.iter_num if self.iter_num is not None else 0
 
         if it > TIE_START:
-            changed = (labels != self._tie_labels[-1]) & ~self._tie_frozen
-            if changed.any():
-                idx = np.flatnonzero(changed)
-                # the cell came back if the class it just moved to is one it had
-                # in the last few iterations
-                came_back = (self._tie_labels[:, idx] == labels[idx]).any(axis=0)
-                idx = idx[came_back]
-                self._tie_returns[idx] += 1
-                newly = idx[self._tie_returns[idx] >= TIE_RETURNS]
-                # only freeze cells that swap with Zero, ie the "is this a cell
-                # at all" ones. Two real classes arguing is a different thing,
-                # leave those alone and let them sort themselves out.
-                if len(newly):
-                    zero = self.nK - 1
-                    recent = np.vstack([self._tie_labels[:, newly], labels[newly]])
-                    newly = newly[(recent == zero).any(axis=0)]
-                if len(newly):
-                    # freeze at the mean of the stored rows plus the current one.
-                    # If the cell was swapping every other iteration this is an
-                    # even mix of the two sides.
-                    mean_prob = (self._tie_probs[:, newly].sum(axis=0)
-                                 + pCellClass[newly]) / (TIE_HISTORY + 1)
-                    mean_prob /= mean_prob.sum(axis=1, keepdims=True)
-                    pCellClass[newly] = mean_prob
-                    self._tie_frozen[newly] = True
-                    self._tie_frozen_prob[newly] = mean_prob
-                    labels[newly] = mean_prob.argmax(axis=1)
-                    reads = self.cells.geneCount[newly].sum(axis=1)
-                    for j, c in enumerate(newly):
-                        first, second = np.argsort(-mean_prob[j])[:2]
-                        logger.info(
-                            "    cell %d (%.2f reads) is a tie between %s (p=%.2f) and %s (p=%.2f)",
-                            c, reads[j],
-                            self.cells.class_names[first], mean_prob[j, first],
-                            self.cells.class_names[second], mean_prob[j, second])
-                    logger.info("Iteration %d: froze %d cell(s), %d frozen in total",
-                                it, len(newly), int(self._tie_frozen.sum()))
+            # a cell "came back" if the class it just moved to is one it held
+            # in the last few iterations
+            moved = (labels != self._tie_labels[-1]) & ~self._tie_frozen
+            came_back = moved & (self._tie_labels == labels).any(axis=0)
+            self._tie_returns[came_back] += 1
+
+            # freeze the cells that came back twice while swapping with Zero
+            # (the last column); two real classes arguing is left alone
+            zero = self.nK - 1
+            freeze = (came_back
+                      & (self._tie_returns >= TIE_RETURNS)
+                      & ((self._tie_labels == zero).any(axis=0) | (labels == zero)))
+            if freeze.any():
+                mean_prob = (self._tie_probs[:, freeze].sum(axis=0)
+                             + pCellClass[freeze]) / (TIE_HISTORY + 1)
+                mean_prob /= mean_prob.sum(axis=1, keepdims=True)
+                pCellClass[freeze] = mean_prob
+                self._tie_frozen[freeze] = True
+                self._tie_frozen_prob[freeze] = mean_prob
+                labels[freeze] = mean_prob.argmax(axis=1)
+                self._log_ties(np.flatnonzero(freeze), mean_prob, it)
 
         # keep the history rolling from the very first iteration, so it is
         # already filled by the time we start checking
@@ -607,6 +538,19 @@ class VarBayes:
         self._tie_probs = np.roll(self._tie_probs, -1, axis=0)
         self._tie_probs[-1] = pCellClass
         return pCellClass
+
+    def _log_ties(self, cells, mean_prob, it) -> None:
+        """One log line per freshly frozen cell: its reads and the tied classes."""
+        reads = self.cells.geneCount[cells].sum(axis=1)
+        for j, c in enumerate(cells):
+            first, second = np.argsort(-mean_prob[j])[:2]
+            logger.info(
+                "    cell %d (%.2f reads) is a tie between %s (p=%.2f) and %s (p=%.2f)",
+                c, reads[j],
+                self.cells.class_names[first], mean_prob[j, first],
+                self.cells.class_names[second], mean_prob[j, second])
+        logger.info("Iteration %d: froze %d cell(s), %d frozen in total",
+                    it, len(cells), int(self._tie_frozen.sum()))
 
     def _capped_mrf(self, contr) -> np.ndarray:
         """
