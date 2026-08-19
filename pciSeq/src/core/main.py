@@ -81,6 +81,13 @@ from .utils.numba_kernels import spots_to_cell_numba_kernel
 # Configure logging
 logger = logging.getLogger(__name__)
 
+# Settings for the tie freezing, see VarBayes._freeze_ties. They are not in
+# config.py because they are not model parameters, they only decide when a cell
+# is called a tie.
+TIE_START = 50    # leave the early iterations alone, the run is still learning
+TIE_HISTORY = 5   # how many past iterations of labels and class probs to keep
+TIE_RETURNS = 2   # how many times a cell must come back before we freeze it
+
 
 class VarBayes:
     """
@@ -108,6 +115,12 @@ class VarBayes:
         self.iter_delta = []
         self.has_converged = False
         self.on_iteration_callback = None  # Optional callback for real-time visualization
+        # tie freezing, filled in by init_tie_freeze once the sizes are known
+        self._tie_labels = None
+        self._tie_probs = None
+        self._tie_returns = None
+        self._tie_frozen = None
+        self._tie_frozen_prob = None
 
         # Initialize components
         self._validate_config(config)
@@ -177,6 +190,18 @@ class VarBayes:
         self.genes.init_rho(self.config['MisreadDensity']['default'], A_total)
         self.spots.init_gamma(self.config['rSpot'], self.config['rSpot'], [self.nC, self.nG, self.nK])
         self.init_theta()
+        self.init_tie_freeze()
+
+    def init_tie_freeze(self) -> None:
+        """Sets up what _freeze_ties needs: the labels and class probs of the last
+        few iterations, how many times each cell has come back to a class it just
+        left, and which cells are frozen. The labels start at -1 so that a cell
+        cannot match against a slot that has not been filled in yet."""
+        self._tie_labels = np.full((TIE_HISTORY, self.nC), -1, dtype=np.int32)
+        self._tie_probs = np.zeros((TIE_HISTORY, self.nC, self.nK), dtype=np.float32)
+        self._tie_returns = np.zeros(self.nC, dtype=np.int16)
+        self._tie_frozen = np.zeros(self.nC, dtype=bool)
+        self._tie_frozen_prob = np.zeros((self.nC, self.nK), dtype=np.float32)
 
     def init_theta(self) -> None:
         geneCounts = self.cells.ini_gene_counts
@@ -460,7 +485,74 @@ class VarBayes:
         wCellClass = contr + self.cellTypes.log_prior + mrf
         pCellClass = softmax(wCellClass, axis=1)
 
-        self.cells.classProb = pCellClass
+        self.cells.classProb = self._freeze_ties(pCellClass)
+
+    # -------------------------------------------------------------------- #
+    def _freeze_ties(self, pCellClass) -> np.ndarray:
+        """Freezes cells that keep swapping between the same classes.
+
+        The loop itself converges, the ELBO goes flat quite early on. The trouble
+        is a few nearly empty cells sitting right on the Zero boundary: they keep
+        swapping between the same two classes forever, so the biggest spot change
+        never drops under the tolerance and the run never stops.
+
+        A cell that is still learning moves to a new class and stays there. A tie
+        cell goes back to where it just was. So from iteration TIE_START onwards,
+        if a cell returns twice to a class it had in the last few iterations, we
+        take it as a tie and freeze its class probabilities to the average of
+        those recent iterations. The average covers both sides of the swap, so
+        the frozen row shows the cell as a tie between the two classes.
+
+        A frozen cell stays frozen. Everything else (spots, gamma, theta, eta and
+        the neighbours' mrf votes) carries on as usual and settles down, now that
+        what was moving underneath it has stopped.
+        """
+        # a frozen cell keeps its pinned row, whatever the update above said
+        if self._tie_frozen.any():
+            pCellClass[self._tie_frozen] = self._tie_frozen_prob[self._tie_frozen]
+
+        labels = pCellClass.argmax(axis=1)
+        it = self.iter_num if self.iter_num is not None else 0
+
+        if it > TIE_START:
+            changed = (labels != self._tie_labels[-1]) & ~self._tie_frozen
+            if changed.any():
+                idx = np.flatnonzero(changed)
+                # the cell came back if the class it just moved to is one it had
+                # in the last few iterations
+                came_back = (self._tie_labels[:, idx] == labels[idx]).any(axis=0)
+                idx = idx[came_back]
+                self._tie_returns[idx] += 1
+                newly = idx[self._tie_returns[idx] >= TIE_RETURNS]
+                if len(newly):
+                    # freeze at the mean of the stored rows plus the current one.
+                    # If the cell was swapping every other iteration this is an
+                    # even mix of the two sides.
+                    mean_prob = (self._tie_probs[:, newly].sum(axis=0)
+                                 + pCellClass[newly]) / (TIE_HISTORY + 1)
+                    mean_prob /= mean_prob.sum(axis=1, keepdims=True)
+                    pCellClass[newly] = mean_prob
+                    self._tie_frozen[newly] = True
+                    self._tie_frozen_prob[newly] = mean_prob
+                    labels[newly] = mean_prob.argmax(axis=1)
+                    reads = self.cells.geneCount[newly].sum(axis=1)
+                    for j, c in enumerate(newly):
+                        first, second = np.argsort(-mean_prob[j])[:2]
+                        logger.info(
+                            "    cell %d (%.2f reads) is a tie between %s (p=%.2f) and %s (p=%.2f)",
+                            c, reads[j],
+                            self.cells.class_names[first], mean_prob[j, first],
+                            self.cells.class_names[second], mean_prob[j, second])
+                    logger.info("Iteration %d: froze %d cell(s), %d frozen in total",
+                                it, len(newly), int(self._tie_frozen.sum()))
+
+        # keep the history rolling from the very first iteration, so it is
+        # already filled by the time we start checking
+        self._tie_labels = np.roll(self._tie_labels, -1, axis=0)
+        self._tie_labels[-1] = labels
+        self._tie_probs = np.roll(self._tie_probs, -1, axis=0)
+        self._tie_probs[-1] = pCellClass
+        return pCellClass
 
     def _capped_mrf(self, contr) -> np.ndarray:
         """
