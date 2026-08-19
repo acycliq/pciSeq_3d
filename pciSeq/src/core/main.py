@@ -463,33 +463,24 @@ class VarBayes:
         self.cells.classProb = pCellClass
 
     def _capped_mrf(self, contr) -> np.ndarray:
-        """
-        MRF term with a per-(cell, class) cap on the strength, so the MRF can
-        never flip a cell out of Zero when its own gene evidence and the prior
-        both point at Zero. Full derivation in docs/mrf_cap/loglik_ratio.tex.
+        """MRF term, capped so the neighbours can never flip a cell out of Zero.
 
-        For each real class k we look at the log-odds of k against the Zero
-        class. The part that does not depend on the MRF strength is
-            D[c,k] = (NB loglik of k - NB loglik of Zero)
-                     + (log prior k - log prior Zero)
-        and the MRF adds beta * S[c,k] on top, with S the neighbour support. The
-        cell tips from Zero to k once beta passes -D[c,k]/S[c,k]. Capping exactly
-        there lands on a tie (Delta = 0), and the argmax then hands the label to
-        the real class because Zero is the last column. So instead we ask Zero to
-        win by a small margin tol in log-odds, i.e. target Delta = -tol, giving
-            beta*[c,k] = -(D[c,k] + tol) / S[c,k].
-        We reuse SpotReg as tol so there is no extra knob. We cap the user's
-        mrf_beta at beta*[c,k] wherever the data favours Zero (D < 0). Where the
-        data already wants k (D >= 0) there is nothing to protect, so the full
-        beta is kept. The Zero class gets no MRF support of its own
-        (beta_zero = 0), i.e. a cell is never pushed into Zero just because its
-        neighbours are Zero.
+        For each real class k, D[c,k] is the cell's own score of k against
+        Zero (NB loglik + log prior, relative to Zero) and the MRF adds
+        beta * S[c,k] on top, with S the neighbour support. Where the data
+        alone makes Zero the winner (D < 0 for every real class), beta is
+        capped at beta* = -(D + tol) / S, the coupling that leaves Zero ahead
+        by tol (SpotReg doubles as tol, so no extra knob). Everywhere else
+        the full beta is kept: there is no Zero label to protect and the
+        neighbours are free to clean the cell into a real class. The Zero
+        class itself gets no coupling: Zero membership is decided by the data
+        alone, the neighbours can never push a cell into Zero.
 
         Parameters
         ----------
         contr : np.ndarray
-            (nC, nK) negative-binomial log-likelihood per cell and class, already
-            summed over genes.
+            (nC, nK) negative-binomial log-likelihood per cell and class,
+            already summed over genes.
 
         Returns
         -------
@@ -498,54 +489,32 @@ class VarBayes:
         """
         zero = self.nK - 1  # Zero is the last class
         beta = self.config['mrf_beta']
-        # tolerance: Zero must beat each capped class by this much in log-odds,
-        # so we target Delta = -tol (a strict win) rather than Delta = 0 (a tie).
-        # Reusing SpotReg keeps this parameter-free.
-        tol = self.config['SpotReg']
+        tol = self.config['SpotReg']  # margin Zero must win by after capping
 
-        support = self.cells.mrf_support()  # (nC, nK), the beta-free support
+        support = self.cells.mrf_support()  # (nC, nK) neighbour support
 
         # data + prior score of each class relative to Zero (Zero column is 0)
         log_prior = self.cellTypes.log_prior
         D = (contr - contr[:, [zero]]) + (log_prior - log_prior[zero])
 
-        # beta*[c,k] solves D + beta*S = -tol, i.e. beta = -(D+tol)/S. Where S is
-        # zero or tiny (no or vanishing class-k neighbours) the MRF term beta*S is
-        # ~0 anyway and beta_star gets clamped by the minimum below, so the huge
-        # or inf value there does not matter; errstate keeps numpy quiet about the
-        # /0 (divide) and the tiny-denominator blow-up (over).
+        # beta* solves D + beta*S = -tol. Where S ~ 0 the MRF term is ~0
+        # anyway, so the inf there is clamped away below; errstate keeps
+        # numpy quiet about the division.
         with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
             beta_star = -(D + tol) / support
 
-        # Only cells whose own data actually points to Zero should be capped. Zero is
-        # the data winner for a cell exactly when every real class scores below Zero,
-        # i.e. D < 0 across the whole row (excluding the Zero column, which is 0 by
-        # build). For any other cell the winner is some real class, so there is no Zero
-        # label to protect and we leave the whole row at full beta, letting the
-        # neighbours clean the cell into a real class. Without this gate the cap fired
-        # per class on any class that happened to sit below Zero, even in a cell whose
-        # winner was a real class, and that is what made boundary cells like 22786
-        # oscillate (the neighbour class kept getting its coupling zeroed and restored).
-        real = np.arange(self.nK) != zero
-        zero_is_winner = (D[:, real] < 0).all(axis=1)  # (nC,)
+        # Cap only cells whose own data picks Zero, ie every real class scores
+        # below it; any other row keeps full beta. Deciding this per class
+        # instead of per cell is what made boundary cells oscillate
+        # (regression cover: tests/test_mrf_cap.py).
+        zero_is_winner = (D[:, :zero] < 0).all(axis=1)
 
-        # cap only where the data favours Zero (D < 0); otherwise keep full beta.
-        # max(0, .) guards the thin band -tol <= D < 0, where the target margin
-        # cannot be met with a non-negative beta, so we just drop the MRF there.
+        # clip covers the band -tol <= D < 0, where no non-negative beta can
+        # give Zero its margin, by dropping the MRF there entirely
         capped = np.where(zero_is_winner[:, None] & (D < 0),
-                          np.minimum(beta, np.maximum(0.0, beta_star)),
+                          np.clip(beta_star, 0.0, beta),
                           beta)
-        # Kill the whole Zero column of the MRF term (coupling 0 for the Zero class).
-        # The guiding rule is: Zero membership is decided by the DATA alone, the
-        # neighbours only shuffle cells among the real classes. This line enforces one
-        # half of that: a cell can still be typed Zero when its own reads point to Zero
-        # (Zero's score is just contr[Zero] + log_prior, untouched), but the neighbours
-        # can never PUSH a cell into Zero, however many Zero neighbours it has. It is the
-        # mirror image of the cap above, which stops the neighbours pulling a cell OUT of
-        # Zero while its data still says Zero. It is also why the old A[-1,:] = 0 trick in
-        # cells.mrf_support is now redundant (that zeroed the Zero row so Zero neighbours
-        # donate nothing; zeroing the Zero column here already covers it when the cap is on).
-        capped[:, zero] = 0.0
+        capped[:, zero] = 0.0  # neighbours never push a cell into Zero
 
         # stash for diagnostics (same pattern as nb_contr / mrf above)
         self.cells.effective_beta = capped
