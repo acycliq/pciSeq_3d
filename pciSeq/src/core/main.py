@@ -496,12 +496,12 @@ class VarBayes:
         swapping between the same two classes forever, so the biggest spot change
         never drops under the tolerance and the run never stops.
 
-        A cell that is still learning moves to a new class and stays there. A tie
-        cell goes back to where it just was. So from iteration TIE_START onwards,
-        if a cell returns twice to a class it had in the last few iterations, we
-        take it as a tie and freeze its class probabilities to the average of
-        those recent iterations. The average covers both sides of the swap, so
-        the frozen row shows the cell as a tie between the two classes.
+        A cell that is still learning moves to a new class and stays there, a tie
+        cell goes back to where it just was. So we take the second time a cell
+        goes back as the sign it is a tie, and freeze its class probabilities to
+        the average of its recent iterations. The average covers both sides of
+        the swap, so the frozen row shows the cell as a tie between the two
+        classes.
 
         Only cells that swap with Zero are frozen, ie the ones that cannot make
         up their mind about whether they are a cell at all. If two real classes
@@ -511,6 +511,48 @@ class VarBayes:
         A frozen cell stays frozen. Everything else (spots, gamma, theta, eta and
         the neighbours' mrf votes) carries on as usual and settles down, now that
         what was moving underneath it has stopped.
+
+        The logic in the code below is as follows:
+          for each cell:
+
+              if the cell is frozen:
+                  put back its stored row and move on          # never changes again
+
+              if iteration <= TIE_START:                       # too early, still learning
+                  move on
+
+              if its class is the same as last iteration:      # nothing happened
+                  move on
+
+              if its new class is NOT one it held in the last TIE_HISTORY iterations:
+                  move on                                      # it moved somewhere new, fine
+
+              # so it came back to a class it had just left
+              returns[cell] += 1
+
+              if returns[cell] < TIE_RETURNS:                  # first time back, allow it
+                  move on
+
+              if Zero is not among its last TIE_HISTORY classes:   # two real classes arguing
+                  move on                                          # not our business
+
+              # it went back twice and Zero is involved, so freeze it
+              frozen_row[cell] = average of its last TIE_HISTORY probability rows
+                                 and the current one
+              frozen[cell] = True
+
+        For example, a cell whose most likely class goes like this:
+
+              Oligo, Zero, Zero, Oligo, Zero, ...
+
+                  - it is Oligo
+                  - it goes to Zero
+                  - it stays Zero, nothing happens
+                  - it comes back to Oligo <- first time it went back
+                  - it goes to Zero again <- second time, freeze it here
+
+        Once it is frozen it keeps that row for the rest of the run, so whatever
+        it would have done next never happens.
         """
         # a frozen cell keeps its pinned row, whatever the update above said
         if self._tie_frozen.any():
