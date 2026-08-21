@@ -17,6 +17,7 @@ live arrays after the freeze and checks the rebuild still lands on the pinned
 row, because that is exactly what twenty more iterations do to them.
 """
 
+import logging
 import types
 
 import numpy as np
@@ -40,6 +41,8 @@ def _stub_vb(nC, nK, nG=4):
         cells=cells,
         genes=types.SimpleNamespace(eta_bar=np.ones(nG, dtype=np.float32)),
         cellTypes=types.SimpleNamespace(log_prior=np.zeros(nK, dtype=np.float32)),
+        # no renumbering, so the segmentation label is the internal index
+        config={'label_map': None},
     )
 
 
@@ -113,6 +116,54 @@ class TestDetector:
 
         assert not freezer.frozen[1]
         assert freezer.returns[1] == TIE_RETURNS - 1
+
+    def test_log_reports_the_segmentation_label(self, caplog):
+        """Internal indices mean nothing to anyone reading the log, the cell
+        numbers in the viewer and in cellData are the segmentation ones. Both
+        get printed so a pinned cell can actually be looked up."""
+        nC, nK = 2, 3
+        freezer = TieFreezer(nC, nK)
+        vb = _stub_vb(nC, nK)
+        # label_map goes segmentation -> internal, so internal 1 is cell 4242
+        vb.config = {'label_map': {4242: 1}}
+
+        with caplog.at_level(logging.INFO, logger='pciSeq.src.core.utils.tie_freeze'):
+            _drive(freezer, vb, [[0, 0], [0, 1], [0, 0], [0, 1]], nK)
+
+        line = [r.getMessage() for r in caplog.records if 'kept swapping' in r.getMessage()][0]
+        assert 'cell 4242' in line, "the segmentation label should lead"
+        assert 'internal 1' in line, "the internal index is still worth keeping"
+
+    def test_log_names_the_two_classes_it_swapped_between(self, caplog):
+        """The log used to print the top two classes of the pinned row, which
+        is a different thing. A cell can have a third class sitting second on
+        probability without ever having been called it, and naming that one
+        makes the log say the cell was arguing with a class it never held.
+        """
+        nC, nK = 2, 4
+        freezer = TieFreezer(nC, nK)
+        vb = _stub_vb(nC, nK)
+
+        # cell 1 swaps between Type_0 and Type_1, but on the iteration it gets
+        # pinned Type_2 is the runner-up on probability
+        rows = [[0, 0], [0, 1], [0, 0], [0, 1]]
+        for j, labels in enumerate(rows):
+            p = _probs_for(labels, nK)
+            if j == len(rows) - 1:
+                p[1] = np.array([0.05, 0.60, 0.30, 0.05], dtype=np.float32)
+            with caplog.at_level(logging.INFO, logger='pciSeq.src.core.utils.tie_freeze'):
+                freezer.freeze(p, TIE_START + 1 + j, vb)
+
+        assert freezer.frozen[1]
+        line = [r.getMessage() for r in caplog.records if 'kept swapping' in r.getMessage()]
+        assert len(line) == 1, "expected exactly one cell to be pinned"
+        line = line[0]
+
+        assert 'Type_0' in line, "the class it came back from should be named"
+        assert 'Type_1' in line, "the class it landed on should be named"
+        assert 'Type_2' not in line, \
+            "the runner-up on probability was never in the fight, it must not be named"
+        assert 'pinned as Type_1' in line
 
 
 class TestRebuild:

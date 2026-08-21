@@ -64,6 +64,9 @@ class TieFreezer:
         # see _snapshot for what is in it. A dict rather than full arrays
         # because this is a couple of dozen cells out of nC.
         self.snapshots = {}
+        # internal index -> segmentation label, for the log lines only. Built
+        # on first use because the config is not around at construction time.
+        self._seg_labels = None
 
     def freeze(self, pCellClass, it, vb) -> np.ndarray:
         """Apply the tie freezing to one iteration of class probabilities.
@@ -103,7 +106,8 @@ class TieFreezer:
                 self.frozen_prob[idx] = pCellClass[idx]
                 for c in idx:
                     self.snapshots[int(c)] = self._snapshot(vb, int(c), it)
-                self._log(vb.cells, idx, pCellClass, it)
+                # self.labels[-1] is still last iteration's, the roll is below
+                self._log(vb, idx, pCellClass, labels, self.labels[-1], it)
 
         # keep the history rolling from the very first iteration, so it is
         # already filled by the time we start checking
@@ -139,20 +143,41 @@ class TieFreezer:
         """The stored ingredients for cell c, or None if it was never pinned."""
         return self.snapshots.get(int(c))
 
-    def _log(self, cells, frozen_cells, pCellClass, it) -> None:
-        """One log line per freshly pinned cell: its reads and where it landed."""
+    def _seg_label(self, vb, c: int):
+        """The segmentation label of an internal index, so the log says the
+        same cell number you see in the viewer and in cellData.
+
+        config['label_map'] goes segmentation -> internal, so it has to be
+        turned round. It is None when the labels were already sequential and
+        nothing was renumbered, and then the two numbers are the same anyway.
+        """
+        if self._seg_labels is None:
+            lm = vb.config.get('label_map')
+            self._seg_labels = {v: k for k, v in lm.items()} if lm else {}
+        return self._seg_labels.get(int(c), int(c))
+
+    def _log(self, vb, frozen_cells, pCellClass, labels, prev_labels, it) -> None:
+        """One log line per freshly pinned cell: its reads, the two classes it
+        was swapping between, and which one it ended up pinned on.
+
+        The two classes are the one the cell holds now and the one it held last
+        iteration, which are the two sides of the swap that set the pin off.
+        That is not the same as the top two of the pinned row: some third class
+        can be sitting second on probability without the cell ever being called
+        it, so reading the row would name a class that was never in the fight.
+        """
         # everything is turned into a plain str or int first. numpy scalars go
         # through %d and %.2f fine on their own, but not under every logging
         # handler, and a broken log line should not take a run down with it.
+        cells = vb.cells
         reads = cells.geneCount[frozen_cells].sum(axis=1)
         for j, c in enumerate(frozen_cells):
-            row = pCellClass[c]
-            first, second = np.argsort(-row)[:2]
+            here, there = int(labels[c]), int(prev_labels[c])
             logger.info(
-                "    cell %s (internal id, %s reads) kept swapping between %s and %s, "
+                "    cell %s (internal %s, %s reads) kept swapping between %s and %s, "
                 "pinned as %s (p=%s)",
-                int(c), "%.2f" % float(reads[j]),
-                str(cells.class_names[first]), str(cells.class_names[second]),
-                str(cells.class_names[first]), "%.2f" % float(row[first]))
+                self._seg_label(vb, c), int(c), "%.2f" % float(reads[j]),
+                str(cells.class_names[here]), str(cells.class_names[there]),
+                str(cells.class_names[here]), "%.2f" % float(pCellClass[c, here]))
         logger.info("Iteration %s: pinned %s cell(s), %s pinned in total",
                     int(it), len(frozen_cells), int(self.frozen.sum()))
