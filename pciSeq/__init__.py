@@ -49,6 +49,7 @@ __build_date__ = _resolve_build_date()
 
 from pciSeq.app import fit
 from pciSeq.app import cell_type
+from pciSeq.src.core.utils.spatialdata_export import to_spatialdata, write_spatialdata, add_image, add_boundaries
 from pciSeq.src.preprocess.main import stage_data
 from pciSeq.src.core.logger import attach_to_log, setup_logger
 # from pciSeq.src.core.analysis import CellExplorer

@@ -80,6 +80,7 @@ install_deps = [
     "plotly",
     "numba",
     "pyarrow",
+    "spatialdata",
 ]
 
 

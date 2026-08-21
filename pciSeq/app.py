@@ -78,7 +78,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
         # 8. Save data
         if cfg['save_data']:
-            write_data(cellData, geneData, cellBoundaries, cellBoundaries_list, varBayes, cfg)
+            write_data(cellData, geneData, cellBoundaries, cellBoundaries_list, coo, varBayes, cfg)
 
         return cellData, geneData
 

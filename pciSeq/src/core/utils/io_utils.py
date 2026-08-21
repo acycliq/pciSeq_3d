@@ -8,12 +8,12 @@ import shutil
 import sqlite3
 import pyarrow as pa
 import pyarrow.feather as feather
-from pathlib import Path
+
+from .spatialdata_export import write_spatialdata
 import json
-from typing import Tuple, Optional, Dict, Any, Union
+from typing import Tuple, Optional, Dict, Any, List
 from urllib.parse import urlparse
 from urllib.request import urlopen
-from typing import List, Any, Dict
 import pandas as pd
 from tqdm import tqdm
 import logging
@@ -512,7 +512,8 @@ def export_db_table(table_name: str, out_dir: str, con: Any) -> None:
 
 
 def write_data(cellData: pd.DataFrame, geneData: pd.DataFrame,
-               cellBoundaries: pd.DataFrame, cellBoundaries_list: pd.DataFrame, varBayes: Any, cfg: Dict) -> None:
+               cellBoundaries: pd.DataFrame, cellBoundaries_list: pd.DataFrame,
+               coo, varBayes: Any, cfg: Dict) -> None:
 
     dst = get_out_dir(cfg['output_path'])
     out_dir = os.path.join(dst, 'data')
@@ -529,6 +530,10 @@ def write_data(cellData: pd.DataFrame, geneData: pd.DataFrame,
 
     write_tsv(cellData, geneData, cellBoundaries, out_dir)
     write_arrow(geneData, cellData, cellBoundaries_list, out_dir)
+
+    # the same results again, this time as one SpatialData zarr store so the
+    # scverse tools (napari-spatialdata, squidpy, scanpy) can open the run
+    write_spatialdata(cellData, geneData, coo, varBayes, cfg, out_dir)
 
     # Save debug info
     serialise(varBayes, os.path.join(out_dir, 'debug'))
@@ -775,7 +780,7 @@ def validate_df_structure(df):
 
         # Check dataframe has any data rows
         if df.empty:
-            raise ValueError(f"df has no data rows")
+            raise ValueError("df has no data rows")
 
         return True
 
