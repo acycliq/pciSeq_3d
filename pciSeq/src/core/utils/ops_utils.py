@@ -165,18 +165,69 @@ def calculate_genes_log_likelihood_contr(obj, label: int) -> Tuple[DataFrame, Se
     if obj.config['label_map']:
         label = obj.config['label_map'][label]
 
-    # Get the full log-likelihood matrix using shared computation
-    contr = compute_gene_loglikelihood_matrix(obj)
+    ing = cell_ingredients(obj, label)
+    contr = gene_loglikelihood_cell(obj, label, ing)
 
-    # Get scaled expression and gene counts
-    scaled_means = obj.scaled_exp
-    cgc = obj.cells.geneCount
+    scaled_means = obj.scaled_exp[label]
 
-    # Return values for the specified cell
-    contr_df = pd.DataFrame(contr[label], columns=obj.cells.class_names).set_index(obj.genes.gene_panel)
-    gene_counts = pd.Series(cgc[label], index=obj.genes.gene_panel)
-    scaled_means_df = pd.DataFrame(scaled_means[label], columns=obj.cells.class_names).set_index(obj.genes.gene_panel)
+    contr_df = pd.DataFrame(contr, columns=obj.cells.class_names).set_index(obj.genes.gene_panel)
+    gene_counts = pd.Series(ing['geneCount'], index=obj.genes.gene_panel)
+    scaled_means_df = pd.DataFrame(scaled_means, columns=obj.cells.class_names).set_index(obj.genes.gene_panel)
     return contr_df, gene_counts, scaled_means_df
+
+
+def cell_ingredients(obj, c: int) -> dict:
+    """Everything cell_to_cellType used for cell c, ready to be recomputed from.
+
+    For an ordinary cell these are the live arrays. That works because
+    cell_to_cellType is the last thing to touch them before the run exits, so
+    after the run they are still the ones that produced the final classProb.
+
+    A pinned cell is different. Its classProb was frozen partway through the
+    run and written back every iteration since, while eta_bar, log_prior and
+    its own reads carried on moving, so the live arrays no longer rebuild it.
+    The freezer kept a copy of them at the iteration the cell was pinned, and
+    that is what gets handed back here instead.
+
+    Expects `c` to be an internal index, i.e. label_map already applied.
+    """
+    overrides_obj = getattr(obj, 'tie_freezer', None)
+    if overrides_obj is not None:
+        overrides = overrides_obj.snapshot(c)
+        if overrides is not None:
+            return overrides
+    beta = obj.cells.effective_beta
+    return {
+        'iteration': None,
+        'eta_bar': obj.genes.eta_bar,
+        'log_prior': obj.cellTypes.log_prior,
+        'theta_bar': obj.cells.theta_bar[c],
+        'geneCount': obj.cells.geneCount[c],
+        'mrf': obj.cells.mrf[c],
+        'effective_beta': None if beta is None else beta[c],
+    }
+
+
+def gene_loglikelihood_cell(obj, c: int, ing: dict) -> np.ndarray:
+    """Gene log-likelihood contributions for one cell, shape (nG, nK).
+
+    Same computation as compute_gene_loglikelihood_matrix, just for a single
+    cell and reading eta_bar / theta_bar / geneCount out of `ing` so a pinned
+    cell can be rebuilt from its stored copies. scaled_exp is not in there
+    because it is area_factor * mean_expression and does not move during the
+    run.
+
+    Doing one cell rather than all of them is also why check_cell no longer
+    builds an nC x nG x nK array (several hundred MB) to look at one cell.
+    """
+    # the leading axis of size 1 is there because negative_binomial_loglikelihood
+    # expects counts as (cells, genes) and probabilities as (cells, genes, classes)
+    scaled_means = obj.scaled_exp[c][None, :, :]
+    ScaledExp = np.einsum('cgk,g,k->cgk', scaled_means, ing['eta_bar'],
+                          ing['theta_bar']) + obj.config['SpotReg']
+    pNegBin = ScaledExp / (obj.config['rSpot'] + ScaledExp)
+    cgc = np.asarray(ing['geneCount'])[None, :]
+    return negative_binomial_loglikelihood(cgc, obj.config['rSpot'], pNegBin)[0]
 
 
 # def plot_loglik_contr(df):
@@ -317,6 +368,11 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     else:
         pciSeq_label = label
 
+    # The ingredients behind this cell's class. Live arrays for an ordinary
+    # cell, the copies kept at freeze time if the cell was pinned, so that the
+    # component and posterior charts below agree with the class we report.
+    ing = cell_ingredients(obj, pciSeq_label)
+
     # Step 1: Calculate gene log-likelihood contributions
     contr_df, gene_counts, scaled_means_df = obj.calculate_genes_log_likelihood_contr(label)
 
@@ -361,8 +417,8 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     # This matches compute_gene_loglikelihood_matrix and the JS viewer's diagnostics.js.
     nb_values = np.einsum('gk, g, k -> gk',
                           scaled_means_df.values,
-                          obj.genes.eta_bar,
-                          obj.cells.theta_bar[pciSeq_label]) + obj.config['SpotReg']
+                          ing['eta_bar'],
+                          ing['theta_bar']) + obj.config['SpotReg']
     nb_prediction = pd.DataFrame(nb_values, index=scaled_means_df.index, columns=scaled_means_df.columns)
     expected_counts = nb_prediction.loc[selected_genes, [pciSeq_class, user_class]]
     gene_expression_data = gene_expression_data.merge(
@@ -389,19 +445,19 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     pciSeq_idx = class_names.index(pciSeq_class)
     user_idx = class_names.index(user_class)
 
-    log_prior = obj.cellTypes.log_prior
-    mrf = obj.cells.mrf
+    log_prior = ing['log_prior']
+    mrf = ing['mrf']
 
     gene_loglik_pciSeq = my_contr_df[pciSeq_class].sum()
     gene_loglik_user = my_contr_df[user_class].sum()
     log_prior_pciSeq = log_prior[pciSeq_idx]
     log_prior_user = log_prior[user_idx]
-    mrf_pciSeq = mrf[pciSeq_label, pciSeq_idx]
-    mrf_user = mrf[pciSeq_label, user_idx]
+    mrf_pciSeq = mrf[pciSeq_idx]
+    mrf_user = mrf[user_idx]
 
     # Full posterior over ALL classes, reconstructed from the same 3 components
     gene_loglik_all = contr_df.sum(axis=0).reindex(class_names).values
-    log_post_all = gene_loglik_all + log_prior + mrf[pciSeq_label, :]
+    log_post_all = gene_loglik_all + log_prior + mrf
     full_post = softmax(log_post_all)
     full_pciSeq = full_post[pciSeq_idx]
     full_user = full_post[user_idx]

@@ -215,7 +215,15 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             assigned_class_idx INTEGER,
             gamma_assigned BLOB,
             mrf BLOB,
-            effective_beta BLOB
+            effective_beta BLOB,
+            -- filled in only for cells the tie freezing pinned, NULL otherwise.
+            -- theta_bar, gene_count and mrf above already hold the pinned
+            -- values for those cells; these two are here because eta_bar and
+            -- log_prior are one per run in the metadata table and a pinned
+            -- cell needs the ones from the iteration it was pinned on.
+            frozen_eta_bar BLOB,
+            frozen_log_prior BLOB,
+            frozen_iter INTEGER
         )
     ''')
 
@@ -368,13 +376,42 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     # mrf[c, k]
     mrf_f32 = cells.mrf.astype(np.float32)
 
-    # effective_beta[c, k]  -- placeholder column kept for a future per-(cell, class)
-    # MRF cap. The cap has been removed, so cells.effective_beta is always None and
-    # this records the flat mrf_beta that was applied to every cell.
+    # effective_beta[c, k]: the mrf coupling that was actually used for each
+    # cell and class. With apply_mrf_cap on, _capped_mrf fills this in and it
+    # sits below mrf_beta wherever the cap bit. With the cap off it stays None
+    # and every cell got the flat mrf_beta, which is what we write instead.
     if cells.effective_beta is not None:
         effective_beta_f32 = cells.effective_beta.astype(np.float32)
     else:
         effective_beta_f32 = np.full_like(mrf_f32, varBayes.config['mrf_beta'])
+
+    # A cell whose class was pinned by the tie freezing had its row frozen
+    # partway through the run, while eta_bar, log_prior and its own reads kept
+    # moving for the rest of it. The viewer rebuilds the class from these
+    # columns, so writing the live values would leave it unable to explain the
+    # class it is showing. The copies the freezer kept at the pinning go in
+    # instead. Everything else about the cell is left alone.
+    freezer = getattr(varBayes, 'tie_freezer', None)
+    snapshots = freezer.snapshots if freezer is not None else {}
+    frozen_eta = {}
+    frozen_log_prior = {}
+    frozen_iter = {}
+    for c, snap in snapshots.items():
+        theta_bar_f32[c] = snap['theta_bar']
+        gene_count_f32[c] = snap['geneCount']
+        mrf_f32[c] = snap['mrf']
+        if snap['effective_beta'] is not None:
+            effective_beta_f32[c] = snap['effective_beta']
+        # eta_bar and log_prior are one per run in the metadata table, so a
+        # pinned cell needs its own copy alongside
+        frozen_eta[c] = snap['eta_bar'].astype(np.float32).tobytes()
+        frozen_log_prior[c] = snap['log_prior'].astype(np.float32).tobytes()
+        frozen_iter[c] = int(snap['iteration'])
+    if snapshots:
+        # theta came out of theta_bar, so it has to follow the pinned values
+        theta_scalar = np.einsum('ck,ck->c', class_prob_f32, theta_bar_f32).astype(np.float32)
+        logger.info('%d pinned cell(s) written with the values they were pinned on',
+                    len(snapshots))
 
     batch_size = 10000
     for batch_start in range(0, nC, batch_size):
@@ -392,8 +429,12 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                 gamma_assigned[c].tobytes(),
                 mrf_f32[c].tobytes(),
                 effective_beta_f32[c].tobytes(),
+                frozen_eta.get(c),
+                frozen_log_prior.get(c),
+                frozen_iter.get(c),
             ))
-        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', batch_data)
+        cursor.executemany(
+            'INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', batch_data)
         # if (batch_end % 10000 == 0) or (batch_end == nC):
         #     logger.info('Inserted %d/%d cells', batch_end, nC)
 

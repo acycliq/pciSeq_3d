@@ -78,6 +78,7 @@ from .utils import visualisation
 from .utils import iteration_diagnostics
 from .utils.numba_kernels import spots_to_cell_numba_kernel
 from .utils.mrf_cap import calc_capped_mrf
+from .utils.tie_freeze import TieFreezer
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -109,6 +110,8 @@ class VarBayes:
         self.iter_delta = []
         self.has_converged = False
         self.on_iteration_callback = None  # Optional callback for real-time visualization
+        # tie freezing, created in initialise_state once the sizes are known
+        self.tie_freezer = None
 
         # Initialize components
         self._validate_config(config)
@@ -174,10 +177,34 @@ class VarBayes:
         self.spots.parent_cell_prob = self.spots.ini_cellProb(self.spots.parent_cell_id, self.config)
         self.cells._ini_gene_counts = np.bincount(self.spots.data.label.values, minlength=self.nC)
         self.genes._misread_density = self.genes.calc_misread_density()
-        A_total = self.config['img_dim']['w'] * self.config['img_dim']['h'] * self.config['img_dim']['n_planes']
-        self.genes.init_rho(self.config['MisreadDensity']['default'], A_total)
+        self.genes.init_rho(self.config['MisreadDensity']['default'], self._roi_volume())
         self.spots.init_gamma(self.config['rSpot'], self.config['rSpot'], [self.nC, self.nG, self.nK])
         self.init_theta()
+        self.tie_freezer = TieFreezer(self.nC, self.nK)
+
+    def _roi_volume(self) -> float:
+        """Volume of the region of interest, in the same units the spots live in.
+
+        The background misread density is N_0,g / A_total, and it gets compared
+        against the cell gaussians inside the same softmax. Those gaussians are
+        evaluated on anisotropy scaled coordinates, z stretched by
+        voxel_size[2]/voxel_size[0], so they are densities per scaled volume.
+        Counting the roi in raw voxels leaves the two sides in different units
+        and the background comes out too strong by that same factor, 2.5 times
+        for a 0.28/0.28/0.7 voxel, so too many spots end up as background
+        instead of going to a cell.
+
+        Only z is corrected. We take the pixels to be square in xy, which they
+        are on every dataset we run. anisotropy_calc does also scale y by
+        voxel_size[1]/voxel_size[0], so if a dataset ever turns up with non
+        square pixels this volume will be out by that factor and it needs to go
+        back in. Default voxel_size is [1, 1, 1], so 2d and isotropic runs are
+        untouched.
+        """
+        dim = self.config['img_dim']
+        vs = self.config['voxel_size']
+        Sz = vs[2] / vs[0]
+        return dim['w'] * dim['h'] * dim['n_planes'] * Sz
 
     def init_theta(self) -> None:
         geneCounts = self.cells.ini_gene_counts
@@ -463,7 +490,9 @@ class VarBayes:
         wCellClass = contr + self.cellTypes.log_prior + mrf
         pCellClass = softmax(wCellClass, axis=1)
 
-        self.cells.classProb = pCellClass
+        # the freezer needs eta_bar and log_prior as well as the cells, so it
+        # gets the whole object rather than just self.cells
+        self.cells.classProb = self.tie_freezer.freeze(pCellClass, self.iter_num, self)
 
     # -------------------------------------------------------------------- #
     def spots_to_cell(self) -> None:

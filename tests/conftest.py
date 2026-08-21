@@ -58,6 +58,7 @@ def base_opts():
         "Inefficiency": 1.0,
         "InsideCellBonus": 0,
         "mrf_beta": 1.0,
+        "apply_mrf_cap": True,
         "MisreadDensity": {"default": 1e-6},
         "cell_centroid_prior": 10,
         "cell_cov_prior": 10,
