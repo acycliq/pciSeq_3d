@@ -191,10 +191,11 @@ def cell_ingredients(obj, c: int) -> dict:
 
     Expects `c` to be an internal index, i.e. label_map already applied.
     """
-    freezer = getattr(obj, 'tie_freezer', None)
-    snap = freezer.snapshot(c) if freezer is not None else None
-    if snap is not None:
-        return snap
+    overrides_obj = getattr(obj, 'tie_freezer', None)
+    if overrides_obj is not None:
+        overrides = overrides_obj.snapshot(c)
+        if overrides is not None:
+            return overrides
     beta = obj.cells.effective_beta
     return {
         'iteration': None,
