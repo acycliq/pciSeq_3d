@@ -464,7 +464,9 @@ class VarBayes:
         wCellClass = contr + self.cellTypes.log_prior + mrf
         pCellClass = softmax(wCellClass, axis=1)
 
-        self.cells.classProb = self.tie_freezer.freeze(pCellClass, self.iter_num, self.cells)
+        # the freezer needs eta_bar and log_prior as well as the cells, so it
+        # gets the whole object rather than just self.cells
+        self.cells.classProb = self.tie_freezer.freeze(pCellClass, self.iter_num, self)
 
     # -------------------------------------------------------------------- #
     def _capped_mrf(self, contr) -> np.ndarray:
