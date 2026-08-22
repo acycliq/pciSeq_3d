@@ -67,6 +67,16 @@ outside the cell boundaries
 MRF coefficient: controls how strongly neighboring cells' class assignments
 influence each other. Higher values = more spatial smoothing.
 
+### `apply_mrf_cap`
+
+**Default:** `True`
+
+When True, cap mrf_beta per (cell, class) so the MRF can never flip a cell
+out of the Zero class when its own gene evidence and the prior both favour
+Zero. Also stops neighbours from pushing a cell into Zero (beta_zero = 0).
+See docs/mrf_cap/loglik_ratio.tex for the derivation. When False the old
+flat mrf_beta is used everywhere.
+
 ### `MisreadDensity`
 
 **Default:** `1e-05`

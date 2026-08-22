@@ -86,6 +86,94 @@ Perform cell typing using Variational Bayes algorithm.
   If the cell typing algorithm fails (non-convergence only logs a warning)
 
 
+## `to_spatialdata`
+
+`pciSeq.src.core.utils.spatialdata_export.to_spatialdata`
+
+```python
+to_spatialdata(cellData: pd.DataFrame, geneData: pd.DataFrame, coo: List[coo_matrix], varBayes, cfg: Dict)
+```
+
+Assemble the run into an in-memory SpatialData object.
+
+Args:
+    cellData: cell typing results, one row per cell, original labels.
+    geneData: spot results, one row per spot, original labels.
+    coo: the segmentation, one sparse plane per z, as fit() received it.
+    varBayes: the fitted model, read for the arrays the two frames do not
+        carry (class posterior, spot probabilities, gene panel, reference).
+    cfg: the resolved config. voxel_size and label_map are used here.
+
+
+## `write_spatialdata`
+
+`pciSeq.src.core.utils.spatialdata_export.write_spatialdata`
+
+```python
+write_spatialdata(cellData, geneData, coo, varBayes, cfg, out_dir: str) -> str
+```
+
+Write the run as a SpatialData zarr store and return its path.
+
+
+## `add_image`
+
+`pciSeq.src.core.utils.spatialdata_export.add_image`
+
+```python
+add_image(store_path: str, img, name: str='background', voxel_size=None, scale_factors=(2, 2, 2)) -> None
+```
+
+Add a background image to an existing SpatialData store.
+
+Works like inserting into a database: the store already holds the run
+(spots, labels, tables) and this writes one more element into it, without
+touching anything else. Kept separate from write_spatialdata because fit()
+never sees the image, the same reason stage_image is its own entry point.
+
+Args:
+    store_path: path to an existing spatialdata.zarr written by pciSeq.
+    img: the image to add. A 2D array (H, W), a 3D stack (Z, H, W), or a
+        3D stack with channels (Z, H, W, C). Same shapes stage_image takes.
+    name: element name inside the store.
+    voxel_size: [x, y, z]. Left as None it is read from the store's own
+        provenance, so the microns transform automatically matches the
+        other elements. Pass it only for a store that lacks the metadata.
+    scale_factors: the multiscale pyramid, each level relative to the one
+        before. The default (2, 2, 2) gives four scales. None writes a
+        single scale.
+
+
+## `add_boundaries`
+
+`pciSeq.src.core.utils.spatialdata_export.add_boundaries`
+
+```python
+add_boundaries(store_path: str, labels_name: str='cell_labels', name: str='cell_boundaries', voxel_size=None) -> None
+```
+
+Add per-plane cell boundary polygons to an existing SpatialData store.
+
+Same insert pattern as add_image, but this one needs no data at all: the
+boundaries are derived from the segmentation, and the store already holds
+the segmentation as the labels element. They are extracted here with the
+same chain code tracing the pipeline uses, so what goes in matches what
+pciSeq would have drawn.
+
+Shapes in SpatialData are strictly 2D, so a 3D run gets one shapes element
+per plane, cell_boundaries_plane_000 and so on, each a set of polygons
+indexed by the cell label. A cell spanning 12 planes appears as 12
+polygons, one per element, all under its own label, which is exactly how
+pciSeq thinks of boundaries anyway. A 2D run gets a single element.
+
+Args:
+    store_path: path to an existing spatialdata.zarr written by pciSeq.
+    labels_name: the labels element to trace.
+    name: element name, used as a prefix on 3D runs.
+    voxel_size: [x, y, z]. Left as None it is read from the store's own
+        provenance, same as add_image.
+
+
 ## `stage_data`
 
 `pciSeq.src.preprocess.main.stage_data`
@@ -160,7 +248,7 @@ Returns:
 `pciSeq.src.tiling.stage_image.stage_image`
 
 ```python
-stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, plane_prefix='plane_', use_buffer=True, tint=None)
+stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, plane_prefix='plane_', use_buffer=True, tint=None, progress=True)
 ```
 
 Turn an image (or z-stack) into an MBTiles file the viewer can read.
@@ -187,6 +275,8 @@ and it writes one `.mbtiles` file.
   If True (the default) the tiles are built in memory and inserted straight into the MBTiles database. If False they are written to disk first, which uses less memory but more disk I/O.
 - **`tint`** *(str, optional)*
   Hex colour like "#00FF00" the viewer uses to tint this grayscale layer. If omitted, the layer is shown in plain grayscale.
+- **`progress`** *(bool, optional)*
+  If True (the default) show two per-plane tqdm bars, one for tiling and one for the db writing. Set to False for headless/quiet runs.
 
 **Returns**
 

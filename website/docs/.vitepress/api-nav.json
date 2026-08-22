@@ -8,6 +8,22 @@
     "link": "/api/reference#cell-type"
   },
   {
+    "text": "to_spatialdata",
+    "link": "/api/reference#to-spatialdata"
+  },
+  {
+    "text": "write_spatialdata",
+    "link": "/api/reference#write-spatialdata"
+  },
+  {
+    "text": "add_image",
+    "link": "/api/reference#add-image"
+  },
+  {
+    "text": "add_boundaries",
+    "link": "/api/reference#add-boundaries"
+  },
+  {
     "text": "stage_data",
     "link": "/api/reference#stage-data"
   },

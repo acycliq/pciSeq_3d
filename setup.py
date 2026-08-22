@@ -81,6 +81,7 @@ install_deps = [
     "numba",
     "pyarrow",
     "spatialdata",
+    "pyyaml",
 ]
 
 
@@ -131,6 +132,11 @@ setup(
     url="https://github.com/acycliq/pciSeq_3d",
     packages=find_packages(),
     install_requires=install_deps,
+    entry_points={
+        "console_scripts": [
+            "pciseq = pciSeq.cli:main",
+        ],
+    },
     include_package_data=True,
     package_data={
         "pciSeq": get_static_files(os.path.join("pciSeq", "src", "realtime_viewer"))

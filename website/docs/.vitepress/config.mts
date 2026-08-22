@@ -78,6 +78,7 @@ export default defineConfig({
           },
           { text: 'Working with results', link: '/api/working-with-results' },
           { text: 'Configuration (opts)', link: '/api/configuration' },
+          { text: 'Command line', link: '/api/command-line' },
         ],
       },
     ],
