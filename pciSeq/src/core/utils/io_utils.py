@@ -11,7 +11,7 @@ import pyarrow.feather as feather
 
 from .spatialdata_export import write_spatialdata
 import json
-from typing import Tuple, Optional, Dict, Any, List
+from typing import Tuple, Optional, Dict, Any, List, Iterator
 from urllib.parse import urlparse
 from urllib.request import urlopen
 import pandas as pd
@@ -512,7 +512,7 @@ def export_db_table(table_name: str, out_dir: str, con: Any) -> None:
 
 
 def write_data(cellData: pd.DataFrame, geneData: pd.DataFrame,
-               cellBoundaries: pd.DataFrame, cellBoundaries_list: pd.DataFrame,
+               cellBoundaries: pd.DataFrame, cellBoundaries_list: List[pd.DataFrame],
                coo, varBayes: Any, cfg: Dict) -> None:
 
     dst = get_out_dir(cfg['output_path'])
@@ -572,8 +572,10 @@ def write_tsv(cellData: pd.DataFrame, geneData: pd.DataFrame, cellBoundaries: pd
     logger.info('Saved at %s: (%.1f MB)', cellBoundaries_path, cellBoundaries_mb)
 
 
-def write_arrow(geneData:pd.DataFrame, cellData:pd.DataFrame, cellBoundaries:pd.DataFrame, out_dir: str = None) -> None:
-    geneData_to_arrow(geneData, out_dir)
+def write_arrow(geneData:pd.DataFrame, cellData:pd.DataFrame, cellBoundaries: List[pd.DataFrame], out_dir: str = None) -> None:
+    # cellBoundaries is a list of per-plane DataFrames, index == plane_id, so its
+    # length is the plane count the spots shards need to cover densely
+    geneData_to_arrow(geneData, out_dir, num_planes=len(cellBoundaries))
     cellData_to_arrow(cellData, out_dir)
     # logger.info('boundaries_to_arrow_old - Starting')
     # boundaries_to_arrow_old(cellBoundaries, out_dir)
@@ -586,71 +588,131 @@ def write_arrow(geneData:pd.DataFrame, cellData:pd.DataFrame, cellBoundaries:pd.
     # logger.info('Saved at %s', os.path.join(out_dir, 'cellBoundaries.tsv'))
 
 
-def geneData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
+def _spots_arrow_table(df: pd.DataFrame) -> pa.Table:
+    """Build the spots Arrow table for one plane. An empty slice gives the same schema."""
+    # Create arrays with exact schema matching working converter
+    # Column order: ['x', 'y', 'z', 'plane_id', 'spot_id', 'gene_id', 'neighbour_array', 'neighbour_prob', 'omp_score', 'omp_intensity']
+    arrays = {}
 
+    # Required columns with exact types from working converter
+    if "x" in df.columns:
+        arrays["x"] = pa.array(df["x"].astype("float32"))
+    if "y" in df.columns:
+        arrays["y"] = pa.array(df["y"].astype("float32"))
+    if "z" in df.columns:
+        arrays["z"] = pa.array(df["z"].astype("float32"))
+    if "plane_id" in df.columns:
+        arrays["plane_id"] = pa.array(df["plane_id"].astype("uint16"))
+    if "spot_id" in df.columns:
+        arrays["spot_id"] = pa.array(df["spot_id"].astype("uint32"))
+    if "gene_id" in df.columns:
+        arrays["gene_id"] = pa.array(df["gene_id"].astype("uint32"))
+
+    # List columns
+    if "neighbour_array" in df.columns:
+        arrays["neighbour_array"] = pa.array(df["neighbour_array"].tolist(), type=pa.list_(pa.int32()))
+    if "neighbour_prob" in df.columns:
+        arrays["neighbour_prob"] = pa.array(df["neighbour_prob"].tolist(), type=pa.list_(pa.float32()))
+
+    # Optional OMP columns
+    if "omp_score" in df.columns:
+        arrays["omp_score"] = pa.array(df["omp_score"].astype("float32"))
+    if "omp_intensity" in df.columns:
+        arrays["omp_intensity"] = pa.array(df["omp_intensity"].astype("float32"))
+
+    # Hard misread flag (0 or 1)
+    if "is_hard_misread" in df.columns:
+        arrays["is_hard_misread"] = pa.array(df["is_hard_misread"].astype("uint8"))
+
+    # NOTE: gene_name and neighbour columns are excluded to match working converter
+    return pa.table(arrays)
+
+
+def _dense_planes(df_in: pd.DataFrame, num_planes: int) -> Iterator[Tuple[int, pd.DataFrame]]:
+    """
+    Yield (plane_id, df) for every plane in [0, num_planes), in plane order. Planes with
+    no spots yield an empty slice of df_in, so they still get a shard with the same schema.
+    Walks a sorted groupby once, so only one plane's sub-frame is alive at a time.
+    """
+    empty = df_in.iloc[0:0]
+    next_plane = 0
+    for key, df in df_in.groupby("plane_id", sort=True):
+        plane_id = int(key)
+        while next_plane < plane_id:
+            yield next_plane, empty
+            next_plane += 1
+        yield plane_id, df
+        next_plane = plane_id + 1
+    while next_plane < num_planes:
+        yield next_plane, empty
+        next_plane += 1
+
+
+def geneData_to_arrow(df_in: pd.DataFrame, out_dir: str = None, num_planes: int = None) -> None:
+    """
+    Convert spots DataFrame into one Arrow Feather file per plane.
+
+    Args:
+        df_in: Spots DataFrame from spots_summary(). Must have a 'plane_id' column.
+        out_dir: The root directory to save the output 'arrow_spots' folder to.
+        num_planes: Total number of planes. Every plane in [0, num_planes) gets a file
+                    on disk and an entry in the manifest, empty planes included. Falls
+                    back to the highest plane_id in the data when not given.
+    """
     out_dir = Path(out_dir) / "viewer_data" / 'arrow_spots'
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    if "plane_id" not in df_in.columns:
+        raise ValueError(
+            f"geneData_to_arrow: Missing required column 'plane_id'. "
+            f"Cannot shard spots by plane. Check spots_summary() output."
+        )
+
+    # gene dictionary (id -> name) from the full dataset
+    gene_dict_data = dict(zip(df_in["gene_id"], df_in["gene_name"]))
+
+    # every spot must land on a plane: NaN, negative or fractional plane_ids have nowhere to go
+    plane_ids = pd.to_numeric(df_in["plane_id"], errors="coerce")
+    bad = plane_ids.isna() | (plane_ids < 0) | (plane_ids % 1 != 0)
+    if bad.any():
+        # raise before touching the output dir, so a failed run leaves the previous
+        # shards and manifest consistent instead of deleting files the manifest points at
+        raise ValueError(
+            f"geneData_to_arrow: {int(bad.sum())} spots have a plane_id that is NaN, negative or "
+            f"non-integer. They cannot be assigned to a plane shard. Check spots_summary() output."
+        )
+    if not pd.api.types.is_integer_dtype(df_in["plane_id"]):
+        # normalise, so groupby sorts numerically even if the column arrived as float or string
+        # (safe to cast: validation above already ruled out NaN, negative, fractional)
+        df_in = df_in.assign(plane_id=plane_ids.astype("int64"))
+
+    # drop shards from previous runs, eg the old row-chunked spots_shard_NNN files.
+    # validation is done, so no bad input can abort after this point. the remaining
+    # risk is environmental: a crash mid-write (disk full, kill) leaves the output
+    # dir torn, the old manifest pointing at deleted or half-rewritten shards. that
+    # window is not new, the old chunked writer overwrote shards in place with the
+    # same exposure. a staging dir plus rename swap would close it if it ever matters.
+    for stale in out_dir.glob("spots_*.feather"):
+        stale.unlink()
+
+    # dense plane index: never drop planes that have spots, even if num_planes is short
+    max_plane = int(plane_ids.max()) + 1 if len(df_in) else 0
+    if num_planes is None:
+        num_planes = 0
+    num_planes = max(num_planes, max_plane)
+
     shards = []
     total_rows = 0
-    shard_index = 0
-    gene_dict_data = {}
 
-    chunk_size = 200000
-    for start in range(0, len(df_in), chunk_size):
-        df = df_in.iloc[start:start+chunk_size]
+    for plane_id, df in _dense_planes(df_in, num_planes):
+        table = _spots_arrow_table(df)
+        shard_name = f"spots_plane_{plane_id:03d}.feather"
+        feather.write_feather(table, (out_dir / shard_name).as_posix(), compression='uncompressed')
 
-        # Build gene dict from this chunk
-        chunk_gene_dict = dict(zip(df["gene_id"], df["gene_name"]))
-        gene_dict_data.update(chunk_gene_dict)
+        shards.append({"url": shard_name, "rows": int(len(df)), "plane": plane_id})
+        total_rows += len(df)
 
-        # Create arrays with exact schema matching working converter
-        # Column order: ['x', 'y', 'z', 'plane_id', 'spot_id', 'gene_id', 'neighbour_array', 'neighbour_prob', 'omp_score', 'omp_intensity']
-        arrays = {}
-
-        # Required columns with exact types from working converter
-        if "x" in df.columns:
-            arrays["x"] = pa.array(df["x"].astype("float32"))
-        if "y" in df.columns:
-            arrays["y"] = pa.array(df["y"].astype("float32"))
-        if "z" in df.columns:
-            arrays["z"] = pa.array(df["z"].astype("float32"))
-        if "plane_id" in df.columns:
-            arrays["plane_id"] = pa.array(df["plane_id"].astype("uint16"))
-        if "spot_id" in df.columns:
-            arrays["spot_id"] = pa.array(df["spot_id"].astype("uint32"))
-        if "gene_id" in df.columns:
-            arrays["gene_id"] = pa.array(df["gene_id"].astype("uint32"))
-
-        # List columns
-        if "neighbour_array" in df.columns:
-            arrays["neighbour_array"] = pa.array(df["neighbour_array"].tolist(), type=pa.list_(pa.int32()))
-        if "neighbour_prob" in df.columns:
-            arrays["neighbour_prob"] = pa.array(df["neighbour_prob"].tolist(), type=pa.list_(pa.float32()))
-
-        # Optional OMP columns
-        if "omp_score" in df.columns:
-            arrays["omp_score"] = pa.array(df["omp_score"].astype("float32"))
-        if "omp_intensity" in df.columns:
-            arrays["omp_intensity"] = pa.array(df["omp_intensity"].astype("float32"))
-
-        # Hard misread flag (0 or 1)
-        if "is_hard_misread" in df.columns:
-            arrays["is_hard_misread"] = pa.array(df["is_hard_misread"].astype("uint8"))
-
-        # NOTE: gene_name and neighbour columns are excluded to match working converter
-
-        table = pa.table(arrays)
-        shard_name = f"spots_shard_{shard_index:03d}.feather"
-        shard_path = out_dir / shard_name
-        feather.write_feather(table, shard_path.as_posix(), compression='uncompressed')
-
-        row_count = len(df)
-        shards.append({"url": shard_name, "rows": int(row_count)})
-        total_rows += row_count
-        shard_index += 1
-
-    # Write manifest
+    # Write manifest. Shards are already in plane order by construction.
     manifest = {
         "format": "arrow-feather",
         "total_rows": int(total_rows),
@@ -658,7 +720,7 @@ def geneData_to_arrow(df_in: pd.DataFrame, out_dir: str = None) -> None:
     }
     (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
-    # Write gene dictionary (id -> name) using data collected during chunking
+    # Write gene dictionary (id -> name)
     (out_dir / "gene_dict.json").write_text(json.dumps(gene_dict_data, indent=2))
 
     # logger.info(f"Saved {total_rows} rows in {len(shards)} shards at {out_dir}")
