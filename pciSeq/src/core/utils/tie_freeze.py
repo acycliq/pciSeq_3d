@@ -1,4 +1,21 @@
-"""Freezes cells that keep flip-flopping between the same classes."""
+"""Pins cells that keep flip-flopping between two equally good classes.
+
+The problem this solves is NOT the model failing to converge. The ELBO
+plateaus early and stays there: measured on the reference run it moves by about
+one part in 50 million per iteration after iteration 150, and a cell changing
+its class outright moves it by less than that. The chain has converged. What
+has not settled is which of two labels a handful of cells report, and since the
+two labels are worth the same to the objective, the model has no reason to
+prefer either and no amount of further fitting will produce one.
+
+The run keeps going anyway because the stopping rule watches the largest
+spot-to-cell probability change in the whole dataset. A few dozen cells holding
+a handful of reads each keep throwing their spots back and forth, so that
+number keeps being dragged back above the tolerance, and 26k settled cells wait
+on them.
+
+See the worked example in TieFreezer for how a cell gets into that state.
+"""
 import logging
 
 import numpy as np
@@ -16,12 +33,63 @@ TIE_RETURNS = 2   # how many times a cell must come back before we freeze it
 class TieFreezer:
     """Pins the class probabilities of cells that never make up their mind.
 
-    The ELBO flattens early, but a few nearly empty cells keep swapping class
-    every iteration, so the run never passes its convergence check. Each swap
-    drags the spots around them from the cell to the background and back, and
-    the stopping rule looks at the biggest spot move of the iteration, so a
-    couple of dozen cells hold up the whole run.
+    What the ping-pong looks like
+    -----------------------------
+    Everything below is measured on a run with the mrf switched off, so none
+    of it is a neighbourhood effect.
 
+    A single spot, one iteration apart::
+
+        iter 53   cell 9667  -> background    p 0.3721 -> 0.3693
+        iter 54   background -> cell 9667     p 0.3693 -> 0.3771
+
+    Given to the cell, given back, given again. The probability hardly moves,
+    0.37 either way, because the spot really could belong to either owner. It
+    is a coin standing on its edge and the argmax has to report a face. 92
+    spots do this in that run.
+
+    On its own that costs nothing, since the probability is not moving. What
+    holds a run up is a whole cell changing its mind at once::
+
+        iter   delta    what happened
+         163   0.0248   cell 9027 is Zero, as it has been since iteration 20
+         164   0.0442   it flips to 329 ABC NN
+         165   0.0952   spot 3066431: background -> cell 9027  p 0.397 -> 0.443
+         166   0.2434   spot 3066430: background -> cell 9027  p 0.370 -> 0.540
+         167   0.3966   spot 3066445: background -> cell 9027  p 0.408 -> 0.625
+         168   0.1351   three more spots follow
+         172   0.0114   quiet again
+
+    Zero has no gene preference, so a cell calling itself Zero competes for
+    nothing. The moment it calls itself a real class it starts competing, and
+    it takes spots off the background and off its neighbours, each by a wide
+    margin. The stopping rule watches the single largest spot move anywhere in
+    3.1 million spots, so this one cell set that number for the whole dataset
+    for nine iterations, at twenty times the tolerance on the worst of them.
+
+    Then it goes quiet, and twenty or so iterations later another cell does the
+    same thing. Over 250 iterations only 52 came in under the tolerance: the
+    run reaches the line, bounces off it, and comes back. That is the plateau.
+
+    Why pinning is not cheating
+    ---------------------------
+    We are not choosing a winner the data could have decided; we are recording
+    that there is no winner to decide. The two states differ by less than one
+    part in ten million of the objective, so no further fitting would separate
+    them, and the cell would keep swapping for as long as you let it run. What
+    the pin does is take one of the two answers the model actually produced and
+    stop asking again.
+
+    Three things keep it above board. Nothing is pinned before TIE_START, so
+    cells still learning are untouched, and a run is bit-for-bit identical to
+    an unpinned one until the first pin fires. What gets pinned is a real
+    iteration of the model, never an average, so it has real ingredients behind
+    it and check_cell can still explain it. And every pinned cell is logged
+    with its reads, the two classes it was swapping between and the
+    probabilities, so the decision is visible rather than silent.
+
+    How they are detected
+    ---------------------
     A cell that is still learning moves to a new class and stays, a tie cell
     goes back to where it just was (e.g. Oligo, Zero, Oligo, Zero, ...). So
     once a cell has come back twice to a class it held in the last TIE_HISTORY
@@ -29,14 +97,19 @@ class TieFreezer:
     the same as a swap with Zero: either way the cell will never settle, and
     either way it would keep the run going for ever.
 
-    What gets pinned is the state the cell is in at that moment, not an average
-    of its recent ones. That matters for the diagnostics. check_cell does not
-    read classProb to draw its charts, it recomputes the posterior from the
-    ingredients that went into it, and the two agree today only because
-    cell_to_cellType is the last thing to touch those ingredients before the
-    run exits. An average of five iterations is not something the softmax ever
-    produced, so nothing would ever add up to it and the charts could not be
-    made to agree. A single real iteration always has ingredients behind it.
+    Note the detector only counts a return on an iteration where the cell
+    actually moved, so a cell that swaps every iteration is pinned as soon as
+    the rule allows, and a slower one takes proportionally longer.
+
+    Why a real iteration and not an average
+    ---------------------------------------
+    check_cell does not read classProb to draw its charts, it recomputes the
+    posterior from the ingredients that went into it, and the two agree today
+    only because cell_to_cellType is the last thing to touch those ingredients
+    before the run exits. An average of five iterations is not something the
+    softmax ever produced, so nothing would ever add up to it and the charts
+    could not be made to agree. A single real iteration always has ingredients
+    behind it.
 
     Those ingredients are what snapshots holds. They have to be copied because
     the live ones carry on moving after the freeze: eta_bar and log_prior are
