@@ -22,8 +22,8 @@ $$
 \begin{aligned}
 \log q(\zeta, \gamma)
 = \sum_{c,k} \zeta_{c,k} \Big[ \sum_g \big[
-& \underbrace{- \mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c\, \gamma_{g,c}
-   + \bar N_{c,g}\log(\mu_{g,k}\, \bar\theta_c\, \gamma_{g,c})}_{\text{Poisson}} \\
+& \underbrace{- \mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}\, \gamma_{g,c}
+   + \bar N_{c,g}\log(\mu_{g,k}\, \bar\theta_{c\mid k}\, \gamma_{g,c})}_{\text{Poisson}} \\
 & + \underbrace{(r_\gamma - 1)\log\gamma_{g,c} - r_\gamma\,\gamma_{g,c}}_{\text{prior: }\gamma \sim \mathrm{Gamma}(r_\gamma, r_\gamma)}
   \big] \\
 & + \underbrace{\log\pi_k}_{\text{baseline log-prior}}
@@ -40,7 +40,7 @@ $$
 \boxed{\;
 q\big(k(c)=k\big)
 \propto
-\Big(\prod_g \mathrm{NB}\big(\bar N_{c,g};\, r_\gamma,\, \mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c\big)\Big)
+\Big(\prod_g \mathrm{NB}\big(\bar N_{c,g};\, r_\gamma,\, \mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}\big)\Big)
 \cdot
 \pi_k \exp\Big(\beta \sum_{c'\in\mathcal{N}_c} \bar\zeta_{c',k}\Big)
 \;}
@@ -49,7 +49,7 @@ $$
 The two factors are:
 
 - a **Negative Binomial likelihood** over genes, with effective mean
-  $\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c$ - how well the cell's gene counts match the
+  $\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}$ - how well the cell's gene counts match the
   warped expectation for class $k$;
 - the **baseline prior** $\pi_k$ scaled by the **spatial term**
   $\beta \sum_{c'\in\mathcal{N}_c} \bar\zeta_{c',k}$.
@@ -108,12 +108,12 @@ r_\gamma\log\frac{r_\gamma}{r_\gamma+\varepsilon} + \bar N_{c,g}\log\frac{\varep
 $$
 
 For a real class $k$ the mean is the warped expectation plus the floor,
-$\mu = \mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c + \varepsilon$:
+$\mu = \mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k} + \varepsilon$:
 
 $$
 \begin{aligned}
-& r_\gamma\log\frac{r_\gamma}{r_\gamma+\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c+\varepsilon} \\
-& \quad + \bar N_{c,g}\log\frac{\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c+\varepsilon}{r_\gamma+\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c+\varepsilon} .
+& r_\gamma\log\frac{r_\gamma}{r_\gamma+\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}+\varepsilon} \\
+& \quad + \bar N_{c,g}\log\frac{\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}+\varepsilon}{r_\gamma+\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}+\varepsilon} .
 \end{aligned}
 $$
 
@@ -127,7 +127,7 @@ log-odds are
 $$
 \begin{aligned}
 \Delta_{c,k} &:= \log q(k \mid c) - \log q(\text{Zero} \mid c) \\
-&= \sum_g\Big[\, r_\gamma\log\frac{r_\gamma+\varepsilon}{r_\gamma+\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c+\varepsilon} + \bar N_{c,g}\log\frac{(\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c+\varepsilon)(r_\gamma+\varepsilon)}{\varepsilon\,(r_\gamma+\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c+\varepsilon)} \,\Big] \\
+&= \sum_g\Big[\, r_\gamma\log\frac{r_\gamma+\varepsilon}{r_\gamma+\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}+\varepsilon} + \bar N_{c,g}\log\frac{(\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}+\varepsilon)(r_\gamma+\varepsilon)}{\varepsilon\,(r_\gamma+\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}+\varepsilon)} \,\Big] \\
 &\quad + \log\frac{\pi_k}{\pi_{\text{Zero}}} + \beta_{c,k}\sum_{c'\in\mathcal{N}_c}\bar\zeta_{c',k} .
 \end{aligned}
 $$
@@ -138,7 +138,7 @@ data-and-prior score $D_{c,k}$,
 
 $$
 \begin{aligned}
-D_{c,k} = {} & \sum_g\Big[\, r_\gamma\log\frac{r_\gamma+\varepsilon}{r_\gamma+\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c+\varepsilon} + \bar N_{c,g}\log\frac{(\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c+\varepsilon)(r_\gamma+\varepsilon)}{\varepsilon\,(r_\gamma+\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_c+\varepsilon)} \,\Big] \\
+D_{c,k} = {} & \sum_g\Big[\, r_\gamma\log\frac{r_\gamma+\varepsilon}{r_\gamma+\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}+\varepsilon} + \bar N_{c,g}\log\frac{(\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}+\varepsilon)(r_\gamma+\varepsilon)}{\varepsilon\,(r_\gamma+\mu_{g,k}\, A_c\, \bar\eta_g\, \bar\theta_{c\mid k}+\varepsilon)} \,\Big] \\
 & + \log\frac{\pi_k}{\pi_{\text{Zero}}} .
 \end{aligned}
 $$
