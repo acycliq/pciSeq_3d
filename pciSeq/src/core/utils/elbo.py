@@ -254,7 +254,7 @@ def entropy_rho(obj):
     beta = obj.genes._post_rate_rho     # (nG,)
 
     entropy = alpha - np.log(beta) + gammaln(alpha) + (1 - alpha) * psi(alpha)
-    return np.sum(entropy)
+    return float(np.sum(entropy))
 
 
 def pi_prior(obj):
@@ -319,7 +319,7 @@ def categorical_entropy(probs):
         probs: array of probabilities, e.g. (nS, nN) or (nC, nK)
     """
     safe_probs = np.where(probs > 0, probs, 1.0)
-    return -np.sum(probs * np.log(safe_probs))
+    return float(-np.sum(probs * np.log(safe_probs)))
 
 
 def entropy_gamma(obj):
@@ -361,4 +361,4 @@ def entropy_eta(obj):
     # H[Gamma(alpha, beta)] = alpha - log(beta) + gammaln(alpha) + (1 - alpha) * psi(alpha)
     entropy = alpha - np.log(beta) + gammaln(alpha) + (1 - alpha) * psi(alpha)
 
-    return np.sum(entropy)
+    return float(np.sum(entropy))

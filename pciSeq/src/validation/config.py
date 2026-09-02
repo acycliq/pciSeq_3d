@@ -25,6 +25,7 @@ _TYPE_SPECS = {
     "rSpot": (int, float),
     "rTheta": (int, float),
     "save_data": bool,
+    "verbose": bool,
     "output_path": str,
     "cell_radius": (type(None), float),
     "cell_type_prior": str,

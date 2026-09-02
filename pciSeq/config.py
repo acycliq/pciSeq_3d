@@ -107,6 +107,10 @@ DEFAULT = {
     "rSpot": 2,
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
     "save_data": True,
+    # Boolean. If True, turn on verbose monitoring: the per-step timings, the ELBO, and
+    # the per-iteration diagnostic logging. None of it affects the result, and the ELBO
+    # is expensive (several passes over the nC x nG x nK tensor), so it is off by default.
+    "verbose": False,
     # Set here where the results will be saved. If default then they will be saved at your system's temp folder
     "output_path": "default",
     # cell radius. If None then pciSeq will calc that as the mean radius across all cells.

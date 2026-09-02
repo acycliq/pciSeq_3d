@@ -58,6 +58,7 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 
 # Third-party imports
 import sys
+import time
 import numpy as np
 import numpy_groupies as npg
 import pandas as pd
@@ -248,6 +249,16 @@ class VarBayes:
         cell_df, gene_df = self.main_loop()
         return cell_df, gene_df
 
+    def _step(self, name, fn):
+        """Run one update step. When config['verbose'] is on, record its wall-time
+        into self._step_times. When off, this is just fn() with no overhead."""
+        if not self.config.get('verbose', False):
+            fn()
+            return
+        t0 = time.perf_counter()
+        fn()
+        self._step_times[name] = time.perf_counter() - t0
+
     # -------------------------------------------------------------------- #
     def main_loop(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Main algorithm loop."""
@@ -284,21 +295,22 @@ class VarBayes:
 
         for i in range(max_iter):
             self.iter_num = i
+            self._step_times = {}
 
             # 1. For each cell, calc the expected gene counts
-            self.geneCount_upd()
+            self._step('geneCount_upd', self.geneCount_upd)
 
             # 2. update gene-specific misread density
-            self.rho_upd()
+            self._step('rho_upd', self.rho_upd)
 
             # 3. calc the gene inefficiency
-            self.eta_upd()
+            self._step('eta_upd', self.eta_upd)
 
             # 4. calc the cell inefficiency
-            self.theta_upd()
+            self._step('theta_upd', self.theta_upd)
 
             # 5. calc expected gamma
-            self.gamma_upd()
+            self._step('gamma_upd', self.gamma_upd)
 
             logger.info("gaussian_upd step has been removed in this version of the software")
             # 3 update correlation matrix and variance of the gaussian distribution
@@ -306,28 +318,35 @@ class VarBayes:
             #     self.gaussian_upd()
 
             # 6. assign cells to cell types
-            self.cell_to_cellType()
+            self._step('cell_to_cellType', self.cell_to_cellType)
 
             # 7. update the dirichlet distribution
             if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
-                self.dalpha_upd()
+                self._step('dalpha_upd', self.dalpha_upd)
 
             # 8. Update single cell data
             if self.single_cell.isMissing:
-                self.mu_upd()
+                self._step('mu_upd', self.mu_upd)
 
             # 9. assign spots to cells
             # spots_to_cell_numba is the fast path. spots_to_cell (the plain numpy
             # loop) is kept as the readable reference and can be swapped in on this
             # line when needed. tests/test_spots_to_cell_ab.py checks they agree.
-            self.spots_to_cell_numba()
+            self._step('spots_to_cell', self.spots_to_cell_numba)
 
-            # # Calculate ELBO
-            # elbo = calc_elbo(self)
-            # logger.info('Iteration %d, ELBO: %f' % (i, elbo))
+            if self.config.get('verbose', False):
+                _total = sum(self._step_times.values())
+                _bd = ' '.join('%s=%.2f' % (k, v) for k, v in self._step_times.items())
+                logger.info('STEP TIMES iter %d (total %.2fs): %s', i, _total, _bd)
+
+            # ELBO is monitoring only (it does not feed convergence) and is expensive
+            # (several passes over the nC x nG x nK tensor), so compute it only when verbose.
+            if self.config.get('verbose', False):
+                elbo = calc_elbo(self)
+                logger.info('Iteration %d, ELBO: %f' % (i, elbo))
 
             self.has_converged, delta = utils.has_converged(
-                self.spots, p0, self.config['CellCallTolerance']
+                self.spots, p0, self.config['CellCallTolerance'], self.config.get('verbose', False)
             )
             logger.info('Iteration %d, mean prob change %f' % (i, delta))
             # --- SMART LOGGING --- 
@@ -690,9 +709,10 @@ class VarBayes:
             minlength=self.nG
         )
         self.genes.calc_rho(background_counts)
-        logger.info(f"rho_upd: bg_counts min/max={background_counts.min():.1f}/{background_counts.max():.1f}, "
-                     f"rho_bar min/max={self.genes.rho_bar.min():.2e}/{self.genes.rho_bar.max():.2e}, "
-                     f"log_rho min/max={self.genes.log_rho_bar.min():.4f}/{self.genes.log_rho_bar.max():.4f}")
+        if self.config.get('verbose', False):
+            logger.info(f"rho_upd: bg_counts min/max={background_counts.min():.1f}/{background_counts.max():.1f}, "
+                         f"rho_bar min/max={self.genes.rho_bar.min():.2e}/{self.genes.rho_bar.max():.2e}, "
+                         f"log_rho min/max={self.genes.log_rho_bar.min():.4f}/{self.genes.log_rho_bar.max():.4f}")
 
     # -------------------------------------------------------------------- #
     def eta_upd(self) -> None:
@@ -900,7 +920,6 @@ class VarBayes:
                          mu) + self.config['rTheta']
 
         self.cells.calc_theta(alpha, beta)
-        print('ok')
 
     # -------------------------------------------------------------------- #
     def heatmap_counts_per_class(self):
