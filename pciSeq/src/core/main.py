@@ -64,6 +64,7 @@ import numpy_groupies as npg
 import pandas as pd
 from dask.delayed import delayed
 from scipy.special import softmax
+from .utils.numba_kernels import spots_to_cell_numba_kernel
 import opt_einsum as oe
 
 # Local imports
@@ -331,7 +332,10 @@ class VarBayes:
                     self.mu_upd()
 
                 # 9. assign spots to cells
-                self.spots_to_cell()
+                # spots_to_cell_numba is the fast path. spots_to_cell (the plain numpy
+                # loop) is kept as the readable reference and can be swapped in on this
+                # line when needed. tests/test_spots_to_cell_ab.py checks they agree.
+                self.spots_to_cell_numba()
 
                 # # Calculate ELBO
                 # elbo = calc_elbo(self)
@@ -595,6 +599,73 @@ class VarBayes:
         self.geneCount_upd()
 
     # -------------------------------------------------------------------- #
+    def spots_to_cell_numba(self) -> None:
+        """Compute the spot-to-cell assignment probabilities (numba version).
+
+        This is the fast path used by default. spots_to_cell is the equivalent plain
+        numpy loop, kept as the readable reference; the two must give the same result,
+        which is checked in tests/test_spots_to_cell_ab.py.
+
+        Returns
+        -------
+        None
+            Sets self.spots.parent_cell_prob and the per-spot diagnostic arrays
+            (attention, expr_fluctuations, cell_inefficiency, gene_inefficiency,
+            mvn_loglik_arr).
+
+        Notes
+        -----
+        The three score terms are computed by spots_to_cell_numba_kernel in
+        utils.numba_kernels. mvn_loglik is computed the same way as in spots_to_cell.
+        """
+        nN = self.nN
+        nNb = nN - 1
+        nS = self.spots.data.gene_name.shape[0]
+
+        gn = self.spots.data.gene_name.values
+        expected_counts = np.ascontiguousarray(self.single_cell.log_mean_expression.loc[gn].values)  # [nS, nK]
+        logeta_bar = np.ascontiguousarray(self.genes.logeta_bar[self.spots.gene_id])     # [nS]
+        log_rho = self.genes.log_rho_bar[self.spots.gene_id]                             # [nS]
+        log_gamma_bar_arr = np.ascontiguousarray(self.spots.log_gamma_bar.compute())  # dask delayed in this build     # [nC, nG, nK]
+        log_theta_bar_all = np.ascontiguousarray(np.log(self.cells.theta_bar))           # [nC, nK]
+        classProb = np.ascontiguousarray(self.cells.classProb)                           # [nC, nK]
+        parent = np.ascontiguousarray(self.spots.parent_cell_id)                         # [nS, nN]
+        gene_id = np.ascontiguousarray(self.spots.gene_id)                               # [nS]
+
+        wSpotCell = np.zeros([nS, nN], dtype=np.float64)
+        wSpotCell[:, -1] = log_rho
+        mvn_loglik_arr = np.zeros([nS, nN])
+        attention = np.zeros([nS, nN])
+        expr_fluctuations = np.zeros([nS, nN])
+        cell_inefficiency = np.zeros([nS, nN])
+        gene_inefficiency = np.zeros([nS, nN])
+
+        # numba kernel fills in term_1/2/3 for all spots (see utils.numba_kernels)
+        spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar_arr, log_theta_bar_all,
+                                   expected_counts, logeta_bar, nNb,
+                                   wSpotCell, attention, expr_fluctuations, cell_inefficiency, gene_inefficiency)
+
+        # mvn_loglik is not in the kernel yet; compute per neighbour and add it in
+        for n in range(nNb):
+            sn = parent[:, n]
+            mvn = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
+            wSpotCell[:, n] += mvn
+            mvn_loglik_arr[:, n] = mvn
+
+        bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
+        wSpotCell += bonus_mask
+
+        self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
+        self.spots.mvn_loglik_arr = mvn_loglik_arr
+        self.spots.attention = attention
+        self.spots.expr_fluctuations = expr_fluctuations
+        self.spots.cell_inefficiency = cell_inefficiency
+        self.spots.gene_inefficiency = gene_inefficiency
+
+        # Since the spot-to-cell assignments changed you need to update the gene counts now.
+        # Same as the plain spots_to_cell above. Keep it, it is not redundant.
+        self.geneCount_upd()
+
     def spots_to_cell_par(self) -> None:
         """
         Updates spot-to-cell assignment probabilities.
