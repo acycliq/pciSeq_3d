@@ -160,7 +160,6 @@ def minimal_varbayes(rng, base_opts):
         "rRho": 1000.0,
         "rTheta": 25.0,
         "mrf_beta": 1.0,
-        "apply_mrf_cap": False,
     }
 
     # Instantiate VarBayes

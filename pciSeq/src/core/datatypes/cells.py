@@ -60,9 +60,6 @@ class Cells(object):
         self._theta_bar = None
         self._logtheta_bar = None
         self._nbrs = None
-        # per (cell, class) coupling the cap actually used. Diagnostics only,
-        # stays None when the cap is off.
-        self.effective_beta = None
 
     # -------- PROPERTIES -------- #
     @property

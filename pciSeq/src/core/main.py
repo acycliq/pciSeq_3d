@@ -65,7 +65,6 @@ import pandas as pd
 from dask.delayed import delayed
 from scipy.special import softmax
 from .utils.numba_kernels import spots_to_cell_numba_kernel
-from .utils.mrf_cap import calc_capped_mrf
 import opt_einsum as oe
 
 # Local imports
@@ -494,15 +493,8 @@ class VarBayes:
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
-        # MRF term. With the cap on, the strength is limited per (cell, class) so
-        # the neighbours cannot flip a cell out of Zero against its own data.
-        # With it off, the plain flat-beta mrf is used. Off by default here.
-        if self.config['apply_mrf_cap']:
-            mrf, self.cells.effective_beta = calc_capped_mrf(
-                contr, self.cells.mrf_support(), self.cellTypes.log_prior,
-                self.config['mrf_beta'], self.config['SpotReg'])
-        else:
-            mrf = self.cells.calc_mrf()
+        mrf = self.cells.calc_mrf()
+        # mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
         wCellClass = contr + self.cellTypes.log_prior + mrf
         pCellClass = softmax(wCellClass, axis=1)
 
