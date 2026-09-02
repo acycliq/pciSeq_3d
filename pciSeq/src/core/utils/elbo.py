@@ -144,8 +144,15 @@ def mrf_prior(obj):
 
     The expected MRF contribution under q is:
         sum_{c,j} q(zeta_cj) * mrf_cj
+        Use the same mrf matrix that cell_to_cellType just used, which cells.mrf
+    holds. Calling calc_mrf() here would rebuild it from the classProb that
+    cell_to_cellType has already overwritten, so the ELBO would be scoring a
+    model the update never used. Fall back to calc_mrf() only if the ELBO is
+    asked for before the first class update.
     """
-    mrf = obj.cells.calc_mrf()  # (nC, nK); already contains mrf_beta and matrix A
+    mrf = obj.cells.mrf  # (nC, nK); already contains mrf_beta and matrix A
+    if mrf is None:
+        mrf = obj.cells.calc_mrf()
     return np.sum(obj.cells.classProb * mrf)
 
 
