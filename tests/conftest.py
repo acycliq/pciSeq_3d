@@ -147,9 +147,24 @@ def minimal_varbayes(rng, base_opts):
         }
     )
 
+    # img_dim is injected by the pipeline at runtime, it is not a user option, so
+    # the fixture has to add it or _roi_volume has nothing to work with. The rest
+    # are ordinary config keys the older base_opts never bothered to set, needed
+    # once initialise_state actually runs. MisreadDensity has to be non zero, the
+    # rho prior divides by it.
+    opts = {
+        **base_opts,
+        "img_dim": {"w": 100, "h": 100, "n_planes": 10},
+        "label_map": {},
+        "MisreadDensity": {"default": 1e-6},
+        "rRho": 1000.0,
+        "rTheta": 25.0,
+        "mrf_beta": 1.0,
+    }
+
     # Instantiate VarBayes
     vb = VarBayes(
-        spots_df=spots_df, cells_df=cells_df, scRNAseq=scref_df, config=base_opts
+        spots_df=spots_df, cells_df=cells_df, scRNAseq=scref_df, config=opts
     )
 
     return vb
