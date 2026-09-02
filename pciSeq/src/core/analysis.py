@@ -32,7 +32,7 @@ from scipy import spatial
 # Local imports
 from ...src.core.utils.ops_utils import negative_binomial_loglikelihood
 from ...src.core.utils.io_utils import get_out_dir
-from ...src.viewer.utils import get_pciSeq_install_dir
+from .utils.io_utils import get_pciSeq_install_dir
 
 # Configure logging
 logger = logging.getLogger(__name__)
