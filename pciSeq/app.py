@@ -87,7 +87,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
         # 8. Save data and launch viewer if needed
         if cfg['save_data'] or cfg['launch_viewer']:
-            write_data(cellData, geneData, cellBoundaries, cellBoundaries_list, varBayes, cfg)
+            write_data(cellData, geneData, cellBoundaries, cellBoundaries_list, coo, varBayes, cfg)
 
             if cfg['launch_viewer']:
                 dst = pre_launch(cellData, geneData, coo, scRNAseq, cfg)
