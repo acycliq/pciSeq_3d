@@ -339,8 +339,10 @@ class Cells(object):
         }
         return out
 
-    def calc_mrf(self):
-        """MRF term: each neighbour's class probs, weighted by how close it is.
+    def mrf_support(self):
+        """Neighbour support, before mrf_beta.
+
+        Each neighbour's class probs, weighted by how close it is.
 
         The weight is a gaussian on the distance. The width, sigma, is worked out
         per cell as the median of that cell's own neighbour distances, so what
@@ -362,6 +364,8 @@ class Cells(object):
 
         So B's class probabilities go into A's mrf term multiplied by 1.583 and
         C's by 0.417, B counting about 3.8x more than C.
+
+        This is beta-free. calc_mrf below multiplies it by mrf_beta.
 
         Returns an (nC, nK) array.
         """
@@ -394,10 +398,16 @@ class Cells(object):
 
         # Proximity-weighted sum of neighbour class probabilities (zeta)
         nbr_probs = self.classProb[nbrs_idx]  # (nC, nN, nK)
-        mrf = (nbr_probs * nbrs_prxmty[:, :, None]).sum(axis=1)
-        out = mrf * self.config["mrf_beta"]
+        return (nbr_probs * nbrs_prxmty[:, :, None]).sum(axis=1)
 
-        return out
+    def calc_mrf(self):
+        """The mrf term: the neighbour support times mrf_beta. (nC, nK).
+
+        Split out from mrf_support because not everything wants a single scalar
+        beta. Anything that works out its own per cell or per class coupling
+        needs the support on its own, with no beta folded into it yet.
+        """
+        return self.mrf_support() * self.config["mrf_beta"]
 
     # -------------------------- CONVENIENCE METHODS ----------------------- #
     def gene_reads_per_class(self):
