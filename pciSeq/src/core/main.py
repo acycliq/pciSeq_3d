@@ -41,7 +41,6 @@ Algorithm Steps:
 
 Notes:
 -----
-- Uses Redis for optional diagnostic monitoring
 - Implements equations from the pciSeq paper
 - Handles missing single-cell reference data
 - Supports parallel processing via numpy operations
@@ -79,7 +78,6 @@ from .utils.elbo import calc_elbo
 # from .analysis import CellExplorer
 from .utils import ops_utils as utils
 from .utils import visualisation
-from ...src.diagnostics.controller.diagnostic_controller import DiagnosticController
 import joblib
 
 # Configure logging
@@ -107,7 +105,6 @@ class VarBayes:
                  config: Dict[str, Any]) -> None:
         """Initialize components and setup."""
         # Explicitly declare important instance attributes
-        self.diagnostic_controller: Optional[DiagnosticController] = None  # For real-time diagnostics
         self.config = None
         self.iter_num = None
         self.iter_delta = []
@@ -117,7 +114,6 @@ class VarBayes:
         # Initialize components
         self._validate_config(config)
         self.config = config
-        self._setup_diagnostics()
         self._setup_components(cells_df, spots_df, scRNAseq)
         self._setup_dimensions()
 
@@ -143,27 +139,11 @@ class VarBayes:
         required = ['exclude_genes', 'max_iter', 'CellCallTolerance',
                     'rGene', 'Inefficiency', 'InsideCellBonus', 'MisreadDensity',
                     'cell_centroid_prior', 'cell_cov_prior', 'SpotReg', 'nNeighbors', 'rSpot',
-                    'save_data', 'output_path', 'launch_diagnostics',
-                    'is_redis_running', 'cell_radius', 'cell_type_prior', 'is3D',
+                    'save_data', 'output_path', 'cell_radius', 'cell_type_prior', 'is3D',
                     'mean_gene_counts_per_class', 'mean_gene_counts_per_cell']
         missing = [param for param in required if param not in config]
         if missing:
             raise ValueError(f"Missing required config parameters: {missing}")
-
-    def _setup_diagnostics(self) -> None:
-        """Initialize diagnostics controller if enabled in config."""
-        self.diagnostic_controller = None
-        if not self.config.get('launch_diagnostics', False):
-            return
-
-        try:
-            self.diagnostic_controller = DiagnosticController()
-            if not self.diagnostic_controller.launch_dashboard():
-                logger.warning("Failed to launch diagnostics dashboard")
-                self.diagnostic_controller = None
-        except Exception as e:
-            logger.warning(f"Failed to initialize diagnostics: {e}")
-            self.diagnostic_controller = None
 
     def _setup_components(self, cells_df, spots_df, scRNAseq) -> None:
         """Set up the core data components needed for the algorithm."""
@@ -247,11 +227,9 @@ class VarBayes:
     def __getstate__(self):
         """
         Get state for pickling.
-        Removes diagnostics-related attributes to enable pickling and reduce file size.
+        Drops the real-time viewer callback so the model can be pickled.
         """
         attributes = self.__dict__.copy()
-        if 'diagnostic_controller' in attributes:
-            del attributes['diagnostic_controller']
         if 'on_iteration_callback' in attributes:
             del attributes['on_iteration_callback']
         return attributes
@@ -275,7 +253,7 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def main_loop(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Main algorithm loop with diagnostic updates."""
+        """Main algorithm loop."""
         """
         Executes the main Variational Bayes algorithm loop.
 
@@ -301,111 +279,98 @@ class VarBayes:
                 - Cell dataframe with final assignments and probabilities
                 - Gene dataframe with expression statistics
 
-        Note:
-            Progress is published to Redis if enabled.
         """
         p0 = None
         cell_df = None
         gene_df = None
         max_iter = self.config['max_iter']
 
-        try:
-            for i in range(max_iter):
-                self.iter_num = i
+        for i in range(max_iter):
+            self.iter_num = i
 
-                # 1. For each cell, calc the expected gene counts
-                self.geneCount_upd()
+            # 1. For each cell, calc the expected gene counts
+            self.geneCount_upd()
 
-                # 2. update gene-specific misread density
-                self.rho_upd()
+            # 2. update gene-specific misread density
+            self.rho_upd()
 
-                # 3. calc the gene inefficiency
-                self.eta_upd()
+            # 3. calc the gene inefficiency
+            self.eta_upd()
 
-                # 4. calc the cell inefficiency
-                self.theta_upd()
+            # 4. calc the cell inefficiency
+            self.theta_upd()
 
-                # 5. calc expected gamma
-                self.gamma_upd()
+            # 5. calc expected gamma
+            self.gamma_upd()
 
-                logger.info("gaussian_upd step has been removed in this version of the software")
-                # 3 update correlation matrix and variance of the gaussian distribution
-                # if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
-                #     self.gaussian_upd()
+            logger.info("gaussian_upd step has been removed in this version of the software")
+            # 3 update correlation matrix and variance of the gaussian distribution
+            # if self.single_cell.isMissing or (self.config['InsideCellBonus'] is False) or (self.config['is3D']):
+            #     self.gaussian_upd()
 
-                # 6. assign cells to cell types
-                self.cell_to_cellType()
+            # 6. assign cells to cell types
+            self.cell_to_cellType()
 
-                # 7. update the dirichlet distribution
-                if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
-                    self.dalpha_upd()
+            # 7. update the dirichlet distribution
+            if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
+                self.dalpha_upd()
 
-                # 8. Update single cell data
-                if self.single_cell.isMissing:
-                    self.mu_upd()
+            # 8. Update single cell data
+            if self.single_cell.isMissing:
+                self.mu_upd()
 
-                # 9. assign spots to cells
-                # spots_to_cell_numba is the fast path. spots_to_cell (the plain numpy
-                # loop) is kept as the readable reference and can be swapped in on this
-                # line when needed. tests/test_spots_to_cell_ab.py checks they agree.
-                self.spots_to_cell_numba()
+            # 9. assign spots to cells
+            # spots_to_cell_numba is the fast path. spots_to_cell (the plain numpy
+            # loop) is kept as the readable reference and can be swapped in on this
+            # line when needed. tests/test_spots_to_cell_ab.py checks they agree.
+            self.spots_to_cell_numba()
 
-                # # Calculate ELBO
-                # elbo = calc_elbo(self)
-                # logger.info('Iteration %d, ELBO: %f' % (i, elbo))
+            # # Calculate ELBO
+            # elbo = calc_elbo(self)
+            # logger.info('Iteration %d, ELBO: %f' % (i, elbo))
 
-                self.has_converged, delta = utils.has_converged(
-                    self.spots, p0, self.config['CellCallTolerance']
-                )
-                logger.info('Iteration %d, mean prob change %f' % (i, delta))
-                # --- SMART LOGGING --- 
-                if delta > 0:
-                    p1 = self.spots.parent_cell_prob
-                    p0_val = p0 if p0 is not None else np.zeros_like(p1)
-                    diffs = np.abs(p1 - p0_val)
-                    max_idx = np.unravel_index(np.argmax(diffs), diffs.shape)
-                    spot_idx = max_idx[0]
-                    col_idx = max_idx[1]
-                    gene_name = self.spots.data.gene_name.iloc[spot_idx]
-                    cell_id = self.spots.parent_cell_id[spot_idx, col_idx]
-                    old_prob = p0_val[spot_idx, col_idx]
-                    new_prob = p1[spot_idx, col_idx]
-                    logger.info(f"DIAGNOSTIC: Spot {spot_idx} (Gene: {gene_name}) changed by {delta:.6f}")
-                    logger.info(f"DIAGNOSTIC: Cell {cell_id} Prob: {old_prob:.4f} -> {new_prob:.4f}")
+            self.has_converged, delta = utils.has_converged(
+                self.spots, p0, self.config['CellCallTolerance']
+            )
+            logger.info('Iteration %d, mean prob change %f' % (i, delta))
+            # --- SMART LOGGING --- 
+            if delta > 0:
+                p1 = self.spots.parent_cell_prob
+                p0_val = p0 if p0 is not None else np.zeros_like(p1)
+                diffs = np.abs(p1 - p0_val)
+                max_idx = np.unravel_index(np.argmax(diffs), diffs.shape)
+                spot_idx = max_idx[0]
+                col_idx = max_idx[1]
+                gene_name = self.spots.data.gene_name.iloc[spot_idx]
+                cell_id = self.spots.parent_cell_id[spot_idx, col_idx]
+                old_prob = p0_val[spot_idx, col_idx]
+                new_prob = p1[spot_idx, col_idx]
+                logger.info(f"DIAGNOSTIC: Spot {spot_idx} (Gene: {gene_name}) changed by {delta:.6f}")
+                logger.info(f"DIAGNOSTIC: Cell {cell_id} Prob: {old_prob:.4f} -> {new_prob:.4f}")
 
-                # Update diagnostics using controller
-                self.diagnostics_upd()
 
-                # Call real-time viewer callback if provided
-                if self.on_iteration_callback is not None:
-                    try:
-                        self.on_iteration_callback(self.cells.classProb, i, delta)
-                    except Exception as e:
-                        logger.warning(f"Real-time viewer callback failed: {e}")
-
-                # keep track of the deltas
-                self.iter_delta.append(delta)
-
-                # replace p0 with the latest probabilities
-                p0 = self.spots.parent_cell_prob
-
-                if self.has_converged:
-                    # self.cell_analysis(35975)
-                    cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.config['is3D'])
-                    break
-
-                if i == max_iter - 1:
-                    logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
-                    cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.config['is3D'])
-                    break
-        finally:
-            # Ensure diagnostics are properly shut down
-            if self.diagnostic_controller is not None:
+            # Call real-time viewer callback if provided
+            if self.on_iteration_callback is not None:
                 try:
-                    self.diagnostic_controller.shutdown()
+                    self.on_iteration_callback(self.cells.classProb, i, delta)
                 except Exception as e:
-                    logger.warning(f"Failed to shutdown diagnostics: {e}")
+                    logger.warning(f"Real-time viewer callback failed: {e}")
 
+            # keep track of the deltas
+            self.iter_delta.append(delta)
+
+            # replace p0 with the latest probabilities
+            p0 = self.spots.parent_cell_prob
+
+            if self.has_converged:
+                # self.cell_analysis(35975)
+                cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.config['is3D'])
+                break
+
+            if i == max_iter - 1:
+                logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
+                cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.config['is3D'])
+                break
         return cell_df, gene_df
 
     # -------------------------------------------------------------------- #
@@ -958,22 +923,6 @@ class VarBayes:
 
         self.cells.calc_theta(alpha, beta)
         print('ok')
-
-    # -------------------------------------------------------------------- #
-    def diagnostics_upd(self) -> None:
-        """Update diagnostic visualization if controller is available."""
-        if self.diagnostic_controller is None:
-            return
-
-        try:
-            self.diagnostic_controller.update_diagnostics(
-                algorithm_model=self,
-                iteration=self.iter_num,
-                has_converged=self.has_converged
-            )
-        except Exception as e:
-            logger.warning(f"Failed to update diagnostics: {e}")
-
 
     # -------------------------------------------------------------------- #
     def heatmap_counts_per_class(self):

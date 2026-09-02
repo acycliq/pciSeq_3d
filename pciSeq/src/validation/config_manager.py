@@ -4,7 +4,6 @@ import logging
 from scipy.sparse import coo_matrix
 from pciSeq import config
 from pciSeq.src.core.utils.io_utils import log_file
-from pciSeq.src.diagnostics.utils import check_redis_server
 logger = logging.getLogger(__name__)
 
 
@@ -25,8 +24,6 @@ class ConfigManager:
     save_data: bool
     output_path: str
     launch_viewer: Union[bool, str]
-    launch_diagnostics: bool
-    is_redis_running: bool
     cell_radius: Optional[float]
     cell_type_prior: str
     voxel_size: list
@@ -76,7 +73,6 @@ class ConfigManager:
             config: Updated configuration with runtime attributes
         """
         self.is3D = self.check_is3D(coo)
-        self.is_redis_running = check_redis_server()
 
         # if exclude_planes is None set it to []
         self.exclude_planes = self.exclude_planes or []
