@@ -30,6 +30,9 @@ DEFAULT = {
     # MRF coefficient: controls how strongly neighboring cells' class assignments
     # influence each other. Higher values = more spatial smoothing.
     "mrf_beta": 1.0,
+    # cap the mrf per (cell, class) so neighbours cannot flip a cell out of
+    # Zero against its own data. Off here, this branch is the uncapped baseline.
+    "apply_mrf_cap": False,
     # MisreadDensity: Expected number of misread spots. A dictionary contains user-defined values
     # for gene misread densities used in the analysis.
     # The process to determine the misread density for each gene is as follows:
