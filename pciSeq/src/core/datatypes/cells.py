@@ -60,6 +60,9 @@ class Cells(object):
         self._theta_bar = None
         self._logtheta_bar = None
         self._nbrs = None
+        # the mrf term the last cell_to_cellType used. Diagnostics only, the
+        # model reads calc_mrf() rather than this.
+        self._mrf = None
 
     # -------- PROPERTIES -------- #
     @property
@@ -94,6 +97,15 @@ class Cells(object):
     def total_counts(self) -> np.ndarray:
         """Returns the total gene counts for cells."""
         return self.geneCount.sum(axis=1)
+
+    @property
+    def mrf(self) -> np.ndarray:
+        """The mrf term from the last class update. (nC, nK). Diagnostics only."""
+        return self._mrf
+
+    @mrf.setter
+    def mrf(self, val):
+        self._mrf = val
 
     @property
     def centroid(self) -> pd.DataFrame:
