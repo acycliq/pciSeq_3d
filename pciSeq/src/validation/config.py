@@ -23,6 +23,7 @@ _TYPE_SPECS = {
     "SpotReg": float,
     "nNeighbors": int,
     "rSpot": (int, float),
+    "rTheta": (int, float),
     "save_data": bool,
     "output_path": str,
     "cell_radius": (type(None), float),

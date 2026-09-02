@@ -46,6 +46,8 @@ install_deps = [
     "plotly",
     "numba",
     "pyarrow",
+    "pyyaml",
+    "spatialdata",
 ]
 
 
@@ -85,6 +87,11 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(
+    entry_points={
+        "console_scripts": [
+            "pciseq = pciSeq.cli:main",
+        ],
+    },
     name="pciSeq_3d",
     version=version,
     license="BSD",
