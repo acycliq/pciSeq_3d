@@ -233,7 +233,8 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             class_prob BLOB,
             theta REAL,
             assigned_class_idx INTEGER,
-            gamma_assigned BLOB
+            gamma_assigned BLOB,
+            mrf BLOB
         )
     ''')
 
@@ -248,7 +249,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             mvn_loglik BLOB,
             attention BLOB,
             expr_fluct BLOB,
-            cell_inefficiency BLOB
+            cell_inefficiency BLOB,
+            gene_inefficiency BLOB,
+            bonus BLOB
         )
     ''')
 
@@ -273,6 +276,38 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         logger.error("Diagnostics export skipped: 'misread_density' is missing or invalid.")
         return
 
+    # The misread density the model actually learned, as opposed to the prior above.
+    rho_bar = genes.rho_bar
+    rho_bar_dict = ({str(g): float(v) for g, v in zip(genes.gene_panel, rho_bar)}
+                    if rho_bar is not None else {})
+
+    # E[log rho] per gene. This is the term the background column in spots_to_cell
+    # uses, not log(rho_bar), because E[log rho] is not log(E[rho]).
+    log_rho_bar = genes.log_rho_bar
+    log_rho_bar_dict = ({str(g): float(v) for g, v in zip(genes.gene_panel, log_rho_bar)}
+                        if log_rho_bar is not None else {})
+
+    # Spots whose best guess is the background column, counted per gene and per
+    # gene per plane.
+    hard_misread_counts = []
+    hard_misread_by_plane = {}
+    try:
+        prob = spots.parent_cell_prob
+        if prob is not None and len(prob):
+            is_misread = np.argmax(prob, axis=1) == (prob.shape[1] - 1)
+            hard_misread_counts = np.bincount(
+                spots.gene_id, weights=is_misread.astype(np.float32),
+                minlength=len(genes.gene_panel)).astype(int).tolist()
+            if 'plane_id' in spots.data.columns:
+                plane_ids = spots.data['plane_id'].to_numpy()
+                for idx in np.where(is_misread)[0]:
+                    gene = genes.gene_panel[spots.gene_id[idx]]
+                    plane = int(plane_ids[idx])
+                    hard_misread_by_plane.setdefault(gene, {})
+                    hard_misread_by_plane[gene][plane] = hard_misread_by_plane[gene].get(plane, 0) + 1
+    except Exception as e:
+        logger.warning('Could not compute hard misread counts: %s', e)
+
     # --- Populate Metadata ---
     # Compute scaled_means for metadata nC (and for cells table)
     # logger.info('Computing scaled_exp for diagnostics export...')
@@ -296,11 +331,17 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         ('class_names', json.dumps(cells.class_names.tolist())),
         ('eta_bar', json.dumps(genes.eta_bar.astype(np.float32).tolist())),
         ('mean_gene_reads_per_class', json.dumps(cells.mean_gene_reads_per_class().astype(np.float32).tolist())),
+        ('sc_mean_expression', json.dumps(varBayes.single_cell.mean_expression.values.astype(np.float32).tolist())),
+        ('log_prior', json.dumps(varBayes.cellTypes.log_prior.astype(np.float32).tolist())),
 
         # Spot-related
         ('nS', str(int(nS))),
         ('nN', str(int(nN))),
         ('misread_density', json.dumps(misread_dict)),
+        ('rho_bar', json.dumps(rho_bar_dict)),
+        ('log_rho_bar', json.dumps(log_rho_bar_dict)),
+        ('hard_misread_counts', json.dumps(hard_misread_counts)),
+        ('hard_misread_by_plane', json.dumps(hard_misread_by_plane)),
 
         # Shared
         ('gene_panel', json.dumps(gene_panel)),
@@ -317,6 +358,10 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         meta_items.append(('gene_total_spots', json.dumps(gene_total_spots)))
     except Exception:
         pass
+
+    # which pciSeq made this. version, branch, commit, build_date, created_at,
+    # serialised_at, hostname, os, python version, package versions.
+    meta_items.append(('pciSeq_provenance', json.dumps(getattr(varBayes, 'metadata', {}))))
 
     cursor.executemany('INSERT INTO metadata VALUES (?, ?)', meta_items)
     # logger.info('Inserted %d metadata entries', len(meta_items))
@@ -336,6 +381,11 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     gamma_bar = varBayes.spots.gamma_bar.compute().astype(np.float32)  # (nC, nG, nK)
     gamma_assigned = gamma_bar[np.arange(nC), :, assigned_class_idx]   # (nC, nG)
 
+    # the mrf term the last class update used. None if the run never got that
+    # far, write zeros then so the column is still the right shape.
+    mrf_f32 = (cells.mrf.astype(np.float32) if cells.mrf is not None
+               else np.zeros((nC, nK), dtype=np.float32))
+
     batch_size = 10000
     for batch_start in range(0, nC, batch_size):
         batch_end = min(batch_start + batch_size, nC)
@@ -350,8 +400,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                 float(theta_scalar[c]),
                 int(assigned_class_idx[c]),
                 gamma_assigned[c].tobytes(),
+                mrf_f32[c].tobytes(),
             ))
-        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?)', batch_data)
+        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', batch_data)
         # if (batch_end % 10000 == 0) or (batch_end == nC):
         #     logger.info('Inserted %d/%d cells', batch_end, nC)
 
@@ -363,6 +414,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         attn_f32 = spots.attention.astype(np.float32)
         expr_f32 = spots.expr_fluctuations.astype(np.float32)
         cineff_f32 = spots.cell_inefficiency.astype(np.float32)
+        gineff_f32 = spots.gene_inefficiency.astype(np.float32)
+        # the inside cell bonus the model adds before the softmax in spots_to_cell
+        bonus_f32 = (spots.bonus_mask * varBayes.config['InsideCellBonus']).astype(np.float32)
         gene_idx = spots.gene_id.astype(np.int32)
         xs = spots.data['x'].astype(np.int32).to_numpy()
         ys = spots.data['y'].astype(np.int32).to_numpy()
@@ -383,10 +437,12 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                     attn_f32[i].tobytes(),
                     expr_f32[i].tobytes(),
                     cineff_f32[i].tobytes(),
+                    gineff_f32[i].tobytes(),
+                    bonus_f32[i].tobytes(),
                 ))
             cursor.executemany('''
-                INSERT INTO spots (spot_id, gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, expr_fluct, cell_inefficiency)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', batch)
+                INSERT INTO spots (spot_id, gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, expr_fluct, cell_inefficiency, gene_inefficiency, bonus)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''', batch)
             # if (end % 50000 == 0) or (end == nS):
             #     logger.info('Inserted %d/%d spots', end, nS)
 
