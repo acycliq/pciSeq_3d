@@ -1,17 +1,23 @@
 /**
  * pciSeq docs theme.
- * Same emerald accent, Inter font and research-paper feel as the old
- * Docusaurus site, but written against VitePress's --vp-* variables.
- * Kept in step with the pciSeq Viewer docs on purpose.
+ * Same emerald accent as the old Docusaurus site, written against VitePress's
+ * --vp-* variables. Typography is IBM Plex: sans for the body, serif for the
+ * headings, mono for code. The viewer docs still run Inter, so the two are no
+ * longer in step; move the viewer over if they should match again.
  */
 
-/* Inter, same font the viewer app uses. */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+/* IBM Plex, three faces doing three jobs: Sans for body text, Serif for the
+   headings, Mono for code and anything tabular. The sans/serif contrast is what
+   gives the pages a paper feel rather than a web-app one. */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 :root {
-  --vp-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+  --vp-font-family-base: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI',
     Roboto, sans-serif;
-  --vp-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --vp-font-family-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
+  /* headings only, set below */
+  --font-family-display: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
 
   /* Emerald palette (was --ifm-color-primary on Docusaurus). */
   --vp-c-brand-1: #10b981; /* emerald 500 */
@@ -40,29 +46,50 @@
   --vp-home-hero-name-color: var(--vp-c-brand-1);
 }
 
-/* --- Heading rhythm ------------------------------------------------- */
-/* Quieter, more even spacing than the defaults. Weights stay at 600 so
-   nothing shouts, sizes step down gently. Kept in step with the viewer docs. */
+/* --- Headings ------------------------------------------------------- */
+/* Serif, against the sans body text. Tight rhythm: a good gap above a heading
+   to separate it from the previous section, a small one below so it binds to
+   the text it introduces rather than floating between the two. */
+.vp-doc h1,
+.vp-doc h2,
+.vp-doc h3 {
+  font-family: var(--font-family-display);
+  text-wrap: balance;
+}
+
 .vp-doc h1 {
-  font-size: 1.9rem;
+  font-size: 2rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
-  margin-bottom: 1.5rem;
+  letter-spacing: -0.018em;
+  line-height: 1.12;
+  margin-bottom: 1.25rem;
 }
 
 .vp-doc h2 {
-  font-size: 1.4rem;
+  font-size: 1.5rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  margin-top: 3.5rem;
-  padding-top: 1.5rem;
+  letter-spacing: -0.011em;
+  margin-top: 2.75rem;
+  margin-bottom: 0.6rem;
+  padding-top: 1.25rem;
 }
 
 .vp-doc h3 {
   font-size: 1.15rem;
   font-weight: 600;
-  margin-top: 2.25rem;
+  letter-spacing: -0.003em;
+  margin-top: 1.9rem;
+  margin-bottom: 0.5rem;
 }
+
+/* the paragraph right under a heading should sit close to it */
+.vp-doc h2 + p,
+.vp-doc h3 + p,
+.vp-doc h2 + ul,
+.vp-doc h3 + ul {
+  margin-top: 0.4rem;
+}
+
 
 /* a hair more line spacing makes the long derivations calmer to read */
 .vp-doc p,
@@ -127,7 +154,7 @@
 /* the diagrams carry no <style> of their own (VitePress strips it), so the
    font has to come from here */
 .vp-doc figure.diagram svg text {
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
 .vp-doc figure.diagram figcaption {
