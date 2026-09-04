@@ -16,47 +16,47 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Main entry point for pciSeq cell typing analysis.
 
+    ``spots`` and ``coo`` may be given as the first two positional arguments or as
+    keywords. Keyword form is preferred.
+
     Parameters
     ----------
-    *args : tuple
-        Positional arguments:
-        - args[0]: pd.DataFrame containing spot data
-        - args[1]: scipy.sparse.coo_matrix containing gene expression data
+    spots : pd.DataFrame
+        The spots to assign. Needs the columns 'gene_name', 'x' and 'y', plus
+        'z_plane' for 3D data.
 
-    **kwargs : dict
-        Keyword arguments (preferred method):
-        spots : pd.DataFrame
-            Spot data with required columns:
-            - 'gene_name': Name of the gene
-            - 'x': X coordinate
-            - 'y': Y coordinate
-            - 'z_plane': Z plane (optional for 3D data)
+    coo : list of scipy.sparse.coo_matrix
+        The label image, one sparse matrix per z-plane. A list with more than one
+        plane is treated as 3D.
 
-        coo : List[scipy.sparse.coo_matrix]
-            List of sparse matrices containing gene expression data.
-            Length > 1 indicates 3D data
+    scRNAseq : pd.DataFrame, optional
+        Single-cell reference data used to annotate the cell types. Leave it out to
+        run without a reference.
 
-        scRNAseq : pd.DataFrame, optional
-            Single-cell RNA sequencing reference data.
-            Used for cell type annotation if provided
+    opts : dict, optional
+        Any config values you want to override, e.g. {'max_iter': 500}. See the
+        configuration page for the full list of keys and their defaults.
 
     Returns
     -------
-    Tuple[pd.DataFrame, pd.DataFrame]
-        - cellData: DataFrame containing cell typing results and metadata
-        - geneData: DataFrame containing gene assignment results
+    cellData : pd.DataFrame
+        One row per cell: the class probabilities, the gene counts and the cell
+        geometry.
+
+    geneData : pd.DataFrame
+        One row per spot: which cell it was assigned to and with what probability.
 
     Raises
     ------
     ValueError
-        If required arguments (spots and coo) are missing or invalid
+        If spots or coo are missing or malformed.
     RuntimeError
-        If cell typing algorithm fails to converge
+        If cell typing fails. Not converging is not a failure on its own: the loop
+        runs to max_iter, logs the convergence status and returns its results.
 
     Notes
     -----
-    The function can be called either with positional arguments (spots, coo)
-    or with keyword arguments. If both are provided, keyword arguments take precedence.
+    Positional and keyword forms can be mixed; the keywords win if both are given.
     """
     viewer = None  # Track realtime viewer for cleanup
     try:

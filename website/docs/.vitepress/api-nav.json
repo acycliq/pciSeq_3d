@@ -1,0 +1,77 @@
+[
+  {
+    "text": "fit",
+    "link": "/api/reference#fit"
+  },
+  {
+    "text": "cell_type",
+    "link": "/api/reference#cell-type"
+  },
+  {
+    "text": "stage_data",
+    "link": "/api/reference#stage-data"
+  },
+  {
+    "text": "attach_to_log",
+    "link": "/api/reference#attach-to-log"
+  },
+  {
+    "text": "setup_logger",
+    "link": "/api/reference#setup-logger"
+  },
+  {
+    "text": "to_spatialdata",
+    "link": "/api/reference#to-spatialdata"
+  },
+  {
+    "text": "write_spatialdata",
+    "link": "/api/reference#write-spatialdata"
+  },
+  {
+    "text": "add_image",
+    "link": "/api/reference#add-image"
+  },
+  {
+    "text": "add_boundaries",
+    "link": "/api/reference#add-boundaries"
+  },
+  {
+    "text": "stage_image",
+    "link": "/api/reference#stage-image"
+  },
+  {
+    "text": "VarBayes",
+    "link": "/api/reference#varbayes",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "metadata",
+        "link": "/api/reference#metadata"
+      },
+      {
+        "text": "check_spot",
+        "link": "/api/reference#check-spot"
+      },
+      {
+        "text": "check_cell",
+        "link": "/api/reference#check-cell"
+      },
+      {
+        "text": "read_tsv",
+        "link": "/api/reference#read-tsv"
+      },
+      {
+        "text": "heatmap_counts_per_class",
+        "link": "/api/reference#heatmap-counts-per-class"
+      },
+      {
+        "text": "cells.gene_reads_per_class",
+        "link": "/api/reference#cells-gene-reads-per-class"
+      },
+      {
+        "text": "cells.mean_gene_reads_per_class",
+        "link": "/api/reference#cells-mean-gene-reads-per-class"
+      }
+    ]
+  }
+]

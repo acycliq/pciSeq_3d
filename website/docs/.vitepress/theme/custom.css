@@ -1,0 +1,191 @@
+/**
+ * pciSeq docs theme.
+ * Same emerald accent, Inter font and research-paper feel as the old
+ * Docusaurus site, but written against VitePress's --vp-* variables.
+ * Kept in step with the pciSeq Viewer docs on purpose.
+ */
+
+/* Inter, same font the viewer app uses. */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --vp-font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, sans-serif;
+  --vp-font-family-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Emerald palette (was --ifm-color-primary on Docusaurus). */
+  --vp-c-brand-1: #10b981; /* emerald 500 */
+  --vp-c-brand-2: #059669; /* emerald 600 */
+  --vp-c-brand-3: #047857; /* emerald 700 */
+  --vp-c-brand-soft: rgba(16, 185, 129, 0.14);
+
+  /* a slightly wider reading column for the long derivations */
+  --vp-layout-max-width: 1440px;
+}
+
+.dark {
+  --vp-c-brand-1: #34d399; /* emerald 400, easier to read on black */
+  --vp-c-brand-2: #10b981;
+  --vp-c-brand-3: #059669;
+  --vp-c-brand-soft: rgba(16, 185, 129, 0.16);
+
+  /* near-black background, like the old dark theme */
+  --vp-c-bg: #0c0c0e;
+  --vp-c-bg-alt: #161618;
+  --vp-c-bg-soft: #161618;
+}
+
+/* Brand the home hero name too, if we ever add a hero page. */
+:root {
+  --vp-home-hero-name-color: var(--vp-c-brand-1);
+}
+
+/* --- Heading rhythm ------------------------------------------------- */
+/* Quieter, more even spacing than the defaults. Weights stay at 600 so
+   nothing shouts, sizes step down gently. Kept in step with the viewer docs. */
+.vp-doc h1 {
+  font-size: 1.9rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 1.5rem;
+}
+
+.vp-doc h2 {
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+}
+
+.vp-doc h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin-top: 2.25rem;
+}
+
+/* a hair more line spacing makes the long derivations calmer to read */
+.vp-doc p,
+.vp-doc li {
+  line-height: 1.7;
+}
+
+/* --- Measure -------------------------------------------------------- */
+/* The layout is wide (1440px above) so the long equations and the diagrams
+   have room. Prose does not want that width: past about 70 characters the eye
+   loses its place coming back to the start of the next line.
+   So the cap goes on the TEXT elements only, never on the container. A wide
+   display equation, table, code block or svg still gets the full width; the
+   paragraph beside it stops at 68 characters. */
+:root {
+  --measure: 68ch;
+}
+
+.vp-doc p,
+.vp-doc ul,
+.vp-doc ol,
+.vp-doc blockquote {
+  max-width: var(--measure);
+}
+
+/* nested lists inherit the cap from their parent, capping them again
+   compounds the indent and makes them progressively narrower */
+.vp-doc li ul,
+.vp-doc li ol {
+  max-width: none;
+}
+
+/* things that are wide on purpose keep the whole column */
+.vp-doc table,
+.vp-doc pre,
+.vp-doc .mjx-container,
+.vp-doc figure.diagram,
+.vp-doc img {
+  max-width: none;
+}
+
+/* Centre the hand-made diagrams and give them room. The inlined SVGs use
+   currentColor for their ink, so they follow the page text colour and read in
+   both light and dark mode without any backdrop. */
+.vp-doc img[src*='/img/'],
+.vp-doc figure.diagram {
+  display: block;
+  margin: 2rem auto;
+  max-width: 100%;
+  height: auto;
+}
+
+.vp-doc figure.diagram svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* pin the ink to the theme text colour so every currentColor inside the SVG
+     (classes and inline attributes) resolves correctly in both light and dark */
+  color: var(--vp-c-text-1);
+}
+
+/* the diagrams carry no <style> of their own (VitePress strips it), so the
+   font has to come from here */
+.vp-doc figure.diagram svg text {
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.vp-doc figure.diagram figcaption {
+  margin-top: 0.75rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--vp-c-text-2);
+}
+
+/* Styles for the inlined diagrams. They live here, not in an SVG <style> block,
+   because VitePress compiles inlined markdown HTML as a Vue template and drops
+   <style> tags. Using currentColor makes the ink follow the page text colour,
+   so the diagrams read in both light and dark mode. The classes are prefixed
+   (vl-, ip-) so they only touch our diagrams. */
+
+/* variational loop (how-it-works/overview) */
+.vl-arc-band { fill: var(--vp-c-text-1); fill-opacity: 0.05; stroke: var(--vp-c-text-1); stroke-opacity: 0.3; stroke-width: 1; stroke-linejoin: round; }
+.vl-arc-highlight { fill: rgba(72, 187, 120, 0.12); fill-opacity: 1; stroke: #48bb78; stroke-opacity: 1; stroke-width: 1.5; }
+.vl-text-label { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+.vl-center-title { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 12px; font-weight: 300; letter-spacing: 0.4em; opacity: 0.5; }
+
+/* spot-to-cell building blocks (how-it-works/spots-to-cells). The card fills and
+   most of the ink ride on currentColor (var --vp-c-text-1) at low opacity, so the
+   whole thing flips with the theme. The blue/emerald accents are kept fixed because
+   those mid-tones read on both a white and a near-black page. */
+.sb-root { fill: var(--vp-c-brand-2); stroke: var(--vp-c-brand-1); stroke-width: 1.5; }
+.sb-root-txt { fill: #fff; font-size: 16px; font-weight: 700; }
+.sb-link { fill: none; stroke: var(--vp-c-text-1); stroke-opacity: 0.35; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.sb-plus { fill: var(--vp-c-text-1); fill-opacity: 0.4; font-size: 22px; font-weight: 700; }
+.sb-panel-where { fill: rgba(91, 155, 213, 0.07); stroke: rgba(91, 155, 213, 0.45); stroke-width: 1.2; }
+.sb-panel-what { fill: rgba(16, 185, 129, 0.07); stroke: rgba(16, 185, 129, 0.45); stroke-width: 1.2; }
+.sb-head-where { fill: #4a82ba; font-size: 12px; font-weight: 700; letter-spacing: 0.07em; }
+.sb-head-what { fill: #1f9d77; font-size: 12px; font-weight: 700; letter-spacing: 0.07em; }
+.sb-sub { fill: var(--vp-c-text-1); fill-opacity: 0.55; font-size: 13px; }
+.sb-card { fill: var(--vp-c-text-1); fill-opacity: 0.035; stroke-width: 1.2; }
+.sb-card-where { stroke: rgba(91, 155, 213, 0.5); }
+.sb-card-what { stroke: rgba(16, 185, 129, 0.5); }
+.sb-badge-where { fill: #3a6ea5; }
+.sb-badge-what { fill: var(--vp-c-brand-2); }
+.sb-badge-txt { fill: #fff; font-weight: 700; }
+.sb-name { fill: var(--vp-c-text-1); font-size: 14px; font-weight: 700; }
+.sb-q { fill: var(--vp-c-text-1); fill-opacity: 0.7; font-size: 12.5px; }
+.sb-cap { fill: var(--vp-c-text-1); fill-opacity: 0.55; font-size: 13px; font-style: italic; }
+
+/* inefficiency pyramid (how-it-works/warping-the-reference) */
+.ip-tier { stroke: var(--vp-c-text-1); stroke-opacity: 0.4; stroke-width: 1; stroke-linejoin: round; }
+.ip-glyph { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 26px; font-weight: 600; }
+.ip-name { fill: var(--vp-c-text-1); opacity: 0.75; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 14px; font-style: italic; }
+.ip-desc { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; opacity: 0.7; }
+.ip-axis { fill: var(--vp-c-text-1); opacity: 0.6; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; letter-spacing: 0.15em; }
+.ip-leader { stroke: var(--vp-c-text-1); stroke-opacity: 0.25; stroke-width: 1; stroke-dasharray: 2 4; }
+
+/* empty-cell probability donut (how-it-works/warping-the-reference) */
+.donut-mid { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 21px; font-weight: 600; }
+.donut-sub { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; opacity: 0.55; }
+.donut-legend text { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 15px; }
+.donut-pct { opacity: 0.6; font-weight: 600; }
+
+/* empty-cell probability bar chart (how-it-works/warping-the-reference) */
+.barc-name { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; }
+.barc-pct { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; opacity: 0.6; }
