@@ -73,6 +73,7 @@ from .datatypes.spots import Spots
 from .datatypes.singleCell import SingleCell
 from .datatypes.cellClass import CellClass
 from .summary import collect_data
+from .utils import iteration_diagnostics
 from .utils.elbo import calc_elbo
 from .utils import ops_utils as utils
 from .utils import visualisation
@@ -296,6 +297,8 @@ class VarBayes:
         for i in range(max_iter):
             self.iter_num = i
             self._step_times = {}
+            # kept so the diagnostics can say which cells changed class this pass
+            classProb_before = self.cells.classProb.copy()
 
             # 1. For each cell, calc the expected gene counts
             self._step('geneCount_upd', self.geneCount_upd)
@@ -348,21 +351,7 @@ class VarBayes:
             self.has_converged, delta = utils.has_converged(
                 self.spots, p0, self.config['CellCallTolerance'], self.config.get('verbose', False)
             )
-            logger.info('Iteration %d, mean prob change %f' % (i, delta))
-            # --- SMART LOGGING --- 
-            if delta > 0:
-                p1 = self.spots.parent_cell_prob
-                p0_val = p0 if p0 is not None else np.zeros_like(p1)
-                diffs = np.abs(p1 - p0_val)
-                max_idx = np.unravel_index(np.argmax(diffs), diffs.shape)
-                spot_idx = max_idx[0]
-                col_idx = max_idx[1]
-                gene_name = self.spots.data.gene_name.iloc[spot_idx]
-                cell_id = self.spots.parent_cell_id[spot_idx, col_idx]
-                old_prob = p0_val[spot_idx, col_idx]
-                new_prob = p1[spot_idx, col_idx]
-                logger.info(f"DIAGNOSTIC: Spot {spot_idx} (Gene: {gene_name}) changed by {delta:.6f}")
-                logger.info(f"DIAGNOSTIC: Cell {cell_id} Prob: {old_prob:.4f} -> {new_prob:.4f}")
+            iteration_diagnostics.log_iteration_diagnostics(self, i, delta, p0, classProb_before)
 
 
             # Call real-time viewer callback if provided

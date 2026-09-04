@@ -67,7 +67,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         spots, coo, scdata, cfg = validate_inputs(spots, coo, scRNAseq, opts)
 
         # 3. Start realtime viewer if requested
-        realtime_viewer_ini(cfg)
+        viewer = realtime_viewer_ini(cfg)
 
         # 4. Use validated inputs and prepare the data
         logger.info('Preprocessing data')
@@ -215,6 +215,11 @@ def realtime_viewer_ini(cfg):
         viewer.start()
         cfg["realtime_viewer_callback"] = viewer.send_update
         logger.info(f"Started realtime viewer on port {port}")
+        # hand it back, fit() keeps it so the finally block can stop it. Without
+        # this the viewer was built here and dropped, so fit's `viewer` stayed
+        # None and the cleanup never ran.
+        return viewer
+    return None
 
 
 
