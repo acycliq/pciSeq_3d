@@ -1,183 +1,320 @@
 """
-hyperparameters for the pciSeq method
+Settings for pciSeq.
+
+Pass any of these to pciSeq.fit() in an opts dictionary. Anything you leave out
+keeps the default below.
 """
 
 
 DEFAULT = {
-    # list of genes to be excluded during cell-typing, e.g ['Aldoc', 'Id2'] to exclude all spots from Aldoc and Id2
+
+
+    # Genes to leave out of cell calling, e.g. ['Aldoc', 'Id2']. Every spot of an
+    # excluded gene is dropped before anything else runs.
     "exclude_genes": [],
-    # Maximum number of loops allowed for the Variational Bayes to run
+
+
+    # Most runs settle well before this. It is a safety net so a run that will
+    # not converge still terminates.
     "max_iter": 1000,
-    # Convergence achieved if assignment probabilities between two successive loops is less than the tolerance
+
+
+    # When to stop. After each pass the algorithm looks at how far the spot to
+    # cell assignment probabilities moved, and stops once that is below this
+    # number. The default is 0.02 (ie 2%) which means that the algorithm will
+    # not stop until all spot -> cell assignment probabilities change by max 2%
+    # between two successive loops
     "CellCallTolerance": 0.02,
-    # A gamma distribution expresses the efficiency of the in-situ sequencing for each gene. It tries to capture
-    # the ratio of the observed over the theoretical counts for a given gene. rGene controls the variance and
-    # Inefficiency is the average of this assumed Gamma distribution
+
+
+    # Inefficiency is the detection efficiency of the in situ experiment relative
+    # to the single cell reference, and usually the first setting worth adjusting.
     #
-    # Example: If you expect 100 RNA molecules of a gene:
-    # - With Inefficiency=0.2, you'll detect about 20 on average (20% detection rate)
-    # - rGene=20 means this efficiency is fairly consistent between genes
-    # - A lower rGene would mean more variance (e.g., some genes at 5% efficiency, others at 35%)
+    # In situ sequencing sees only a fraction of the RNA that scRNA-seq reports.
+    # At 0.2 a gene the reference says has 100 copies is expected to give about
+    # 20 spots. Unlike everything else here this is applied straight across the
+    # whole reference, every gene in every class, so it sets the overall scale
+    # the model expects your counts to be on.
     #
-    # This helps account for systematic differences in detection efficiency between genes
-    # when making cell type assignments.
-    "rGene": 20,
+    # Raise it and the model expects more spots per cell, so a cell needs a
+    # higher count before it looks like a given class, and thin cells are more
+    # readily left to the Zero class. Lower it and the same cells look better
+    # populated. If your cells are being called Zero far more often than the
+    # tissue suggests they should be, or conversely if almost nothing is landing
+    # in Zero, this is the setting to look at first.
+    #
+    # 0.2 is a reasonable starting point for in situ sequencing, and worth
+    # revisiting for a different chemistry or a different tissue.
+    #
+    # This is the first of four corrections that multiply together to give the
+    # reads a cell is expected to show, each working at a finer level than the
+    # one before it:
+    #
+    #   Inefficiency   the whole panel at once
+    #   eta            one gene, across every cell     (weight rGene)
+    #   theta          one cell, across every gene     (weight rTheta)
+    #   gamma          one gene in one cell            (weight rSpot)
+    #
+    # Only Inefficiency is a number you set outright. The other three are fitted
+    # from your data, and what you set is how strongly each is held to 1, meaning
+    # no correction at that level.
     "Inefficiency": 0.2,
-    # If a spot is inside the cell boundaries this bonus will give the likelihood an extra boost
-    # in order to make the spot more probable to get assigned to the cell than another spot positioned
-    # outside the cell boundaries
-    "InsideCellBonus": 0,
-    # MRF coefficient: controls how strongly neighboring cells' class assignments
-    # influence each other. Higher values = more spatial smoothing.
-    "mrf_beta": 1.0,
-    # MisreadDensity: Expected number of misread spots. A dictionary contains user-defined values
-    # for gene misread densities used in the analysis.
-    # The process to determine the misread density for each gene is as follows:
+
+
+    # Some probes work better than others, so the second correction, eta, works
+    # on one gene across every cell. It is fitted from your data, and the prior
+    # assumes it is 1, meaning that gene needs no adjustment of its own on top of
+    # whatever the other three corrections are already doing.
     #
-    # 1. Compute the misread density as the number of misreads per gene divided by the area of the image.
-    # 2. Calculate the mean of these computed misread densities.
-    # 3. If the computed mean is NaN (for example, due to insufficient data), the fallback value
-    #    specified by the key 'default' in this configuration is used.
-    # 4. Finally, update the computed densities with any gene-specific overrides provided here.
+    # rGene decides how easily that assumption is overturned by the data. Compare
+    # it against the total reads of the gene:
     #
-    # The 'default' key thus sets a baseline misread density to ensure that every gene is assigned
-    # a consistent value when the mean cannot be reliably determined.
+    #   rGene well below the gene's reads   the data wins, and eta settles at
+    #                                       observed reads over expected reads
+    #   rGene well above the gene's reads   the prior wins, and eta stays at 1
     #
-    # Example configuration:
-    # {
-    #     'default': 1e-06,  # Fallback misread density if the computed mean is NaN.
-    #     'Plp1': 0.0001,    # User-defined misread density for gene 'Plp1'.
-    #     # Additional gene-specific overrides can be added here.
-    # }
-    "MisreadDensity": 0.00001,
-    # A pseudo-count representing the confidence in the cell centroid estimated
-    # by the segmentation algorithm.
-    #   - Think of `cell_centroid_prior` as if you had already seen this many imaginary
-    #     data points, all centered at the segmentation-derived centroid, before
-    #     incorporating real data.
-    #   - A small value means you have little confidence in the segmentation result,
-    #     so real data will strongly influence the estimated centroid.
-    #   - A large value means you trust the segmentation strongly, so the estimated
-    #     centroid will remain close to the initial segmentation result, even as new
-    #     data is introduced.
-    "cell_centroid_prior": 10,
-    # A pseudo-count representing the confidence in the initial estimate of covariance,
-    # which is modeled as a diagonal matrix where each diagonal element is the square
-    # of the mean cell radius.
-    #   - Imagine this prior as if you had already observed this many imaginary data points
-    #     that reinforce your belief about the spread (covariance).
-    #   - A small value means you are uncertain about the initial covariance estimate,
-    #     allowing real data to significantly influence the updated covariance.
-    #   - A large value means you strongly trust the initial covariance assumption, so
-    #     real data will only cause gradual updates.
-    "cell_cov_prior": 10,
-    # Gene detection might come with irregularities due to technical errors. A small value is introduced
-    # here to account for these errors. It is an additive factor, applied to the single cell expression
-    # counts when the mean counts per class and per gene are calculated.
-    # It is like a tiny safety cushion for gene counts and adds a tiny number to all our counts to
-    # help handle these small errors.
-    # This is especially helpful when we see zero counts, as it prevents mathematical problems
-    # when we're doing calculations with these numbers.
-    "SpotReg": 0.1,
-    # By default, only the 6 nearest cells will be considered as possible parent cells for any given spot.
-    # There is also one extra 'super-neighbor', which is always a neighbor to the spots so we can assign
-    # the misreads to. Could be seen as the background. Hence, by default the algorithm tries examines
-    # whether any of the 3 nearest cells is a possible parent cell to a given cell or whether the spot is
-    # a misread
-    "nNeighbors": 6,
-    # A gamma distributed variate from Gamma(rSpot, 1) is applied to the mean expression, hence the counts
-    # are distributed according to a Negative Binomial distribution.
-    # The value for rSpot will control the variance/dispersion of the counts
-    # rSpot controls how much variation we expect to see in gene counts between cells of the same type.
-    # It's used in a Negative Binomial distribution which models gene expression.
+    # Genes usually have thousands of reads, so at 20 the data wins comfortably
+    # for all but the quietest genes. Raise it into the thousands if you would
+    # rather every gene stayed at eta = 1 and took no correction of its own.
+    "rGene": 20,
+
+
+    # Some cells express more transcripts than the reference predicts and others
+    # fewer, so the third correction, theta, works on one cell across every gene.
+    # Theta is the cell's observed read count divided by the count its candidate
+    # class predicts. Above 1 the cell has more reads than the class predicts,
+    # below 1 it has fewer, and at 1 the two agree and nothing needs rescaling.
     #
-    # Rules of thumb for setting rSpot:
-    # - Default (2) is good for typical single-cell RNA data
-    # - Lower values (0.5-1) mean high variability between cells
-    #   → Use when you expect cells of the same type to show very different expression levels
-    #   → Good for genes that tend to burst in expression
-    # - Higher values (3-5) mean less variability between cells
-    #   → Use when you expect cells of the same type to have similar expression levels
-    #   → Good for housekeeping genes or very stable markers
-    #
-    # Examples:
-    # rSpot = 0.5: Counts might vary a lot (e.g., [0,5,20,100] for same cell type)
-    # rSpot = 2.0: Moderate variation (e.g., [10,15,20,25] for same cell type)
-    # rSpot = 5.0: More consistent counts (e.g., [17,18,19,21] for same cell type)
-    "rSpot": 2,
-    # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
-    "save_data": True,
-    # Boolean. If True, turn on verbose monitoring: the per-step timings and the
-    # per-iteration diagnostic logging. None of it affects the result and all of it
-    # is cheap. The ELBO used to be in here too, which is why this was off by
-    # default; it has its own switch now, see elbo_per_step below.
-    "verbose": False,
-    # Which update steps to score the ELBO around. This is the only switch that
-    # computes the ELBO. Empty list means off, and off costs nothing. Name the steps you care about, eg ["cell_to_cellType"], or
-    # use "all" for the lot. Each named step costs two ELBO evaluations, and the
-    # ELBO is expensive: naming every step measured 4.8x slower on silver 180
-    # (1998s against 420s for the same 10 iterations).
-    # Valid names: geneCount_upd, rho_upd, eta_upd, theta_upd, gamma_upd,
-    # cell_to_cellType, dalpha_upd, mu_upd, spots_to_cell.
-    # Note the deltas of all the steps should add up to the change in the ELBO
-    # over the whole iteration, which is a handy check that it is all working.
-    "elbo_per_step": [],
-    # Set here where the results will be saved. If default then they will be saved at your system's temp folder
-    "output_path": "default",
-    # cell radius. If None then pciSeq will calc that as the mean radius across all cells.
-    # Otherwise it will use the value provided below
-    "cell_radius": None,
-    # cell type prior: The prior distribution on the classes. It can be 'uniform' or 'weighted'.
-    # 'uniform': weights stay fixed throughout the algorithm.
-    # 'weighted': the real class weights are updated each iteration via a Dirichlet distribution.
-    #   The Zero class weight always stays fixed (it is not part of the Dirichlet).
-    # In both modes the initial weights come from cell_type_weights (or defaults if None).
-    "cell_type_prior": "uniform",
-    # cell_type_weights: A dictionary of prior probabilities for cell types.
-    # If None: Zero = 0.5, the remaining 0.5 is split equally across real classes.
-    # If set: specify probabilities for any subset of classes. Unspecified classes
-    #   share the remaining probability equally. Zero defaults to 0.5 if not specified.
-    # Example: {"Zero": 0.4, "037 DG Glut": 0.1} gives Zero 40%, DG Glut 10%,
-    #   and the rest share the remaining 50% equally.
-    "cell_type_weights": {"Zero": 0.5},
-    # Runtime attribute (automatically set during execution)
-    # *******************************************************************************
-    # Hyperparameters below added for 3D
-    # *******************************************************************************
-    # voxel_size: Physical size of voxels in each dimension [x, y, z].
-    # Used to correct for anisotropic sampling in 3D data.
-    # Example: For a microscope with:
-    #   - xy resolution of 0.147 µm/pixel
-    #   - z-step size of 0.9 µm
-    # Use: [0.147, 0.147, 0.9]
-    # Default: [1, 1, 1] (isotropic voxels)
-    "voxel_size": [1, 1, 1],
-    # remove_flat_cells: Controls removal of cells that appear in only one z-plane.
-    # These single-plane cells are often artifacts from segmentation, especially in 3D data.
-    # Note: Only relevant for 3D data (multiple z-planes).
-    # For 2D data, this setting has no effect.
-    "remove_flat_cells": True,
-    # Runtime attribute (automatically set during execution)
-    "is3D": None,
+    # The prior puts theta at 1, and rTheta decides how firmly it is held there.
+    # What matters is the value of rTheta compared to the cell's own read count.
+    # Set it very large and theta stays at 1 for every cell, so the reference is
+    # used as it comes. Set it to something like 2 and rTheta has almost no
+    # influence, because nearly every cell has far more reads than that and the data
+    # determine theta.
     "rTheta": 25.0,
-    # Shape parameter for the Gamma prior on gene-specific misread density (rho_g).
-    # Higher values anchor rho_g closer to the MisreadDensity prior mean.
-    # With rRho=1 the prior is weak and the data drives the estimate.
-    "rRho": 1000.0,
+
+
+    # Gene counts vary more between cells of one class than a Poisson would allow,
+    # so they are modelled as negative binomial. rSpot is the dispersion: lower
+    # values mean cells of the same class differ more from each other, higher
+    # values mean they look alike. 2 fits typical in situ data.
+    "rSpot": 2,
+
+
+    # An extra push toward a cell when the spot falls inside that cell's
+    # segmented boundary, added on the log scale to the spot to cell score. 0
+    # switches it off, which is the default: the distance term already prefers
+    # nearby cells, and a boundary bonus makes the answer depend on exactly where
+    # the segmentation drew its outlines. Passing True is accepted and quietly
+    # turned into 2.
+    "InsideCellBonus": 0,
+
+
+    # How strongly a cell's neighbours pull it toward their own class.
+    #
+    # Cells of the same class tend to sit together, so a class already common
+    # around a cell gets a bonus when that cell is scored. Each neighbour
+    # contributes in proportion to how close it is and how sure it is of its own
+    # class.
+    #
+    # This helps most in tissue with clear spatial organisation, cortical layers
+    # or the hippocampus for instance, where a cell's neighbours really do say
+    # something about what it is. It has less to add where the classes are mixed
+    # together rather than grouped.
+    #
+    # Set it to 0 to switch the mrf off.
+    "mrf_beta": 1.0,
+
+
+    # MisreadDensity sets the background level. Not every read comes from a cell:
+    # some RNA sits in processes too far from any soma to attribute, and some
+    # reads are technical misreads. Those are modelled as a background spread
+    # evenly over the whole region, and every read is offered that option
+    # alongside the nearby cells. A read goes to a cell only if that cell
+    # explains it better than the background would.
+    #
+    # A separate density is estimated for each gene, because genes differ in how
+    # noisy they are, and the value here is the starting point those estimates
+    # are pulled toward. rRho controls how hard they are pulled.
+    #
+    # The number looks uncomfortably small because it is a density, misreads per
+    # unit of imaged volume, and the volumes are large. To picture it, take a
+    # block of 100 x 100 pixels over 10 planes with a voxel size of
+    # [0.28, 0.28, 0.7]. The z step is 2.5 times the pixel, so that block counts
+    # as 100 x 100 x 10 x 2.5 = 250,000 units of volume, and expecting one misread
+    # of a gene in it means a density of 1/250,000, or 4e-6.
+    #
+    # You can give one number for all genes, or a dictionary with a 'default' key
+    # plus per gene overrides for genes you know are dirty:
+    #   {'default': 1e-6, 'Plp1': 1e-4}
+    # A bare number is turned into {'default': <number>} for you.
+    #
+    # Raising it makes the background a stronger competitor, so more spots are
+    # called misreads. Lowering it pushes more spots into cells.
+    "MisreadDensity": 0.00001,
+
+
+    # Each gene gets its own background density, worked out from the reads of that
+    # gene that end up in the background. The prior puts that density at the
+    # MisreadDensity value, the same for every gene, and rRho decides how firmly
+    # it is held there. What matters is the value of rRho compared to the number
+    # of background reads the gene has. Set it very large and every gene keeps the
+    # MisreadDensity value, so there is a single background level for the whole
+    # panel. At 1 rRho has almost no influence, because any gene with real
+    # background has far more reads than that, and the data determine the density
+    # gene by gene.
+    "rRho": 1.0,
+
+
+    # TBD: cell_centroid_prior has no effect at the moment.
+    "cell_centroid_prior": 10,
+
+
+    # TBD: cell_cov_prior has no effect at the moment.
+    "cell_cov_prior": 10,
+
+
+    # A small number added to the expected counts, so that one stray spot cannot
+    # rule out a whole class.
+    #
+    # Class definitions contain exact zeros: if a class never expresses a gene,
+    # its expected count for that gene is 0. A single spot of that gene landing
+    # in such a cell would then be impossible under that class, and the class
+    # would be eliminated outright, on the strength of one spot that could easily
+    # be a misread. This keeps the expectation just above zero so that cannot
+    # happen. Leave it alone unless you know why you are changing it.
+    "SpotReg": 0.1,
+
+
+    # How many candidate cells each spot is scored against. The spot is compared
+    # with its nearest cells and, on top of those, with the background, so at
+    # nNeighbors=6 there are seven options: six cells or a misread. Raising it
+    # lets a spot reach a cell further away, at the cost of more work per
+    # iteration. Lowering it is faster but a spot near a cell boundary may not
+    # see the cell it actually came from.
+    "nNeighbors": 6,
+
+
+    # Write the results to disk as tsv files. Without an output_path they land in
+    # a 'pciSeq' folder in your system temp directory.
+    "save_data": True,
+
+
+    # Extra logging: how long each step took and a per iteration breakdown of
+    # which cell and which spot moved most. None of it changes the result and all
+    # of it is cheap, so it is reasonable to leave on when you care about a run.
+    "verbose": False,
+
+
+    # elbo_per_step is a diagnostic for developers. It scores the ELBO either side
+    # of the named steps and logs the change, which shows whether a step is
+    # improving the fit or working against it. An empty list is off and free.
+    #
+    # Valid names: geneCount_upd, rho_upd, eta_upd, theta_upd, gamma_upd,
+    # cell_to_cellType, dalpha_upd, mu_upd, spots_to_cell. Pass "all" for the lot,
+    # but note the ELBO is expensive: scoring every step ran 4.8x slower on
+    # silver 180, 1998s against 420s for the same 10 iterations.
+    "elbo_per_step": [],
+
+
+    # Where the results go. 'default' means your system temp folder.
+    "output_path": "default",
+
+
+    # Cell radius, in the same units as the spot coordinates. Leave it at None
+    # and the mean radius across all segmented cells is used, which is usually
+    # what you want. Set it only if the segmentation gives sizes you do not
+    # trust.
+    "cell_radius": None,
+
+
+    # How the class prior is handled. Cell classes are not equally common, and
+    # the prior tilts the scores so that, all else being equal, a cell is called
+    # a common class rather than a rare one.
+    #   'uniform'  the weights you give below are used unchanged all the way
+    #              through.
+    #   'weighted' the weights of the real classes are re-estimated each
+    #              iteration from how many cells currently look like each class,
+    #              so the prior adapts to your tissue. The Zero class weight is
+    #              held fixed and is not re-estimated.
+    "cell_type_prior": "uniform",
+
+
+    # cell_type_weights sets the starting class weights, as probabilities summing
+    # to 1. Name the classes you want to pin and the rest share what is left
+    # equally: {"Zero": 0.5} gives Zero half and splits the other half evenly over
+    # the real classes. None gives every class the same weight. A name that does
+    # not match a class in your reference is ignored with a warning, and there is
+    # no special 'default' key here.
+    #
+    # Zero is the class that expects no expression. It takes the cells that are
+    # effectively empty: debris, fragments left by the segmentation, and cells
+    # whose markers are not on the panel. Giving it a decent share of the prior
+    # keeps those cells off the real classes.
+    "cell_type_weights": {"Zero": 0.5},
+
+
+
     # *******************************************************************************
-    # Realtime viewer (optional visualization feature)
+    # 3D settings
     # *******************************************************************************
-    # Enable real-time visualization during algorithm execution
+
+    # Physical size of a voxel as [x, y, z], in whatever unit you like as long as
+    # all three use the same one. It matters when the z step is coarser than the
+    # xy pixel, which it usually is: a cell that looks spherical in voxels is
+    # really squashed, and without this the distances along z are wrong.
+    # For 0.147 um pixels and a 0.9 um z step, use [0.147, 0.147, 0.9].
+    # [1, 1, 1] means isotropic and is right for 2D.
+    "voxel_size": [1, 1, 1],
+
+
+    # Drop cells that appear on a single z plane. These are usually segmentation
+    # artefacts rather than real cells. Has no effect on 2D data.
+    "remove_flat_cells": True,
+
+
+    # Worked out from your data, not something you set. A list of several
+    # segmentation masks is treated as 3D, a single mask as 2D. Anything you pass
+    # here is overwritten.
+    "is3D": None,
+
+
+
+    # *******************************************************************************
+    # Live viewer, optional
+    # *******************************************************************************
+
+    # Watch the cell calling as it runs, in a browser.
     "realtime_viewer": False,
-    # Port for the realtime viewer web server
+
+
+    # Port the viewer serves on.
     "realtime_viewer_port": 5001,
-    # Maximum number of cells to display (None = show all)
+
+
+    # Cap on how many cells are drawn, for speed on large sections. None draws
+    # all of them.
     "realtime_viewer_max_cells": None,
-    # Fixed radius for cell visualization (None = auto-scale)
+
+
+    # Draw every cell at this radius instead of its own. None uses the real
+    # sizes.
     "realtime_viewer_fixed_radius": None,
+
+
     # *******************************************************************************
-    # Hyperparameters below come into action **ONLY** if single cell data are missing
+    # Only used when you run without single cell reference data
     # *******************************************************************************
+
+    # With no reference to work from, pciSeq estimates the class definitions as it
+    # goes and needs a starting scale. This is how many counts an average cell of
+    # a class is expected to show across the whole panel at the outset.
     "mean_gene_counts_per_class": 60,
+
+
+    # The same starting scale seen from the cell's side: how many counts an
+    # average cell is expected to have in total. Together with the per class
+    # figure above it sets where the estimated definitions begin before the data
+    # moves them.
     "mean_gene_counts_per_cell": 30,
 }
