@@ -215,11 +215,11 @@ class Cells(object):
 
     def calc_theta(self, a, b):
         """
-        Calculates eta values for genes.
+        Calculates theta, the per cell scale factor, as a/b.
 
         Parameters:
-            a (np.array): Array of parameter a values.
-            b (np.array): Array of parameter b values.
+            a (np.array): Shape of the Gamma posterior, minus one.
+            b (np.array): Rate of the Gamma posterior.
         """
         a = a.astype(np.float32)
         b = b.astype(np.float32)

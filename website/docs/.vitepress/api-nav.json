@@ -40,6 +40,10 @@
     "link": "/api/reference#stage-image"
   },
   {
+    "text": "tile_maker",
+    "link": "/api/reference#tile-maker"
+  },
+  {
     "text": "VarBayes",
     "link": "/api/reference#varbayes",
     "collapsed": true,

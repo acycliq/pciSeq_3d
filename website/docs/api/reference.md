@@ -288,6 +288,36 @@ Requires libvips. If it is not installed, `pciSeq.stage_image()` falls back
 to a stub that only logs a warning.
 
 
+## `tile_maker`
+
+`pciSeq.src.tiling.stage_image.tile_maker`
+
+```python
+tile_maker(img, zoom_levels=8, out_dir='./tiles', plane_prefix='plane_', progress_bar=None)
+```
+
+Makes a pyramid of tiles from an image.
+
+Args:
+    img: One of:
+        - str: path to a 2D image file (TIFF, PNG, JPEG, etc.)
+        - numpy array (H, W): single 2D grayscale image
+        - numpy array (Z, H, W): 3D stack of grayscale images
+        - numpy array (Z, H, W, C): 3D stack with channels
+    zoom_levels: (int) Number of zoom levels to produce. Default is 8.
+    out_dir: (str) Output folder for the tile pyramid. Will be deleted and recreated if exists.
+    plane_prefix: (str) Prefix for plane subdirectories when processing 3D images.
+                  Default is "plane_" resulting in "plane_0", "plane_1", etc.
+    progress_bar: (tqdm, optional) if given, ticked once per plane instead of
+                  logging a per-plane line. Used by stage_image to drive its bars.
+
+Returns:
+    dict with keys:
+        - 'original_dims': [width, height] of the original input image
+        - 'num_planes': number of planes processed
+        - 'zoom_levels': number of zoom levels
+
+
 ## `VarBayes`
 
 `pciSeq.src.core.main.VarBayes`

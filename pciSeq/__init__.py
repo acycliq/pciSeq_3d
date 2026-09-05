@@ -1,5 +1,4 @@
 import subprocess
-import sys
 import os
 from pciSeq._version import __version__
 
@@ -57,55 +56,32 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def confirm_prompt(question):
-    reply = None
-    while reply not in ("", "y", "n"):
-        reply = input(f"{question} (y/n): ").lower()
-    return reply in ("", "y")
+def _check_libvips():
+    """Is libvips there?
 
-
-def install(package):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-
-def install_libvips():
-    subprocess.check_call("apt-get update", shell=True)
-    subprocess.check_call("apt-get install", shell=True)
-    subprocess.check_call(['apt-get', 'install', '-y', 'libvips'],
-                          stdout=open(os.devnull, 'wb'), stderr=subprocess.STDOUT)
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "pyvips"])
-
-
-#
-# def check_libvips(logger):
-#     confirm = confirm_prompt('Install libvips?')
-#     if confirm:
-#       install_libvips()
-#     else:
-#       print('>>>> libvips not installed')
-#     return confirm
-
-
-def check_libvips():
+    setup.py asks for pyvips[binary], which ships the libvips binaries with the
+    wheel, so on any platform with a wheel this is True and the tiling functions
+    import normally. It is still worth checking: a platform with no wheel would
+    otherwise fail with an ImportError from somewhere deep in the import chain
+    rather than a message saying what is wrong.
+    """
     try:
         import pyvips
-        status = True
+        return True
     except OSError:
-        status = False
-    except Exception as err:
-        raise
-    return status
+        return False
 
 
-if check_libvips():
+if _check_libvips():
     from pciSeq.src.tiling.stage_image import tile_maker, stage_image
 else:
-    def tile_maker():
-        logger.warning('>>>> tile_maker() isnt available because libvips is not installed. Please see '
-                            'https://www.libvips.org/install.html <<<<')
-        logger.warning('>>>> If you are on Linux you can install it by calling: sudo apt install libvips <<<<')
+    _NO_VIPS = ('>>>> %s() needs libvips, which normally arrives with the '
+                'pyvips[binary] dependency. Reinstalling pciSeq should fix it. '
+                'If your platform has no pyvips wheel, see '
+                'https://www.libvips.org/install.html <<<<')
+
+    def tile_maker(*args, **kwargs):
+        logger.warning(_NO_VIPS, 'tile_maker')
 
     def stage_image(*args, **kwargs):
-        logger.warning('>>>> stage_image() isnt available because libvips is not installed. Please see '
-                            'https://www.libvips.org/install.html <<<<')
-        logger.warning('>>>> If you are on Linux you can install it by calling: sudo apt install libvips <<<<')
+        logger.warning(_NO_VIPS, 'stage_image')

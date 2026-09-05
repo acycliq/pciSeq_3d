@@ -158,11 +158,11 @@ class Spots(object):
     # ---------------- METHODS ---------------- #
     def init_gamma(self, a, b, dim):
         """
-        Initializes eta values for genes.
+        Initializes gamma, the per cell per gene scale factor.
 
         Parameters:
-            a (float): Parameter a for eta calculation.
-            b (float): Parameter b for eta calculation.
+            a (float): Shape of the Gamma prior.
+            b (float): Rate of the Gamma prior.
             dim (list): Dimensionality of gamma values.
         """
         self._post_shape = np.ones(dim, dtype=np.float32) * a
@@ -173,7 +173,7 @@ class Spots(object):
 
     def _digamma(self, a, b):
         """
-        Calculates the digamma function for eta calculation.
+        Calculates the digamma function for gamma calculation.
 
         Parameters:
             a (np.array): Array of parameter a values.

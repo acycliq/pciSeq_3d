@@ -26,13 +26,14 @@ OUT = HERE / "docs" / "api"
 
 # Extra things to document that discover_public_api() does not catch on its own.
 # Each entry is (module path, attribute name).
-#   - stage_image is reachable as pciSeq.stage_image, but only through a
-#     conditional import (it depends on libvips), so the top-level scan misses it.
+#   - stage_image and tile_maker are reachable as pciSeq.stage_image and
+#     pciSeq.tile_maker, but only through a conditional import (they depend on
+#     libvips), so the top-level scan misses both.
 #   - VarBayes is the model object that cell_type/fit build and return.
-# stage_image is a plain function so it goes with the others; VarBayes (a class)
-# stays last.
+# The two plain functions go with the others; VarBayes (a class) stays last.
 EXTRA_API = [
     ("pciSeq.src.tiling.stage_image", "stage_image"),
+    ("pciSeq.src.tiling.stage_image", "tile_maker"),
     ("pciSeq.src.core.main", "VarBayes"),
 ]
 
