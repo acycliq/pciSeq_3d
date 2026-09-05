@@ -1,9 +1,10 @@
 """
 Checks the verbose flag actually works, both ways.
 
-Off is the default and must cost nothing. On has to produce the step timings,
-the ELBO and the convergence detail without falling over, since that path is
-never exercised by a normal run.
+Off is the default and must cost nothing. On has to produce the step timings and
+the convergence detail without falling over, since that path is never exercised
+by a normal run. The ELBO is not part of verbose any more, it has its own switch,
+see tests/test_elbo_per_step.py.
 """
 import logging
 
@@ -45,7 +46,8 @@ def test_on_records_a_timing_per_step(minimal_varbayes):
 
 
 def test_the_elbo_actually_runs(minimal_varbayes):
-    """It is only ever called under verbose, so nothing else would catch a break."""
+    """calc_elbo only runs when elbo_per_step asks for it, so a plain run would
+    never notice it break. Keep checking it stands up on its own."""
     from pciSeq.src.core.utils.elbo import calc_elbo
     vb = minimal_varbayes
     vb.config['verbose'] = True

@@ -107,12 +107,13 @@ DEFAULT = {
     "rSpot": 2,
     # Boolean, if True the output will be saved as tsv files in a folder named 'pciSeq' in your system's temp dir.
     "save_data": True,
-    # Boolean. If True, turn on verbose monitoring: the per-step timings, the ELBO, and
-    # the per-iteration diagnostic logging. None of it affects the result, and the ELBO
-    # is expensive (several passes over the nC x nG x nK tensor), so it is off by default.
+    # Boolean. If True, turn on verbose monitoring: the per-step timings and the
+    # per-iteration diagnostic logging. None of it affects the result and all of it
+    # is cheap. The ELBO used to be in here too, which is why this was off by
+    # default; it has its own switch now, see elbo_per_step below.
     "verbose": False,
-    # Which update steps to score the ELBO around. Empty list means off, and off
-    # costs nothing. Name the steps you care about, eg ["cell_to_cellType"], or
+    # Which update steps to score the ELBO around. This is the only switch that
+    # computes the ELBO. Empty list means off, and off costs nothing. Name the steps you care about, eg ["cell_to_cellType"], or
     # use "all" for the lot. Each named step costs two ELBO evaluations, and the
     # ELBO is expensive, so naming everything roughly triples the runtime.
     # Valid names: geneCount_upd, rho_upd, eta_upd, theta_upd, gamma_upd,

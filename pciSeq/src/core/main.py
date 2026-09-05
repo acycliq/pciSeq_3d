@@ -281,43 +281,31 @@ class VarBayes:
 
     # -------------------------------------------------------------------- #
     def main_loop(self) -> Tuple[pd.DataFrame, pd.DataFrame]:
-        """Main algorithm loop."""
-        """
-        Executes the main Variational Bayes algorithm loop.
+        """Run the variational Bayes loop.
 
-        Iteratively updates:
-            1. Gene counts per cell
-            2. Gamma parameters
-            3. Gaussian parameters (if needed)
-            4. Cell type assignments
-            5. Spot-to-cell assignments
-            6. Gene efficiency parameters
-            7. Dirichlet parameters (if needed)
-            8. Expression means (if needed)
+        One pass updates, in this order: the gene counts per cell, the per gene
+        misread density, the gene inefficiency, the cell inefficiency, gamma, the
+        cell types, then the spot to cell assignments. Two more steps run only when
+        there is no single cell reference to lean on: the dirichlet prior and the
+        mean expression itself.
 
-        The loop continues until either:
-            - Convergence is reached (change in probabilities below tolerance)
-            - Maximum iterations are reached
-
-        Args:
-            None
+        The loop stops when the biggest change in the spot to cell probabilities
+        drops below CellCallTolerance, or when it runs out of iterations.
 
         Returns:
-            Tuple[pd.DataFrame, pd.DataFrame]:
-                - Cell dataframe with final assignments and probabilities
-                - Gene dataframe with expression statistics
-
+            Tuple[pd.DataFrame, pd.DataFrame]: the cell dataframe with the final
+            assignments and probabilities, and the gene dataframe.
         """
         p0 = None
-        cell_df = None
-        gene_df = None
+        verbose = self.config.get('verbose', False)
         max_iter = self.config['max_iter']
 
         for i in range(max_iter):
             self.iter_num = i
             self._step_times = {}
-            # kept so the diagnostics can say which cells changed class this pass
-            classProb_before = self.cells.classProb.copy()
+            # only the verbose diagnostics read this and it is a nC by nK copy every
+            # pass, so do not pay for it when nobody is going to look at it
+            classProb_before = self.cells.classProb.copy() if verbose else None
 
             # 1. For each cell, calc the expected gene counts
             self._step('geneCount_upd', self.geneCount_upd)
@@ -356,22 +344,15 @@ class VarBayes:
             # line when needed. tests/test_spots_to_cell_ab.py checks they agree.
             self._step('spots_to_cell', self.spots_to_cell_numba)
 
-            if self.config.get('verbose', False):
+            if verbose:
                 _total = sum(self._step_times.values())
                 _bd = ' '.join('%s=%.2f' % (k, v) for k, v in self._step_times.items())
                 logger.info('STEP TIMES iter %d (total %.2fs): %s', i, _total, _bd)
 
-            # ELBO is monitoring only (it does not feed convergence) and is expensive
-            # (several passes over the nC x nG x nK tensor), so compute it only when verbose.
-            if self.config.get('verbose', False):
-                elbo = calc_elbo(self)
-                logger.info('Iteration %d, ELBO: %f' % (i, elbo))
-
             self.has_converged, delta = convergence.has_converged(
-                self.spots, p0, self.config['CellCallTolerance'], self.config.get('verbose', False)
+                self.spots, p0, self.config['CellCallTolerance'], verbose
             )
             convergence.log_iteration_diagnostics(self, i, delta, p0, classProb_before)
-
 
             # Call real-time viewer callback if provided
             if self.on_iteration_callback is not None:
@@ -383,19 +364,18 @@ class VarBayes:
             # keep track of the deltas
             self.iter_delta.append(delta)
 
-            # replace p0 with the latest probabilities
+            # replace p0 with the latest probabilities. Safe to hold the reference
+            # rather than a copy because spots_to_cell always assigns a brand new
+            # array, it never writes into the old one.
             p0 = self.spots.parent_cell_prob
 
             if self.has_converged:
-                # self.cell_analysis(35975)
-                cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.config['is3D'])
                 break
 
             if i == max_iter - 1:
                 logger.info('Loop exhausted. Exiting with convergence status: %s' % self.has_converged)
-                cell_df, gene_df = collect_data(self.cells, self.spots, self.genes, self.config['is3D'])
-                break
-        return cell_df, gene_df
+
+        return collect_data(self.cells, self.spots, self.genes, self.config['is3D'])
 
     # -------------------------------------------------------------------- #
     def geneCount_upd(self) -> None:
