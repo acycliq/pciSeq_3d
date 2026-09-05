@@ -115,7 +115,8 @@ DEFAULT = {
     # Which update steps to score the ELBO around. This is the only switch that
     # computes the ELBO. Empty list means off, and off costs nothing. Name the steps you care about, eg ["cell_to_cellType"], or
     # use "all" for the lot. Each named step costs two ELBO evaluations, and the
-    # ELBO is expensive, so naming everything roughly triples the runtime.
+    # ELBO is expensive: naming every step measured 4.8x slower on silver 180
+    # (1998s against 420s for the same 10 iterations).
     # Valid names: geneCount_upd, rho_upd, eta_upd, theta_upd, gamma_upd,
     # cell_to_cellType, dalpha_upd, mu_upd, spots_to_cell.
     # Note the deltas of all the steps should add up to the change in the ELBO
