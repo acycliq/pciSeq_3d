@@ -26,6 +26,7 @@ _TYPE_SPECS = {
     "rTheta": (int, float),
     "save_data": bool,
     "verbose": bool,
+    "elbo_per_step": (list, str),
     "output_path": str,
     "cell_radius": (type(None), float),
     "cell_type_prior": str,

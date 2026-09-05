@@ -250,8 +250,28 @@ class VarBayes:
         return cell_df, gene_df
 
     def _step(self, name, fn):
-        """Run one update step. When config['verbose'] is on, record its wall-time
-        into self._step_times. When off, this is just fn() with no overhead."""
+        """Run one update step. When config['elbo_per_step'] names this step, score
+        the elbo either side of it and log the change. When config['verbose'] is on,
+        record its wall-time into self._step_times. When neither, this is just fn()
+        with no overhead.
+
+        Scoring here rather than on the methods themselves is deliberate. The seven
+        steps carve the iteration into slices that do not overlap, so their deltas
+        add up to the change over the whole iteration. Some steps call others (
+        spots_to_cell runs geneCount_upd at the end), so scoring the methods would
+        count those inner calls twice and the sum would not add up any more.
+
+        The first iteration cannot be scored: the elbo needs spots.mvn_loglik_arr
+        and that is None until the first spots_to_cell has run.
+        """
+        watch = self.config.get('elbo_per_step') or ()
+        if (watch == 'all' or name in watch) and self.spots.mvn_loglik_arr is not None:
+            before = calc_elbo(self)
+            fn()
+            after = calc_elbo(self)
+            logger.info('elbo step %-16s %+14.2f   (%.2f -> %.2f)',
+                        name, after - before, before, after)
+            return
         if not self.config.get('verbose', False):
             fn()
             return

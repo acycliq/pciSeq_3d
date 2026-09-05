@@ -111,6 +111,15 @@ DEFAULT = {
     # the per-iteration diagnostic logging. None of it affects the result, and the ELBO
     # is expensive (several passes over the nC x nG x nK tensor), so it is off by default.
     "verbose": False,
+    # Which update steps to score the ELBO around. Empty list means off, and off
+    # costs nothing. Name the steps you care about, eg ["cell_to_cellType"], or
+    # use "all" for the lot. Each named step costs two ELBO evaluations, and the
+    # ELBO is expensive, so naming everything roughly triples the runtime.
+    # Valid names: geneCount_upd, rho_upd, eta_upd, theta_upd, gamma_upd,
+    # cell_to_cellType, dalpha_upd, mu_upd, spots_to_cell.
+    # Note the deltas of all the steps should add up to the change in the ELBO
+    # over the whole iteration, which is a handy check that it is all working.
+    "elbo_per_step": [],
     # Set here where the results will be saved. If default then they will be saved at your system's temp folder
     "output_path": "default",
     # cell radius. If None then pciSeq will calc that as the mean radius across all cells.
