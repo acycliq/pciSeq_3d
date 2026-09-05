@@ -60,7 +60,7 @@ From the broadest to the most specific:
   counts across all its genes. It is worked out separately for every type the cell might be,
   because what counts as "expected" depends on which type you are testing it against.
 
-- **gamma** ($\gamma_{g,c,k}$) - one factor **per gene, per cell, per candidate type**.
+- **gamma** ($\gamma_{g,c\mid k}$) - one factor **per gene, per cell, per candidate type**.
   This is the most fine-grained and idiosyncratic correction: it adjusts a single gene
   in a single cell, and again it is computed separately for each type that cell might be.
   It accounts for the residual mismatch that none of the broader factors can explain.

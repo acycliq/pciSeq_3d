@@ -88,9 +88,14 @@ appreciably.
 ## Convergence
 
 After each iteration, pciSeq measures how much the **spot-to-cell probabilities** have
-changed. When this change falls below a fixed tolerance, the estimates are taken to have
-converged and the loop terminates. A maximum number of iterations is also imposed as a
-safeguard.
+changed. The measure is the **largest single change** across every spot and every
+candidate cell, not an average over them. When it falls below `CellCallTolerance` the
+estimates are taken to have converged and the loop terminates. A maximum number of
+iterations is also imposed as a safeguard.
+
+Taking the maximum is deliberate, and it is strict: one spot still moving between two
+cells holds the whole run open, even when every other spot has settled. A mean would
+have declared convergence long before.
 
 ## Block 2 in more detail
 

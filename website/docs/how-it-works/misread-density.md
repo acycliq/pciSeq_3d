@@ -34,7 +34,7 @@ background:
 
 $$
 \text{background rate of gene } g \;\approx\;
-\frac{\text{background spots of gene } g}{\text{tissue area}}
+\frac{\text{background spots of gene } g}{\text{extent of the ROI}}
 $$
 
 This ratio of an observed count to the extent over which it is spread is the first
@@ -50,10 +50,15 @@ q(\rho_g) = \mathrm{Gamma}\Big(\rho_g;\; r_\rho + \bar{N}_{0,g},\;\; \tfrac{r_\r
 $$
 
 where $\bar{N}_{0,g}$ is the expected number of background spots of gene $g$,
-$A_{\text{total}}$ is the tissue area, $\rho_0$ is the prior mean misread density, and
-$r_\rho$ sets how strongly that prior is held. The
-[full derivation](../the-model/misread-density.md), including the role of $r_\rho$, is in
-the model section.
+$A_{\text{total}}$ is the extent of the region of interest, $\rho_0$ is the prior mean
+misread density, and $r_\rho$ sets how strongly that prior is held.
+
+In 2D that extent is an area. In 3D it is a **volume**, and it has to be measured in the
+same units as the cell shapes it is compared against, which means correcting for
+anisotropic voxels. Getting this wrong makes the background too strong and pushes spots
+that belong to cells into the background instead. The
+[full derivation](../the-model/misread-density.md) covers both the correction and the
+role of $r_\rho$.
 
 The block reads the spots attributed to the background on the previous iteration and
 produces a per-gene background rate. [Block 4](spots-to-cells.md) uses that rate as the
