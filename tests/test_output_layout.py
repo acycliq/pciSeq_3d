@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pciSeq.src.core.utils.io_utils import geneData_to_arrow, _dense_planes
+from pciSeq.src.core.io.arrow_export import geneData_to_arrow, _dense_planes
 
 
 @pytest.fixture
@@ -78,7 +78,7 @@ def test_write_data_produces_the_whole_lot(minimal_varbayes, tmp_path):
     import numpy as np
     from scipy.sparse import coo_matrix
     from pciSeq.src.core.summary import collect_data
-    from pciSeq.src.core.utils.io_utils import write_data
+    from pciSeq.src.core.io import write_data
 
     vb = minimal_varbayes
     vb.initialise_state()

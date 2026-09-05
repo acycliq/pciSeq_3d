@@ -135,7 +135,7 @@ class Config(dict):
 
     def _setup_logging(self) -> None:
         """Setup file handler for logging."""
-        from pciSeq.src.core.utils.io_utils import log_file
+        from pciSeq.src.core.io import log_file
 
         log_file(self)
 

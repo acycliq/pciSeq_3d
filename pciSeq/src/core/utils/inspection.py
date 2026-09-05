@@ -1,292 +1,17 @@
-"""Statistical calculation utilities."""
+"""Take one cell or one spot apart and see why it got called the way it did."""
+
+import logging
 import numpy as np
 import pandas as pd
-import numpy_groupies as npg
-from typing import Tuple, Optional, Any, Union
-import logging
-import opt_einsum as oe
-from pandas import DataFrame, Series
-import matplotlib.pyplot as plt
-import plotly.express as px
+from scipy.special import softmax
 import plotly.graph_objects as go
-from scipy.special import psi, softmax
+import matplotlib.pyplot as plt
+from scipy.special import psi
 
-# Configure logging
+from .likelihood import calculate_genes_log_likelihood_contr
+from .visualisation import spot_to_cell_prob_plot, spot_to_cell_score_plot
+
 logger = logging.getLogger(__name__)
-
-
-def expected_covariance(scale_matrix, dof):
-    """
-        Calculate the expected covariance matrix from a scale matrix and degrees of freedom.
-
-        Parameters
-        ----------
-        scale_matrix : np.ndarray
-            Scale matrix of shape (C, d, d) where d must be 2 or 3
-        dof : np.ndarray
-            Degrees of freedom,shape (C,).
-            Values will be automatically adjusted if below d + 2
-
-        Returns
-        -------
-        np.ndarray
-            Expected covariance matrix of same shape as input scale_matrix
-
-        Raises
-        ------
-        ValueError
-            If matrix dimensions are invalid or don't match
-    """
-    # Get the last two dimensions
-    *_, d1, d2 = scale_matrix.shape
-
-    # Check square
-    if d1 != d2:
-        raise ValueError(f"scale_matrix must be square, got shape {scale_matrix}")
-
-    # Check dimension is 2 or 3
-    if d1 not in (2, 3):
-        raise ValueError(f"scale_matrix dimension must be 2 or 3, got {d1}")
-
-    # Adjust degrees of freedom if needed, maybe I should drop a warning?
-    min_dof = d1 + 1
-    dof[dof <= min_dof] = min_dof + 1
-
-    return scale_matrix / (dof[:, None, None] - d1 - 1)
-
-
-def negative_binomial_loglikelihood(x: np.ndarray, r: float, q: np.ndarray) -> np.ndarray:
-    """Calculate the Negative Binomial log-likelihood for given parameters.
-
-    The Negative Binomial distribution models the number of failures (x) before
-    observing the r-th success, with failure probability q. The PMF is:
-        P(X = x) = C(x + r - 1, x) * q^x * (1 - q)^r
-
-    Here we compute only the terms that depend on q and r:
-        log-likelihood = x * log(q) + r * log(1 - q)
-
-    Args:
-        x: Array of observed failure counts (non-negative floats).
-        r: Number of successes until stopping (dispersion parameter, positive).
-        q: Array of failure probabilities (each between 0 and 1).
-
-    Returns:
-        Array of log-likelihood values, broadcast over x and q.
-
-    Raises:
-        ValueError: If any q is outside (0, 1) or if x has negative values.
-    """
-    try:
-        x = x[:, :, None]  # Add dimension for broadcasting
-
-        # Compute the log-likelihood of seeing x failures before the r-th success,
-        # if the failure probability is q.
-        # In our context, x is the cell gene counts, q is derived from the single cell data
-        # count data and r is a hyperparameter (set by default = 2.0).
-        # Scipy's nbinom object has logpmf(k, n, p) where p is the prob of success, ie p = 1-q
-        # and k, n is what is denoted here by x, r respectively. Also logpmf includes the
-        # combinatorial factor. Finally logpmf will drop an exception if the counts k are not
-        # integers
-        log_likelihood = x * np.log(q) + r * np.log(1 - q)
-
-        return log_likelihood
-
-    except Exception as e:
-        logger.error(f"Error calculating negative binomial log-likelihood: {str(e)}")
-        raise ValueError("Failed to compute log-likelihood. Check input dimensions and values.")
-
-
-def compute_gene_loglikelihood_matrix(obj) -> np.ndarray:
-    """
-    Compute the full gene log-likelihood contribution matrix for all cells and cell types.
-
-    This function performs the core computation shared between cell_to_cellType and
-    calculate_genes_log_likelihood_contr, eliminating code duplication and improving performance.
-
-    Args:
-        obj: VarBayes object containing the following attributes:
-            - scaled_exp: A delayed or computed array of scaled expression values (shape: nC x nG x nK)
-            - genes.eta_bar: Gene efficiency (shape: nG)
-            - cells.theta_bar: Cell inefficiency (shape: nC)
-            - config['SpotReg']: Regularization parameter for spot-level noise
-            - config['rSpot']: Dispersion parameter for the negative binomial distribution
-            - cells.geneCount: Observed gene counts for all cells (shape: nC x nG)
-
-    Returns:
-        np.ndarray: Log-likelihood contributions matrix of shape (nC, nG, nK)
-                   where element [c,g,k] is the log-likelihood contribution of
-                   gene g in cell c for cell type k
-    """
-    # Compute scaled expression (expensive operation done once)
-    scaled_means = obj.scaled_exp
-
-    # Calculate scaled expression adjusted by gene efficiency and regularization
-    ScaledExp = np.einsum('cgk,g,ck->cgk', scaled_means, obj.genes.eta_bar, obj.cells.theta_bar) + obj.config['SpotReg']
-
-    # Calculate negative binomial probabilities
-    pNegBin = ScaledExp / (obj.config['rSpot'] + ScaledExp)
-
-    # Get gene counts for all cells
-    cgc = obj.cells.geneCount
-
-    # Calculate log-likelihood contributions for all cells
-    contr = negative_binomial_loglikelihood(cgc, obj.config['rSpot'], pNegBin)
-
-    return contr
-
-
-def calculate_genes_log_likelihood_contr(obj, label: int) -> Tuple[DataFrame, Series, DataFrame]:
-    """
-    Calculate the log-likelihood contributions, gene counts, and scaled expression values
-    for a specific cell.
-
-    This function computes:
-        1. The genes' log-likelihood contributions (`contr`) for the specified cell under a
-           negative binomial distribution.
-        2. The gene counts (`cgc`) for the specified cell.
-        3. The scaled expression values (`scaled_means`) for the specified cell.
-
-    Args:
-        obj: An object containing the following attributes:
-            - scaled_exp: A delayed or computed array of scaled expression values (shape: nC x nG x nK).
-            - genes.eta_bar: Gene efficiency parameters (shape: nG).
-            - config['SpotReg']: Regularization parameter for spot-level noise.
-            - config['rSpot']: Dispersion parameter for the negative binomial distribution.
-            - cells.geneCount: Observed gene counts for all cells (shape: nC x nG).
-        label (int): The index of the cell for which to compute the values.
-
-    Returns:
-        Tuple[np.ndarray, np.ndarray, np.ndarray]:
-            - contr: The log-likelihood contributions for the specified cell (shape: nG x nK).
-            - cgc: The gene counts for the specified cell (shape: nG).
-            - scaled_means: The scaled expression values for the specified cell (shape: nG x nK).
-    """
-    # If original labels have been renumbered find the label it's been mapped to.
-    if obj.config['label_map']:
-        label = obj.config['label_map'][label]
-
-    # Get the full log-likelihood matrix using shared computation
-    contr = compute_gene_loglikelihood_matrix(obj)
-
-    # Get scaled expression and gene counts
-    scaled_means = obj.scaled_exp
-    cgc = obj.cells.geneCount
-
-    # Return values for the specified cell
-    contr_df = pd.DataFrame(contr[label], columns=obj.cells.class_names).set_index(obj.genes.gene_panel)
-    gene_counts = pd.Series(cgc[label], index=obj.genes.gene_panel)
-    scaled_means_df = pd.DataFrame(scaled_means[label], columns=obj.cells.class_names).set_index(obj.genes.gene_panel)
-    return contr_df, gene_counts, scaled_means_df
-
-
-# def plot_loglik_contr(df):
-#     """
-#     Create a scatter plot of the first column vs the second column in a DataFrame,
-#     with tooltips from the index, and add a diagonal line (y = x).
-#
-#     Args:
-#         df (pd.DataFrame): The DataFrame containing the data.
-#     """
-#     # Ensure the DataFrame has at least two columns
-#     if len(df.columns) < 2:
-#         raise ValueError("The DataFrame must have at least two columns.")
-#
-#     # Reset the index to include it as a column for tooltips
-#     df = df.reset_index()
-#
-#     # Get the names of the first and second columns
-#     x_col = df.columns[1]  # First column (after resetting the index)
-#     y_col = df.columns[2]   # Second column (after resetting the index)
-#
-#     # Create the scatter plot with tooltips
-#     fig = px.scatter(
-#         df,
-#         x=x_col,
-#         y=y_col,
-#         hover_data=['index'],  # Include the index as a tooltip
-#         title=f"Scatter Plot: {x_col} vs {y_col}"
-#     )
-#
-#     # Add a diagonal line (y = x)
-#     min_val = min(df[x_col].min(), df[y_col].min())  # Minimum value across both axes
-#     max_val = max(df[x_col].max(), df[y_col].max())  # Maximum value across both axes
-#
-#     diagonal_line = go.Scatter(
-#         x=[min_val, max_val],  # X values for the line (y = x)
-#         y=[min_val, max_val],  # Y values for the line (y = x)
-#         mode='lines',  # Draw a line
-#         name='Diagonal Line (y = x)',  # Label for the line
-#         line=dict(color='red', dash='dash')  # Customize line color and style
-#     )
-#
-#     # Add the diagonal line to the figure
-#     fig.add_trace(diagonal_line)
-#
-#     # Show the plot
-#     fig.show()
-
-
-# def visualize_fit(gene_counts, scaled_means):
-#     """
-#     Visualize the fit between gene_counts and scaled_means using Plotly.
-#
-#     Args:
-#         gene_counts (pd.Series): Observed gene counts for a cell.
-#         scaled_means_df (pd.DataFrame): Scaled expected gene expression values for the cell.
-#     """
-#     # Ensure gene_counts and scaled_means_df have the same index (gene names)
-#     if not gene_counts.index.equals(scaled_means.index):
-#         raise ValueError("gene_counts and scaled_means_df must have the same index.")
-#
-#     for column in scaled_means.columns:
-#         # Create a scatter plot
-#         fig = go.Figure()
-#
-#         # Add scatter plot: gene_counts vs. scaled_means
-#         scatter_trace = go.Scatter(
-#             x=scaled_means[column],
-#             y=gene_counts,
-#             mode='markers',
-#             marker=dict(opacity=0.6),
-#             text=gene_counts.index,  # Tooltip: gene names
-#             name='Scatter Plot'
-#         )
-#         fig.add_trace(scatter_trace)
-#
-#         # Add a true diagonal line (y = x)
-#         min_val = min(scaled_means[column].min(), gene_counts.min())  # Minimum value across both axes
-#         max_val = max(scaled_means[column].max(), gene_counts.max())  # Maximum value across both axes
-#
-#         diagonal_line = go.Scatter(
-#             x=[min_val, max_val],  # X values for the line (y = x)
-#             y=[min_val, max_val],  # Y values for the line (y = x)
-#             mode='lines',
-#             line=dict(color='red', dash='dash'),
-#             name='y = x'
-#         )
-#         fig.add_trace(diagonal_line)
-#
-#         # Update layout
-#         fig.update_layout(
-#             title=f'Gene Counts vs. Scaled Means ({column})',
-#             xaxis_title=f'Scaled Means ({column})',
-#             yaxis_title='Gene Counts',
-#             showlegend=True
-#         )
-#
-#         # Calculate correlation
-#         correlation = gene_counts.corr(scaled_means[column])
-#
-#         # Calculate residuals and their sum
-#         residuals = gene_counts - scaled_means[column]
-#         sum_residuals = residuals.sum()
-#
-#         # Print correlation and sum of residuals
-#         print(f"Correlation between gene_counts and {column}: {correlation:.3f}")
-#         print(f"Sum of residuals for {column}: {sum_residuals:.3f}")
-#
-#         # Show the plot
-#         fig.show()
 
 
 def check_cell(obj, label, user_class, top_n=10, show_plot=True):
@@ -451,6 +176,87 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
         plt.show()
 
     return gene_expression_data, my_contr_df, (fig if show_plot else None)
+
+
+def check_spot(self, spot_id):
+    """
+    Analyze a spot by creating visualization charts and returning score/probability arrays.
+
+    Parameters:
+    spot_id (int): The ID of the spot to analyze
+
+    Returns:
+    tuple: (scores_array, probabilities_array)s
+    """
+    # Get data for the specified spot
+    # First find the row position of the spot_id
+    row_pos = self.spots.data.index.get_loc(spot_id)
+
+    gene_name = self.spots.data.iloc[row_pos].gene_name # I could have used loc[spot_id] here too
+    x = self.spots.data.iloc[row_pos].x.astype(np.int32).tolist()
+    y = self.spots.data.iloc[row_pos].y.astype(np.int32).tolist()
+    z = self.spots.data.iloc[row_pos].z.astype(np.int32).tolist()
+    n_cells = len(self.spots.parent_cell_id[row_pos]) - 1  # Exclude background
+    cell_ids = self.spots.parent_cell_id[row_pos][:-1]
+    mvn_loglik = self.spots.mvn_loglik_arr[row_pos][:-1]
+    attention = self.spots.attention[row_pos][:-1]
+    expr_fluct = self.spots.expr_fluctuations[row_pos][:-1]
+    cell_inefficiency = self.spots.cell_inefficiency[row_pos][:-1]
+    gene_inefficiency = self.spots.gene_inefficiency[row_pos][:-1]
+    gene_idx = np.where(self.genes.gene_panel == gene_name)[0][0]
+    misread = self.genes.log_rho_bar[gene_idx]
+    # the inside-cell bonus the model adds before the softmax in spots_to_cell. it is
+    # nonzero only for the cell whose boundary the spot sits in, and zero for background.
+    bonus = self.spots.bonus_mask[row_pos][:-1] * self.config['InsideCellBonus']
+
+    # Calculate scores and probabilities
+    scores = mvn_loglik + attention + expr_fluct + cell_inefficiency + gene_inefficiency + bonus
+    scores = np.append(scores, misread)
+    probabilities = softmax(scores)
+
+    # Create labels. If the segmentation has been relabelled, map the labels back to the original ones.
+    if self.config['label_map']:
+        reverse_map = {v:k for k, v in self.config['label_map'].items()}
+        cell_ids = [reverse_map[d] for d in cell_ids]
+
+    labels = [f'Cell {cid}' for cid in cell_ids] + ['Misread']
+
+    datadict = {
+        'spot_id': spot_id,
+        'gene_name': gene_name,
+        'x': x,  # Already converted to list of int32
+        'y': y,  # (same as above)
+        'z': z,  # (same as above)
+        'n_cells': n_cells,
+        'cell_ids': cell_ids,
+        'mvn_loglik': mvn_loglik,
+        'attention': attention,
+        'expr_fluct': expr_fluct,
+        'cell_inefficiency': cell_inefficiency,
+        'gene_inefficiency': gene_inefficiency,
+        'bonus': bonus,
+        'misread': float(misread),  # Convert numpy float to native Python float
+        'score': scores,
+        'prob': probabilities,
+        'labels': labels
+    }
+
+    df = pd.DataFrame({
+        'Name': labels[:-1],
+        # 'internal_tag':self.spots.parent_cell_id[row_pos][:-1],
+        'mvn_loglik': mvn_loglik,
+        'attention': attention,
+        'expr_fluct': expr_fluct,
+        'cell_inefficiency': cell_inefficiency,
+        'gene_inefficiency': gene_inefficiency,
+        'bonus': bonus}).set_index(['Name'])
+    df['misread'] = np.nan
+    df['sum'] = df[['mvn_loglik', 'attention', 'expr_fluct', 'cell_inefficiency', 'gene_inefficiency', 'bonus']].sum(axis=1)
+    df.loc['background'] = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, misread, misread]
+
+    spot_to_cell_score_plot(datadict)
+    spot_to_cell_prob_plot(datadict)
+    return df
 
 
 def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
@@ -720,133 +526,3 @@ def _plot_classification_steps(data):
             fig.update_xaxes(tickangle=-45, row=row, col=col)
 
     fig.show()
-
-
-def read_tsv(filepath):
-    """
-    Convenience function to read the tsv files generated by pciSeq
-    """
-    data = pd.read_csv(filepath, sep='\t')
-    data = data.map(
-        lambda x: eval(x) if isinstance(x, str) and x.strip().startswith(('{', '[', '(')) else x)
-    return data
-
-
-def has_converged(
-        spots: Any,
-        p0: Optional[np.ndarray],
-        tol: float,
-        verbose: bool = False
-) -> Tuple[bool, float]:
-    """Check if probability assignments have converged.
-
-    Args:
-        spots: Spot data object containing parent_cell_prob
-        p0: Previous probability matrix (None for first iteration)
-        tol: Convergence tolerance threshold
-
-    Returns:
-        Tuple containing:
-            - bool: True if converged, False otherwise
-            - float: Maximum absolute difference between iterations
-
-    Raises:
-        Exception: If convergence check fails
-    """
-    p1 = spots.parent_cell_prob
-    if p0 is None:
-        p0 = np.zeros_like(p1)
-
-    try:
-        diff = np.abs(p1 - p0)
-        delta = np.max(diff)
-        converged = (delta < tol)
-
-        # Distribution of the change, not just the worst element. The stopping
-        # rule uses the max (L-infinity), which a single oscillating cell can hold
-        # hostage. These extra numbers show whether the run is broadly unsettled or
-        # essentially converged except for a handful of spots. Read-only diagnostic;
-        # it does not affect the returned convergence decision.
-        if verbose:
-            per_spot = diff.max(axis=1)  # largest change per spot, over its candidate cells
-            n_spots = per_spot.shape[0]
-            n_over = int((per_spot > tol).sum())
-            logger.info(
-                "convergence detail: max=%.6f | spots over tol(%.3f)=%d/%d (%.4f%%) | "
-                "mean per-spot=%.2e | 99pct=%.4f | 99.9pct=%.4f" % (
-                    delta, tol, n_over, n_spots, 100.0 * n_over / n_spots,
-                    float(per_spot.mean()),
-                    float(np.percentile(per_spot, 99.0)),
-                    float(np.percentile(per_spot, 99.9)),
-                )
-            )
-
-        return converged, delta
-    except Exception as e:
-        logger.error(f"Convergence check failed: {str(e)}")
-        raise
-
-
-def scaled_exp(cell_area_factor: np.ndarray,
-               sc_mean_expressions: np.ndarray) -> np.ndarray:
-    """Calculate scaled expression values.
-
-    Args:
-        cell_area_factor: Cell area scaling factors
-        sc_mean_expressions: Single cell mean expression values
-
-    Returns:
-        Scaled expression array
-    """
-    subscripts = 'c,gk->cgk'
-    operands = [cell_area_factor, sc_mean_expressions]
-
-    return oe.contract(subscripts, *operands, optimize='optimal')
-
-
-def empirical_mean(spots, cells):
-
-    # get the total gene counts per cell
-    N_c = cells.total_counts
-
-    xyz_spots = spots.xyz_coords
-    prob = spots.parent_cell_prob
-    n = cells.config['nNeighbors'] + 1
-
-    # multiply the x coord of the spots by the cell prob
-    a = np.tile(xyz_spots[:, 0], (n, 1)).T * prob
-
-    # multiply the y coord of the spots by the cell prob
-    b = np.tile(xyz_spots[:, 1], (n, 1)).T * prob
-
-    # multiply the z coord of the spots by the cell prob
-    c = np.tile(xyz_spots[:, 2], (n, 1)).T * prob
-
-    # aggregated x and y coordinate
-    idx = spots.parent_cell_id
-    x_agg = npg.aggregate(idx.ravel(), a.ravel(), size=len(N_c))
-    y_agg = npg.aggregate(idx.ravel(), b.ravel(), size=len(N_c))
-    z_agg = npg.aggregate(idx.ravel(), c.ravel(), size=len(N_c))
-
-    # get the estimated cell centers
-    x_bar = np.nan * np.ones(N_c.shape)
-    y_bar = np.nan * np.ones(N_c.shape)
-    z_bar = np.nan * np.ones(N_c.shape)
-
-    x_bar[N_c > 0] = x_agg[N_c > 0] / N_c[N_c > 0]
-    y_bar[N_c > 0] = y_agg[N_c > 0] / N_c[N_c > 0]
-    z_bar[N_c > 0] = z_agg[N_c > 0] / N_c[N_c > 0]
-
-    # cells with N_c = 0 will end up with x_bar = y_bar = np.nan
-    xyz_bar_fitted = np.array(list(zip(x_bar.T, y_bar.T, z_bar.T)))
-
-    # if you have a value for the estimated centroid use that, otherwise
-    # use the initial (starting values) centroids
-    ini_cent = cells.ini_centroids()
-    xyz_bar = np.array(tuple(zip(*[ini_cent['x'], ini_cent['y'], ini_cent['z']])))
-
-    # # sanity check. NaNs or Infs should appear together
-    # assert np.all(np.isfinite(x_bar) == np.isfinite(y_bar))
-    # use the fitted centroids where possible otherwise use the initial ones
-    xyz_bar[np.isfinite(x_bar)] = xyz_bar_fitted[np.isfinite(x_bar)]
-    return pd.DataFrame(xyz_bar, columns=['x', 'y', 'z'], dtype=np.float32)

@@ -14,7 +14,7 @@ import pandas as pd
 import pyarrow.feather as feather
 import pytest
 
-from pciSeq.src.core.utils.io_utils import geneData_to_arrow
+from pciSeq.src.core.io import geneData_to_arrow
 
 
 def make_spots_df(n, planes):

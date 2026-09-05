@@ -1,10 +1,7 @@
 import plotly.express as px
 import pandas as pd
 import numpy as np
-from scipy.special import softmax
 import plotly.graph_objects as go
-from ..utils.io_utils import get_out_dir
-import os
 
 
 def heatmap_counts_per_class(obj):
@@ -90,86 +87,6 @@ def heatmap_counts_per_class(obj):
 
     fig.show()
 
-
-def check_spot(self, spot_id):
-    """
-    Analyze a spot by creating visualization charts and returning score/probability arrays.
-
-    Parameters:
-    spot_id (int): The ID of the spot to analyze
-
-    Returns:
-    tuple: (scores_array, probabilities_array)s
-    """
-    # Get data for the specified spot
-    # First find the row position of the spot_id
-    row_pos = self.spots.data.index.get_loc(spot_id)
-
-    gene_name = self.spots.data.iloc[row_pos].gene_name # I could have used loc[spot_id] here too
-    x = self.spots.data.iloc[row_pos].x.astype(np.int32).tolist()
-    y = self.spots.data.iloc[row_pos].y.astype(np.int32).tolist()
-    z = self.spots.data.iloc[row_pos].z.astype(np.int32).tolist()
-    n_cells = len(self.spots.parent_cell_id[row_pos]) - 1  # Exclude background
-    cell_ids = self.spots.parent_cell_id[row_pos][:-1]
-    mvn_loglik = self.spots.mvn_loglik_arr[row_pos][:-1]
-    attention = self.spots.attention[row_pos][:-1]
-    expr_fluct = self.spots.expr_fluctuations[row_pos][:-1]
-    cell_inefficiency = self.spots.cell_inefficiency[row_pos][:-1]
-    gene_inefficiency = self.spots.gene_inefficiency[row_pos][:-1]
-    gene_idx = np.where(self.genes.gene_panel == gene_name)[0][0]
-    misread = self.genes.log_rho_bar[gene_idx]
-    # the inside-cell bonus the model adds before the softmax in spots_to_cell. it is
-    # nonzero only for the cell whose boundary the spot sits in, and zero for background.
-    bonus = self.spots.bonus_mask[row_pos][:-1] * self.config['InsideCellBonus']
-
-    # Calculate scores and probabilities
-    scores = mvn_loglik + attention + expr_fluct + cell_inefficiency + gene_inefficiency + bonus
-    scores = np.append(scores, misread)
-    probabilities = softmax(scores)
-
-    # Create labels. If the segmentation has been relabelled, map the labels back to the original ones.
-    if self.config['label_map']:
-        reverse_map = {v:k for k, v in self.config['label_map'].items()}
-        cell_ids = [reverse_map[d] for d in cell_ids]
-
-    labels = [f'Cell {cid}' for cid in cell_ids] + ['Misread']
-
-    datadict = {
-        'spot_id': spot_id,
-        'gene_name': gene_name,
-        'x': x,  # Already converted to list of int32
-        'y': y,  # (same as above)
-        'z': z,  # (same as above)
-        'n_cells': n_cells,
-        'cell_ids': cell_ids,
-        'mvn_loglik': mvn_loglik,
-        'attention': attention,
-        'expr_fluct': expr_fluct,
-        'cell_inefficiency': cell_inefficiency,
-        'gene_inefficiency': gene_inefficiency,
-        'bonus': bonus,
-        'misread': float(misread),  # Convert numpy float to native Python float
-        'score': scores,
-        'prob': probabilities,
-        'labels': labels
-    }
-
-    df = pd.DataFrame({
-        'Name': labels[:-1],
-        # 'internal_tag':self.spots.parent_cell_id[row_pos][:-1],
-        'mvn_loglik': mvn_loglik,
-        'attention': attention,
-        'expr_fluct': expr_fluct,
-        'cell_inefficiency': cell_inefficiency,
-        'gene_inefficiency': gene_inefficiency,
-        'bonus': bonus}).set_index(['Name'])
-    df['misread'] = np.nan
-    df['sum'] = df[['mvn_loglik', 'attention', 'expr_fluct', 'cell_inefficiency', 'gene_inefficiency', 'bonus']].sum(axis=1)
-    df.loc['background'] = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, misread, misread]
-
-    spot_to_cell_score_plot(datadict)
-    spot_to_cell_prob_plot(datadict)
-    return df
 
 
 def spot_to_cell_prob_plot(data):

@@ -73,10 +73,9 @@ from .datatypes.spots import Spots
 from .datatypes.singleCell import SingleCell
 from .datatypes.cellClass import CellClass
 from .summary import collect_data
-from .utils import iteration_diagnostics
 from .utils.elbo import calc_elbo
-from .utils import ops_utils as utils
-from .utils import visualisation
+from .utils import convergence, likelihood, gaussian_model, inspection, visualisation
+from .io import read_tsv
 import joblib
 
 # Configure logging
@@ -348,10 +347,10 @@ class VarBayes:
                 elbo = calc_elbo(self)
                 logger.info('Iteration %d, ELBO: %f' % (i, elbo))
 
-            self.has_converged, delta = utils.has_converged(
+            self.has_converged, delta = convergence.has_converged(
                 self.spots, p0, self.config['CellCallTolerance'], self.config.get('verbose', False)
             )
-            iteration_diagnostics.log_iteration_diagnostics(self, i, delta, p0, classProb_before)
+            convergence.log_iteration_diagnostics(self, i, delta, p0, classProb_before)
 
 
             # Call real-time viewer callback if provided
@@ -437,7 +436,7 @@ class VarBayes:
         cells = self.cells
         cfg = self.config
 
-        self._scaled_exp = utils.scaled_exp(cells.ini_cell_props['area_factor'],
+        self._scaled_exp = likelihood.scaled_exp(cells.ini_cell_props['area_factor'],
                                             self.single_cell.mean_expression_adj.values)
 
         beta = self.scaled_exp * self.genes.eta_bar[:, None] * self.cells.theta_bar[:,None, :]+ cfg['rSpot']
@@ -465,7 +464,7 @@ class VarBayes:
         """
 
         # Get the full log-likelihood matrix using shared computation
-        contr = utils.compute_gene_loglikelihood_matrix(self)
+        contr = likelihood.compute_gene_loglikelihood_matrix(self)
 
         # populate the genes' contributions to the negative loglik. Property 'nb_contr' is only useful
         # for debugging, safe to remove in the future
@@ -582,7 +581,7 @@ class VarBayes:
         Notes
         -----
         The three score terms are computed by spots_to_cell_numba_kernel in
-        utils.numba_kernels. mvn_loglik is computed the same way as in spots_to_cell.
+        numba_kernels.mvn_loglik is computed the same way as in spots_to_cell.
         """
         nN = self.nN
         nNb = nN - 1
@@ -606,7 +605,7 @@ class VarBayes:
         cell_inefficiency = np.zeros([nS, nN])
         gene_inefficiency = np.zeros([nS, nN])
 
-        # numba kernel fills in term_1/2/3 for all spots (see utils.numba_kernels)
+        # numba kernel fills in term_1/2/3 for all spots (see numba_kernels)
         spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar_arr, log_theta_bar_all,
                                    expected_counts, logeta_bar, nNb,
                                    wSpotCell, attention, expr_fluctuations, cell_inefficiency, gene_inefficiency)
@@ -729,7 +728,7 @@ class VarBayes:
         prior_centroid = self.cells.ini_centroids()
 
         # 1. Calculate the empirical (sample) mean
-        sample_mean = utils.empirical_mean(spots=self.spots, cells=self.cells)
+        sample_mean = gaussian_model.empirical_mean(spots=self.spots, cells=self.cells)
 
         # 2. Get the observed sample size (gene counts per cell)
         sample_size = self.cells.total_counts
@@ -788,7 +787,7 @@ class VarBayes:
         nu_upd = nu_0 + self.cells.total_counts + 1
 
         # 6. Compute the expected covariance
-        covariance_upd = utils.expected_covariance(scale_matrix_upd, nu_upd)
+        covariance_upd = gaussian_model.expected_covariance(scale_matrix_upd, nu_upd)
 
         # Handle background (index 0) by mapping it to the prior covariance
         covariance_upd[0] = prior_cov[0]
@@ -864,19 +863,19 @@ class VarBayes:
         return visualisation.heatmap_counts_per_class(self)
 
     def calculate_genes_log_likelihood_contr(self, label):
-        return utils.calculate_genes_log_likelihood_contr(self, label)
+        return likelihood.calculate_genes_log_likelihood_contr(self, label)
 
     def check_cell(self, my_label, user_class, top_n=10, show_plot=True):
-        return utils.check_cell(self, my_label, user_class, top_n, show_plot)
+        return inspection.check_cell(self, my_label, user_class, top_n, show_plot)
 
     def check_spot(self, spot_id):
-        return visualisation.check_spot(self, spot_id)
+        return inspection.check_spot(self, spot_id)
 
     def read_tsv(self, filepath):
-        return utils.read_tsv(filepath)
+        return read_tsv(filepath)
 
     def cell_typing_breakdown(self, label, weights=None, show_plot=True):
-        return utils.cell_typing_breakdown(self, label, weights, show_plot)
+        return inspection.cell_typing_breakdown(self, label, weights, show_plot)
 
     # def trellis_plot(self, label, flatfile_folder):
     #     return visualisation.trellis_plot(self, label, flatfile_folder)

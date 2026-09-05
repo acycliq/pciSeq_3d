@@ -28,7 +28,7 @@ import pandas as pd
 from scipy.sparse import coo_matrix, csr_matrix
 
 # spatialdata, anndata, dask and geopandas are imported inside the functions
-# on purpose: io_utils pulls this module in at import time, so hoisting them
+# on purpose: core.io.export pulls this module in at import time, so hoisting them
 # would make every `import pciSeq` pay for the whole scverse stack.
 logger = logging.getLogger(__name__)
 

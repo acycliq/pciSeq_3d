@@ -213,7 +213,7 @@ class RealtimeViewerServer:
                     return
 
                 # Import check_cell function
-                from pciSeq.src.core.utils import ops_utils
+                from pciSeq.src.core.utils import inspection
 
                 # IMPORTANT: The viewer now sends original_label directly as cell.id
                 # (We map seq_idx -> original_label in send_update and send it to viewer)
@@ -246,7 +246,7 @@ class RealtimeViewerServer:
                     return
 
                 # Call check_cell with the original label (it will handle the mapping internally)
-                gene_data, contr_df, _ = ops_utils.check_cell(
+                gene_data, contr_df, _ = inspection.check_cell(
                     self._varbayes_ref,
                     original_label,
                     comparison_class,
@@ -284,7 +284,7 @@ class RealtimeViewerServer:
                 # Prepare gene expression data table (MultiIndex columns)
                 gene_table_data = []
                 if gene_data is not None and not gene_data.empty:
-                    # Build MultiIndex keys as created by ops_utils.check_cell
+                    # Build MultiIndex keys as created by inspection.check_cell
                     pc_col = (f"Cells typed as {pciseq_class}", "mean counts")
                     user_col = (f"Cells typed as {comparison_class}", "mean counts")
                     count_col = (f"This cell: ({original_label})", "counts")

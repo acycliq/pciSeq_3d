@@ -1,8 +1,65 @@
-import logging
+"""When to stop the loop, and what to log about each pass through it."""
 
+import logging
 import numpy as np
+from typing import Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+
+def has_converged(
+        spots: Any,
+        p0: Optional[np.ndarray],
+        tol: float,
+        verbose: bool = False
+) -> Tuple[bool, float]:
+    """Check if probability assignments have converged.
+
+    Args:
+        spots: Spot data object containing parent_cell_prob
+        p0: Previous probability matrix (None for first iteration)
+        tol: Convergence tolerance threshold
+
+    Returns:
+        Tuple containing:
+            - bool: True if converged, False otherwise
+            - float: Maximum absolute difference between iterations
+
+    Raises:
+        Exception: If convergence check fails
+    """
+    p1 = spots.parent_cell_prob
+    if p0 is None:
+        p0 = np.zeros_like(p1)
+
+    try:
+        diff = np.abs(p1 - p0)
+        delta = np.max(diff)
+        converged = (delta < tol)
+
+        # Distribution of the change, not just the worst element. The stopping
+        # rule uses the max (L-infinity), which a single oscillating cell can hold
+        # hostage. These extra numbers show whether the run is broadly unsettled or
+        # essentially converged except for a handful of spots. Read-only diagnostic;
+        # it does not affect the returned convergence decision.
+        if verbose:
+            per_spot = diff.max(axis=1)  # largest change per spot, over its candidate cells
+            n_spots = per_spot.shape[0]
+            n_over = int((per_spot > tol).sum())
+            logger.info(
+                "convergence detail: max=%.6f | spots over tol(%.3f)=%d/%d (%.4f%%) | "
+                "mean per-spot=%.2e | 99pct=%.4f | 99.9pct=%.4f" % (
+                    delta, tol, n_over, n_spots, 100.0 * n_over / n_spots,
+                    float(per_spot.mean()),
+                    float(np.percentile(per_spot, 99.0)),
+                    float(np.percentile(per_spot, 99.9)),
+                )
+            )
+
+        return converged, delta
+    except Exception as e:
+        logger.error(f"Convergence check failed: {str(e)}")
+        raise
 
 
 def log_iteration_diagnostics(vb, i, delta, p0, classProb_before):

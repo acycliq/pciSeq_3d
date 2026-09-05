@@ -12,7 +12,7 @@ import sqlite3
 import numpy as np
 import pytest
 
-from pciSeq.src.core.utils.io_utils import export_diagnostics
+from pciSeq.src.core.io import export_diagnostics
 
 EXPECTED_METADATA = {
     'nC', 'nG', 'nK', 'rSpot', 'SpotReg', 'class_names', 'eta_bar',

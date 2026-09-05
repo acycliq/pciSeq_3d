@@ -55,16 +55,16 @@ def test_the_elbo_actually_runs(minimal_varbayes):
 
 
 def test_convergence_detail_is_logged_only_when_verbose(minimal_varbayes, caplog):
-    from pciSeq.src.core.utils import ops_utils
+    from pciSeq.src.core.utils import convergence
     vb = minimal_varbayes
     _one_iteration(vb)
     p0 = vb.spots.parent_cell_prob.copy()
 
     with caplog.at_level(logging.INFO):
-        ops_utils.has_converged(vb.spots, p0, 0.02, False)
+        convergence.has_converged(vb.spots, p0, 0.02, False)
     assert 'convergence detail' not in caplog.text
 
     caplog.clear()
     with caplog.at_level(logging.INFO):
-        ops_utils.has_converged(vb.spots, p0, 0.02, True)
+        convergence.has_converged(vb.spots, p0, 0.02, True)
     assert 'convergence detail' in caplog.text
