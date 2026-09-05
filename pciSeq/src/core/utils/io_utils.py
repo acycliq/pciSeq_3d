@@ -558,15 +558,7 @@ def write_arrow(geneData:pd.DataFrame, cellData:pd.DataFrame, cellBoundaries:pd.
     # the spot shards have to cover, empty ones included
     geneData_to_arrow(geneData, out_dir, num_planes=len(cellBoundaries))
     cellData_to_arrow(cellData, out_dir)
-    # logger.info('boundaries_to_arrow_old - Starting')
-    # boundaries_to_arrow_old(cellBoundaries, out_dir)
-    # logger.info('boundaries_to_arrow_old - Ending')
-
-    # logger.info('boundaries_to_arrow - Starting')
     boundaries_to_arrow(cellBoundaries, out_dir)
-    # logger.info('boundaries_to_arrow - Ending')
-
-    # logger.info('Saved at %s', os.path.join(out_dir, 'cellBoundaries.tsv'))
 
 
 def _spots_arrow_table(df: pd.DataFrame) -> pa.Table:
@@ -827,70 +819,6 @@ def validate_df_structure(df):
 
     except Exception as e:
         raise SystemExit(f"validation failed: {e}")
-
-def boundaries_to_arrow_old(df_in: pd.DataFrame, out_dir: str = None) -> None:
-    out_dir = Path(out_dir) / "viewer_data" / 'arrow_boundaries'
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-
-    shards = []
-    total_polys = 0
-    total_points = 0
-
-    for boundaries in df_in:
-        x_lists: List[List[float]] = []
-        y_lists: List[List[float]] = []
-        plane_ids: List[int] = []
-        cell_ids: List[int] = []
-
-        for _, row in boundaries.iterrows():
-            # transform to Arrow-compatible arrays with list columns for coordinates. For example from
-            # plane_id=15, cell_id=1001, coords=[[100,200], [105,200], [105,205]] into Arrow list columns where
-            # one polygon becomes x_list=[100,105,105], y_list=[200,200,205], plane_id=15, cell_id=1001.
-
-            pid = row["plane_id"]
-            cid = row["cell_id"]
-            coords = row["coords"]
-            if not coords:
-                raise ValueError
-            xs = [float(x) for x, _ in coords]
-            ys = [float(y) for _, y in coords]
-            if not xs:
-                raise ValueError
-            x_lists.append(xs)
-            y_lists.append(ys)
-            plane_ids.append(pid)
-            cell_ids.append(cid)
-
-        # Write one feather per plane file
-        plane_suffix = f"{plane_ids[0]:02d}" if plane_ids else "00"
-        arrays = {
-            "x_list": pa.array(x_lists, type=pa.list_(pa.float32())),
-            "y_list": pa.array(y_lists, type=pa.list_(pa.float32())),
-            "plane_id": pa.array(pd.Series(plane_ids, dtype="uint16")),
-            "label": pa.array(pd.Series(cell_ids, dtype="int32")),
-        }
-        table = pa.table(arrays)
-        shard_name = f"boundaries_plane_{plane_suffix}.feather"
-        feather.write_feather(table, (out_dir / shard_name).as_posix(), compression="uncompressed")
-        polys = len(x_lists)
-        pts = sum(len(xs) for xs in x_lists)
-        total_polys += polys
-        total_points += pts
-        shards.append({"url": shard_name, "rows": int(polys), "plane": int(plane_ids[0] if plane_ids else -1)})
-        # print(f"Wrote {shard_name}: polys={polys}, points={pts}")
-
-    # Manifest
-    manifest = {
-        "format": "arrow-feather",
-        "total_rows": int(total_polys),  # polygons count
-        "total_points": int(total_points),
-        "shards": shards,
-    }
-    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
-    logger.info(f"Done. Total polys: {total_polys}. Total points: {total_points}. Files: {len(shards)}. Output: {out_dir}")
-
-
 
 def _boundaries_to_arrow(df_in: List[pd.DataFrame], out_dir: str = None) -> None:
     out_dir = Path(out_dir) / "viewer_data" / 'arrow_boundaries'

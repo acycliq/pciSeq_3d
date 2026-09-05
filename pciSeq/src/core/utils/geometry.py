@@ -50,27 +50,6 @@ def gaussian_contour(mu: Union[List, np.ndarray],
     return np.array(list(zip(*out)), dtype=np.float32)
 
 
-def gaussian_ellipsoid_props_OLD(cov: np.ndarray,
-                             sdwidth: float = 3) -> Tuple[List[float], List[float]]:
-    """Get the scaling and rotation of an ellipsoid.
-
-    Args:
-        cov: Covariance matrix
-        sdwidth: Number of standard deviations (default: 3)
-
-    Returns:
-        Tuple containing:
-            - List of scaling factors
-            - List of rotation angles [theta_x, theta_y, theta_z]
-    """
-    tol = 1.0e-10
-    cov = np.where(cov < tol, 0, cov)
-    eigvals, eigvecs = np.linalg.eig(cov)
-    scaling = sdwidth * np.sqrt(eigvals)
-    rotation = euler_angles(eigvecs.T)
-    return scaling.tolist(), rotation
-
-
 def euler_angles_OLD(r: np.ndarray) -> List[float]:
     """Calculate Euler angles from rotation matrix.
 
