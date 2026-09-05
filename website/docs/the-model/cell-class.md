@@ -389,14 +389,21 @@ step perturbs the gene counts by more than that on each iteration.
 
 Two subsequent modifications were measured.
 
-**Correcting $D$.** The score maximised by the class update carries one further
-class-dependent term, $\log \text{Ga}(\theta_{c,k}; r_\theta, r_\theta)$, which $D$ omits. The
-term is large relative to the quantity the cap controls: on silver 180 its class-to-class
-spread averages 1.86 against a `tol` of 0.1. The margin actually obtained is therefore
-$-\text{tol} + (T_5 - T_{5,\text{Zero}})$, which ranges from $-1.8$ to $+0.16$ rather than
-$-0.1$, and is positive on 5.2% of protected cells, i.e. the cap acts on those cells without
-protecting them. Including the term makes $\beta^\star$ produce the stated margin. The run
-cycles between 0.40 and 0.51.
+**Adding the $\theta$ prior to $D$.** One variant tested whether $D$ should carry
+$\log \text{Ga}(\bar\theta_{c\mid k}; r_\theta, r_\theta)$ alongside the terms derived above.
+It should not. The prior is placed on $\theta_c$, a single per-cell scale factor carrying no
+class index. Only the estimate $\hat\theta_{c\mid k}$ acquires one, and it does so because
+$\mu_{g,k}$ sits in the denominator of the estimator, not because the variable is
+class-specific ([scale factors](scale-factors.md#theta)). A term constant across $k$ cancels
+in the softmax and in any difference of scores, so it cannot enter $D$. The class dependence
+of $\theta$ reaches the update through the likelihood, where $\bar\theta_{c\mid k}$ multiplies
+$\mu_{g,k}$, and $D$ already carries it there.
+
+Evaluated at the class-conditional estimate the term is nevertheless not constant across $k$:
+on silver 180 its class-to-class spread averages 1.86, against a `tol` of 0.1. Adding it moves
+every protected cell's margin by more than the margin itself, which is why it was worth
+measuring. The run still cycles, between 0.40 and 0.51 rather than 0.42 and 0.54. Changing
+what $D$ contains shifts the boundary without removing it.
 
 **Exact constrained solution.** The protection can be imposed as a constraint rather than a
 cap: maximise the ELBO subject to $u_{c,\text{Zero}} \ge u_{c,k}$ on the protected cells.

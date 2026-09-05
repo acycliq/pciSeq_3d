@@ -54,7 +54,7 @@ From the broadest to the most specific:
   detected more efficiently than others; eta captures that. It is the same for every
   cell, but different for every gene.
 
-- **theta** ($\theta_{c,k}$) - one factor **per cell, for each candidate cell type**.
+- **theta** ($\theta_{c\mid k}$) - one factor **per cell, for each candidate cell type**.
   Some cells simply yield more transcripts than the definitions predict, others fewer;
   theta is a single whole-cell **scalar** that stretches or shrinks that cell's expected
   counts across all its genes. It is worked out separately for every type the cell might be,
