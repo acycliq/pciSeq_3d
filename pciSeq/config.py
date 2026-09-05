@@ -91,6 +91,11 @@ DEFAULT = {
     # used as it comes. Set it to something like 2 and rTheta has almost no
     # influence, because nearly every cell has far more reads than that and the data
     # determine theta.
+    #
+    # It has to stay above 1. Theta is worked out as (reads + rTheta - 1) over
+    # (rTheta + expected), so at rTheta of 1 or less a cell with no assigned reads
+    # comes out with a theta of zero or below, which is meaningless and breaks the
+    # arithmetic further on. Values at or below 1 are rejected.
     "rTheta": 25.0,
 
 
@@ -188,10 +193,10 @@ DEFAULT = {
 
     # How many candidate cells each spot is scored against. The spot is compared
     # with its nearest cells and, on top of those, with the background, so at
-    # nNeighbors=6 there are seven options: six cells or a misread. Raising it
-    # lets a spot reach a cell further away, at the cost of more work per
-    # iteration. Lowering it is faster but a spot near a cell boundary may not
-    # see the cell it actually came from.
+    # nNeighbors=6 there are seven options: six cells or the background, ie a
+    # misread. Raising it lets a spot reach a cell further away, at the cost of
+    # more work per iteration. Lowering it is faster but a spot near a cell
+    # boundary may not see the cell it actually came from.
     "nNeighbors": 6,
 
 

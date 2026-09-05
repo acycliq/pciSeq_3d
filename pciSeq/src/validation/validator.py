@@ -276,6 +276,18 @@ class Validator:
             )
         cfg['cell_type_prior'] = cfg['cell_type_prior'].lower()
 
+        # rTheta has to stay above 1. theta is worked out as the mode of its Gamma
+        # posterior, (N_c + rTheta - 1) / (rTheta + expected), so once rTheta drops
+        # below 1 any cell holding fewer than 1 - rTheta reads comes out with a
+        # negative theta. Cells with no reads at all are common, so this is not a
+        # corner case. A negative theta scales the expected counts the wrong way and
+        # log(theta) turns into NaN further down.
+        if cfg['rTheta'] <= 1:
+            raise ValueError(
+                "rTheta must be greater than 1, got %r. Below 1 the cells with no "
+                "assigned reads end up with a negative theta." % cfg['rTheta']
+            )
+
         # Normalize InsideCellBonus boolean to numeric
         if cfg['InsideCellBonus'] is True:
             cfg['InsideCellBonus'] = 2
