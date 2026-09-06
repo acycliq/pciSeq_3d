@@ -151,6 +151,52 @@ together rather than grouped.
 
 Set it to 0 to switch the mrf off.
 
+### `zero_boost`
+
+**Default:** `False`
+
+Protects an empty (or near empty) cell from being encroached on by the
+class of its neighbours.
+
+A cell with very few reads has almost no expression and would normally
+be classified as a Zero-class cell in the absence of a neighbour term.
+With that term on, it can be flipped off Zero on the strength of its
+neighbours alone.
+
+This introduces a Zero-class score that fades as the cell gains reads. A
+cell with nothing in it gets the largest score, so its neighbours cannot
+flip it off Zero.
+
+Set it to True to switch the protection on.
+
+### `zero_boost_r0`
+
+**Default:** `2.0`
+
+Decay length of the Zero-class term, in reads.
+
+mrf[Zero] = mrf_beta * nNeighbors * exp(-reads / zero_boost_r0)
+
+This introduces a bonus score for the Zero class. Its maximum value is
+mrf_beta * nNeighbors, which is also the maximum neighbour score a real
+class can receive when all neighbours vote for that class with
+probability 1.
+
+The Zero-class score is therefore equivalent to the following number of
+unanimous neighbour votes:
+
+nNeighbors * exp(-reads / zero_boost_r0)
+
+For nNeighbors = 9 and zero_boost_r0 = 2:
+
+- 0 reads:  9 * exp( 0) = 9.0
+- 2 reads:  9 * exp(-1) = 3.3
+- 4 reads:  9 * exp(-2) = 1.2
+
+Thus, a cell with 0 reads and 9 neighbours would require more than all 9
+neighbours to vote unanimously for a real class to flip it off Zero.
+The Zero-class score then decreases exponentially with the number of reads.
+
 ### `MisreadDensity`
 
 **Default:** `1e-05`

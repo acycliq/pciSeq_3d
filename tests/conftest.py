@@ -158,6 +158,8 @@ def minimal_varbayes(rng, base_opts):
         "rRho": 1000.0,
         "rTheta": 25.0,
         "mrf_beta": 1.0,
+        "zero_boost": False,
+        "zero_boost_r0": 2.0,
     }
 
     # Instantiate VarBayes

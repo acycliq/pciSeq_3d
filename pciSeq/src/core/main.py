@@ -468,6 +468,16 @@ class VarBayes:
         contr = np.sum(contr, axis=1)
         mrf = self.cells.calc_mrf()
         # mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
+        # Stop the neighbours from taking a cell off Zero when it has no reads
+        # of its own to argue with. beta * nNeighbors is the most the mrf could
+        # ever hand any class, since the support row sums to nNeighbors and a
+        # class prob is at most 1, so at full strength no neighbourhood can
+        # outvote Zero. exp(-reads/r0) fades that away as the cell picks up
+        # reads, and a cell with plenty is scored on its own expression like
+        # always. Zero is the last column, cellClass asserts that.
+        if self.config.get('zero_boost'):
+            weight = np.exp(-self.cells.total_counts / self.config['zero_boost_r0'])
+            mrf[:, -1] = self.config['mrf_beta'] * self.config['nNeighbors'] * weight
         # keep the mrf around for the diagnostics export
         self.cells.mrf = mrf
         wCellClass = contr + self.cellTypes.log_prior + mrf
