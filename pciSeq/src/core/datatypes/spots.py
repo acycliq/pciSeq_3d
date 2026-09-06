@@ -55,6 +55,7 @@ class Spots(object):
         self.attention = None
         self.expr_fluctuations = None
         self.cell_inefficiency = None
+        self.gene_inefficiency = None
         self.gamma_terms = defaultdict(list) # placeholder to keep gamma per iteration (for debugging)
 
     def __getstate__(self):

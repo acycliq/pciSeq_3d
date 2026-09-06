@@ -221,7 +221,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         #     logger.info('Inserted %d/%d cells', batch_end, nC)
 
     # --- Populate Spots Table ---
-    if spots.mvn_loglik_arr is None or spots.attention is None or spots.expr_fluctuations is None or spots.cell_inefficiency is None or neighbor_ids is None:
+    if (spots.mvn_loglik_arr is None or spots.attention is None
+            or spots.expr_fluctuations is None or spots.cell_inefficiency is None
+            or spots.gene_inefficiency is None or neighbor_ids is None):
         logger.warning('check_spot data missing; spots table will be empty.')
     else:
         mvn_f32 = spots.mvn_loglik_arr.astype(np.float32)
