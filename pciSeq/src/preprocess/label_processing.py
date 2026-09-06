@@ -79,18 +79,3 @@ def inside_cell(spots: pd.DataFrame, coo_list: List[coo_matrix]) -> pd.Series:
     # convert the list to a Series with the group's index. It needs to be a Series
     # or dataframe, so it will be properly aligned with the main spots dataframe
     return pd.Series(out, index=spots.index)
-
-
-def get_unique_labels(coo_matrices: List[coo_matrix]) -> List[np.ndarray]:
-    """
-    Get unique labels from each image plane.
-
-    Args:
-        coo_matrices: List of sparse label matrices
-
-    Returns:
-        List of unique label arrays for each plane
-    """
-    return [np.unique(m.data) for m in coo_matrices if len(m.data) > 0]
-
-

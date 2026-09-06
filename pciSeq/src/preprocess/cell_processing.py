@@ -23,6 +23,12 @@ def extract_borders_dip(label_image, offset_x=0, offset_y=0, exclude_labels=(0,)
     """
     Extracts the cell boundaries from the label image array. The background is
     assumed to have label=0 and it will be ignored by default.
+
+    This is the plain single threaded version, kept as the readable reference.
+    extract_borders() is the one everything actually calls: same output, about
+    13x faster, because this one builds a python set over every pixel and walks
+    the chain codes in a loop. tests/test_extract_borders_ab.py checks the two
+    still agree.
     Parameters
     ----------
     label_image:    The label image array, typically obtained from some image segmentation

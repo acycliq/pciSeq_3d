@@ -385,7 +385,7 @@ def add_boundaries(store_path: str,
     from spatialdata import read_zarr
     from spatialdata.models import ShapesModel
 
-    from ...preprocess.cell_processing import extract_borders_dip
+    from ...preprocess.cell_processing import extract_borders
 
     sdata = read_zarr(store_path)
 
@@ -401,7 +401,7 @@ def add_boundaries(store_path: str,
 
     written = []
     for z in range(stack.shape[0]):
-        borders = extract_borders_dip(stack[z].astype(np.uint32))
+        borders = extract_borders(stack[z].astype(np.uint32))
         polys, labs = [], []
         for lab, coords in zip(borders.label, borders.coords):
             if len(coords) < 4:
