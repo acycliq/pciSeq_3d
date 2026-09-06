@@ -27,7 +27,7 @@ keywords. Keyword form is preferred.
 **Parameters**
 
 - **`spots`** *(pd.DataFrame)*
-  The spots to assign. Needs the columns 'gene_name', 'x' and 'y', plus 'z_plane' for 3D data.
+  The spots to assign. Needs the columns 'gene_name', 'x' and 'y', plus 'z_plane' for 3D data. Optional 'score' and 'intensity' columns from the spot caller are carried through to geneData; they default to 1.0 and nothing in the model reads them.
 - **`coo`** *(list of scipy.sparse.coo_matrix)*
   The label image, one sparse matrix per z-plane. A list with more than one plane is treated as 3D.
 - **`scRNAseq`** *(pd.DataFrame)*
