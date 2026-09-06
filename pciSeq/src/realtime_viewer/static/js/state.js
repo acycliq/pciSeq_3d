@@ -37,7 +37,10 @@
         highlightPixelBoost: 12,
 
         // Convergence chart
-        cellCallTolerance: 0.2,  // Convergence threshold (from server)
+        // Convergence threshold. The server sends the real value in
+        // geometry_init_begin; this is only what the chart uses in the moment
+        // before that arrives. Matches the CellCallTolerance default.
+        cellCallTolerance: 0.02,
         deltaHistory: [],  // Array of {iteration, delta} objects
         chartXMax: 10,  // Current X-axis max (dynamically extends)
 

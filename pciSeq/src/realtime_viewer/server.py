@@ -7,6 +7,7 @@ cell assignment updates during VarBayes algorithm execution.
 
 from flask import Flask, send_from_directory
 from flask_socketio import SocketIO
+from werkzeug.serving import make_server
 import numpy as np
 import threading
 import logging
@@ -66,6 +67,8 @@ class RealtimeViewerServer:
         self.max_cells = max_cells  # if set, send only top-N cells (by confidence)
         self.fixed_radius = fixed_radius  # if set, send this radius for all cells
         self._varbayes_ref = None  # Will be set by app.py when callback is wired
+        self._httpd = None         # the werkzeug server, held so stop() can shut it
+        self.server_thread = None
         self._geometry_sent = False
         self._geometry_cache = None
         self._num_cells_expected = (
@@ -110,81 +113,8 @@ class RealtimeViewerServer:
 
         @self.socketio.on("connect")
         def handle_connect():
-            logger.info("Client connected to realtime viewer")
-            # Send cached geometry and last classes update if available
-            try:
-                if self._geometry_cache is not None:
-                    geom = self._geometry_cache
-                    n = geom["num_cells"]
-                    chunk_size = geom.get("chunk_size", 5000)
-                    class_names = geom.get("class_names", [])
-                    # send geometry init in chunks
-                    self.socketio.emit(
-                        "geometry_init_begin",
-                        {
-                            "num_cells": int(n),
-                            "chunk_size": int(chunk_size),
-                            "class_names": class_names,
-                            "mcr": geom.get("mcr"),
-                            "is_3d": bool(geom.get("is_3d", False)),
-                            "voxel_size": geom.get("voxel_size"),
-                            "img_dim": geom.get("img_dim"),
-                            "version": __version__,
-                        },
-                        namespace="/",
-                    )
-                    for start in range(0, n, chunk_size):
-                        end = min(start + chunk_size, n)
-                        self.socketio.emit(
-                            "geometry_init_chunk",
-                            {
-                                "start": int(start),
-                                "end": int(end),
-                                "cell_ids": geom.get("cell_ids", list(range(n)))[start:end],
-                                "centroids_x": geom["centroids_x"][start:end],
-                                "centroids_y": geom["centroids_y"][start:end],
-                                "centroids_z": geom.get("centroids_z", [0] * n)[
-                                    start:end
-                                ],
-                                "radii": geom["radii"][start:end],
-                            },
-                            namespace="/",
-                        )
-                    self.socketio.emit("geometry_init_end", {}, namespace="/")
+            self._on_connect()
 
-                if hasattr(self, "_last_update") and self._last_update:
-                    cached = self._last_update
-                    n = cached.get("num_cells", 0)
-                    chunk_size = cached.get("chunk_size", 5000)
-                    self.socketio.emit(
-                        "classes_update_begin",
-                        {
-                            "iteration": int(cached["iteration"]),
-                            "delta": float(cached["delta"]),
-                            "num_cells": int(n),
-                            "chunk_size": int(chunk_size),
-                        },
-                        namespace="/",
-                    )
-                    for start in range(0, n, chunk_size):
-                        end = min(start + chunk_size, n)
-                        self.socketio.emit(
-                            "classes_update_chunk",
-                            {
-                                "start": int(start),
-                                "end": int(end),
-                                "cell_classes": cached["cell_classes"][start:end],
-                                "prob": cached["prob"][start:end],
-                            },
-                            namespace="/",
-                        )
-                    self.socketio.emit(
-                        "classes_update_end",
-                        {"iteration": int(cached["iteration"])},
-                        namespace="/",
-                    )
-            except Exception as e:
-                logger.warning(f"Failed to send cached state: {e}")
 
         @self.socketio.on("disconnect")
         def handle_disconnect():
@@ -192,151 +122,23 @@ class RealtimeViewerServer:
 
         @self.socketio.on("request_check_cell")
         def handle_check_cell_request(data):
-            """Handle check_cell diagnostic request from client."""
-            logger.info(f"Received check_cell request: {data}")
-
-            try:
-                cell_label = data.get("cell_label")
-                comparison_class = data.get("comparison_class", "Zero")
-
-                if cell_label is None:
-                    self.socketio.emit("check_cell_result", {
-                        "error": "Missing cell_label parameter"
-                    }, namespace="/")
-                    return
-
-                # Get VarBayes instance
-                if not self._varbayes_ref:
-                    self.socketio.emit("check_cell_result", {
-                        "error": "VarBayes instance not available"
-                    }, namespace="/")
-                    return
-
-                # Import check_cell function
-                from pciSeq.src.core.utils import inspection
-
-                # IMPORTANT: The viewer now sends original_label directly as cell.id
-                # (We map seq_idx -> original_label in send_update and send it to viewer)
-                # So cell_label IS the original_label - no mapping needed!
-                original_label = cell_label
-
-                logger.info(f"Viewer sent original_label: {original_label}")
-
-                # Determine pciSeq-assigned class for this cell to validate request
-                label_map = self._varbayes_ref.config.get('label_map')
-                if label_map is not None:
-                    if original_label not in label_map:
-                        self.socketio.emit("check_cell_result", {
-                            "error": f"Cell label {original_label} not found in label map"
-                        }, namespace="/")
-                        return
-                    seq_idx = label_map[original_label]
-                else:
-                    seq_idx = original_label
-
-                pciseq_class = self._varbayes_ref.cells.class_names[
-                    self._varbayes_ref.cells.classProb[seq_idx].argmax()
-                ]
-
-                # Guard: if user class equals assigned class, avoid pandas diff error
-                if str(comparison_class) == str(pciseq_class):
-                    self.socketio.emit("check_cell_result", {
-                        "error": f"Comparison class equals assigned class ({pciseq_class}). Choose a different class."
-                    }, namespace="/")
-                    return
-
-                # Call check_cell with the original label (it will handle the mapping internally)
-                gene_data, contr_df, _ = inspection.check_cell(
-                    self._varbayes_ref,
-                    original_label,
-                    comparison_class,
-                    top_n=10,
-                    show_plot=False
-                )
-
-                # seq_idx and pciseq_class already computed above
-
-                # Prepare data for JSON serialization
-                top_genes = []
-                bottom_genes = []
-
-                if 'diff' in contr_df.columns:
-                    # Top genes (positive diff - favor pciSeq class)
-                    top_sorted = contr_df.nlargest(10, 'diff')
-                    for gene_name, row in top_sorted.iterrows():
-                        top_genes.append({
-                            "gene": str(gene_name),
-                            "value": float(row['diff'])
-                        })
-
-                    # Bottom genes (negative diff - favor user class)
-                    bottom_sorted = contr_df.nsmallest(10, 'diff')
-                    for gene_name, row in bottom_sorted.iterrows():
-                        bottom_genes.append({
-                            "gene": str(gene_name),
-                            "value": float(row['diff'])
-                        })
-
-                # Calculate sums
-                top_sum = sum(g['value'] for g in top_genes)
-                bottom_sum = sum(g['value'] for g in bottom_genes)
-
-                # Prepare gene expression data table (MultiIndex columns)
-                gene_table_data = []
-                if gene_data is not None and not gene_data.empty:
-                    # Build MultiIndex keys as created by inspection.check_cell
-                    pc_col = (f"Cells typed as {pciseq_class}", "mean counts")
-                    user_col = (f"Cells typed as {comparison_class}", "mean counts")
-                    count_col = (f"This cell: ({original_label})", "counts")
-
-                    for gene_name, row in gene_data.iterrows():
-                        # row is a Series with MultiIndex; use tuple keys
-                        mean_pciseq = float(row[pc_col]) if pc_col in row.index else 0.0
-                        mean_user = float(row[user_col]) if user_col in row.index else 0.0
-                        # Preserve decimals for this cell's counts
-                        gene_count = float(row[count_col]) if count_col in row.index else 0.0
-
-                        gene_table_data.append({
-                            "gene": str(gene_name),
-                            "mean_expr_pciseq": mean_pciseq,
-                            "mean_expr_user": mean_user,
-                            "gene_count": gene_count,
-                        })
-
-                # Send response
-                self.socketio.emit("check_cell_result", {
-                    "cell_label": int(cell_label),
-                    "pciseq_class": str(pciseq_class),
-                    "user_class": str(comparison_class),
-                    "top_genes": top_genes,
-                    "bottom_genes": bottom_genes,
-                    "top_sum": float(top_sum),
-                    "bottom_sum": float(bottom_sum),
-                    "gene_expression_data": gene_table_data
-                }, namespace="/")
-
-            except Exception as e:
-                logger.error(f"Error in check_cell handler: {e}", exc_info=True)
-                self.socketio.emit("check_cell_result", {
-                    "error": str(e)
-                }, namespace="/")
+            self._on_check_cell_request(data)
 
     def start(self):
-        """Start server in background thread and optionally open browser."""
+        """Start server in background thread and optionally open browser.
+
+        We build the server with make_server rather than calling socketio.run(),
+        because socketio.run() blocks forever and hands back nothing to stop it
+        with. Holding the server object is what lets stop() actually free the
+        port instead of leaving it bound for the life of the process. Works
+        because async_mode is "threading", so the socketio app is plain WSGI.
+        """
         if self._is_running:
             logger.warning("Server already running")
             return
 
-        self.server_thread = threading.Thread(
-            target=lambda: self.socketio.run(
-                self.app,
-                host=self.host,
-                port=self.port,
-                debug=False,
-                use_reloader=False,
-                allow_unsafe_werkzeug=True,  # Safe for local development
-            )
-        )
+        self._httpd = make_server(self.host, self.port, self.app, threaded=True)
+        self.server_thread = threading.Thread(target=self._httpd.serve_forever)
         self.server_thread.daemon = True
         self.server_thread.start()
         self._is_running = True
@@ -350,10 +152,18 @@ class RealtimeViewerServer:
             logger.info(f"Opening browser at {url}")
 
     def stop(self):
-        """Stop server."""
-        if self._is_running:
-            # logger.info("Realtime viewer server stopped")
-            self._is_running = False
+        """Stop the server and free the port."""
+        if not self._is_running:
+            return
+        self._is_running = False
+        if self._httpd is not None:
+            self._httpd.shutdown()            # unblocks serve_forever
+            self._httpd.server_close()        # releases the socket
+            self._httpd = None
+        if self.server_thread is not None:
+            self.server_thread.join(timeout=5)
+            self.server_thread = None
+        logger.info("Realtime viewer server stopped")
 
     def send_update(self, cells_classProb, iteration, delta):
         """
@@ -406,7 +216,9 @@ class RealtimeViewerServer:
             # Get VarBayes instance from the callback context
             # We need to pass the VarBayes instance to access cells data
             # For now, we'll store it as an instance variable
-            if not hasattr(self, "_varbayes_ref"):
+            # __init__ always sets this attribute, so a hasattr check can never
+            # fire. What we care about is whether app.py has wired the model in.
+            if self._varbayes_ref is None:
                 logger.warning("VarBayes reference not set - cannot send spatial data")
                 return
 
@@ -418,7 +230,7 @@ class RealtimeViewerServer:
             nC = cells_classProb.shape[0]  # Total number of cells including background
             label_map = varbayes.config.get('label_map')
 
-            if label_map is not None:
+            if label_map:
                 # Reverse map: seq_idx -> original_label
                 reverse_map = {v: k for k, v in label_map.items()}
                 cell_ids = np.array([reverse_map[seq_idx] for seq_idx in range(nC)], dtype=np.int32)
@@ -490,145 +302,382 @@ class RealtimeViewerServer:
             num_cells = len(cell_classes)
 
             # Send geometry once per session and cache
-            if not self._geometry_sent:
-                chunk_size = 5000
-                # Get class names from VarBayes
-                class_names = (
-                    varbayes.cells.class_names.tolist()
-                    if hasattr(varbayes.cells.class_names, "tolist")
-                    else list(varbayes.cells.class_names)
-                )
-                is3d = bool(varbayes.config.get("is3D", False))
-                voxel_size = varbayes.config.get("voxel_size", None)
+            self._send_geometry_once(varbayes, cell_ids, centroids_x,
+                                     centroids_y, centroids_z, radii, num_cells,
+                                     cell_classes, prob, iteration)
 
-                self.socketio.emit(
-                    "geometry_init_begin",
-                    {
-                        "num_cells": int(num_cells),
-                        "chunk_size": int(chunk_size),
-                        "class_names": class_names,
-                        "mcr": float(varbayes.cells.mcr),
-                        "is_3d": is3d,
-                        "voxel_size": voxel_size,
-                        "img_dim": varbayes.config.get("img_dim", None),
-                        "version": __version__,
-                    },
-                    namespace="/",
-                )
-                for start in range(0, num_cells, chunk_size):
-                    end = min(start + chunk_size, num_cells)
-                    self.socketio.emit(
-                        "geometry_init_chunk",
-                        {
-                            "start": int(start),
-                            "end": int(end),
-                            "cell_ids": [int(x) for x in cell_ids[start:end]],
-                            "centroids_x": [float(x) for x in centroids_x[start:end]],
-                            "centroids_y": [float(x) for x in centroids_y[start:end]],
-                            "centroids_z": [float(x) for x in centroids_z[start:end]],
-                            "radii": [float(x) for x in radii[start:end]],
-                        },
-                        namespace="/",
-                    )
-                self.socketio.emit("geometry_init_end", {}, namespace="/")
-                self._geometry_sent = True
-                self._geometry_cache = {
+            # Stream classes/prob each iteration (smaller payload)
+            self._send_class_updates(cell_classes, prob, num_cells,
+                                     iteration, delta)
+
+            # logger.info(f"Sent update for iteration {iteration} to all clients (delta={delta:.6f}, cells={len(cell_classes)})")
+
+        except Exception as e:
+            # exc_info so the traceback comes with it. Without it this is one
+            # line of message for a 200 line try block, which is no use.
+            logger.error("Failed to send update: %s", e, exc_info=True)
+
+
+    def _send_geometry_once(self, varbayes, cell_ids, centroids_x, centroids_y,
+                            centroids_z, radii, num_cells, cell_classes, prob,
+                            iteration):
+        """Send the geometry, which does not change between iterations.
+
+        Split out of send_update: it runs on the first pass, or replays from the
+        cache for a client that connects later.
+        """
+        if not self._geometry_sent:
+            chunk_size = 5000
+            # Get class names from VarBayes
+            class_names = (
+                varbayes.cells.class_names.tolist()
+                if hasattr(varbayes.cells.class_names, "tolist")
+                else list(varbayes.cells.class_names)
+            )
+            is3d = bool(varbayes.config.get("is3D", False))
+            voxel_size = varbayes.config.get("voxel_size", None)
+
+            self.socketio.emit(
+                "geometry_init_begin",
+                {
                     "num_cells": int(num_cells),
                     "chunk_size": int(chunk_size),
-                    "cell_ids": cell_ids.tolist(),
-                    "centroids_x": centroids_x.tolist(),
-                    "centroids_y": centroids_y.tolist(),
-                    "centroids_z": centroids_z.tolist(),
-                    "radii": radii.tolist(),
                     "class_names": class_names,
                     "mcr": float(varbayes.cells.mcr),
                     "is_3d": is3d,
                     "voxel_size": voxel_size,
                     "img_dim": varbayes.config.get("img_dim", None),
+                    # the convergence chart draws its threshold line here.
+                    # Without it the browser falls back on a placeholder and
+                    # the line sits in the wrong place.
+                    "cell_call_tolerance": float(varbayes.config.get("CellCallTolerance", 0.02)),
                     "version": __version__,
-                }
-                self._num_cells_expected = num_cells
-                logger.info(f"Geometry cached: {num_cells} cells")
-
-            # CRITICAL FIX: Ensure num_cells matches geometry cache
-            # If num_cells differs from the geometry we sent, we need to adjust the data
-            if self._geometry_cache is not None:
-                cached_num_cells = self._geometry_cache["num_cells"]
-                if num_cells != cached_num_cells:
-                    logger.error(
-                        f"CRITICAL BUG DETECTED! Iteration {iteration}: num_cells={num_cells} but geometry_cache has {cached_num_cells} cells!"
-                    )
-                    logger.error(
-                        "Attempting to fix by truncating/padding to match geometry..."
-                    )
-
-                    # Adjust arrays to match cached geometry size
-                    if num_cells < cached_num_cells:
-                        # cell_classes/prob are too small - pad with zeros
-                        logger.warning(
-                            f"Padding cell_classes from {num_cells} to {cached_num_cells}"
-                        )
-                        padded_classes = np.zeros(cached_num_cells, dtype=np.uint8)
-                        padded_classes[:num_cells] = cell_classes
-                        cell_classes = padded_classes
-
-                        padded_prob = np.zeros(cached_num_cells, dtype=np.float32)
-                        padded_prob[:num_cells] = prob
-                        prob = padded_prob
-
-                        num_cells = cached_num_cells
-                    elif num_cells > cached_num_cells:
-                        # cell_classes/prob are too large - truncate
-                        logger.warning(
-                            f"Truncating cell_classes from {num_cells} to {cached_num_cells}"
-                        )
-                        cell_classes = cell_classes[:cached_num_cells]
-                        prob = prob[:cached_num_cells]
-                        num_cells = cached_num_cells
-
-            # Stream classes/prob each iteration (smaller payload)
-            chunk_size = 5000 if num_cells > 10000 else num_cells
-
-            self.socketio.emit(
-                "classes_update_begin",
-                {
-                    "iteration": int(iteration),
-                    "delta": float(delta),
-                    "num_cells": int(num_cells),
-                    "chunk_size": int(chunk_size),
                 },
                 namespace="/",
             )
             for start in range(0, num_cells, chunk_size):
                 end = min(start + chunk_size, num_cells)
                 self.socketio.emit(
-                    "classes_update_chunk",
+                    "geometry_init_chunk",
                     {
                         "start": int(start),
                         "end": int(end),
-                        "cell_classes": cell_classes[start:end].tolist(),
-                        "prob": prob[start:end].tolist(),
+                        "cell_ids": [int(x) for x in cell_ids[start:end]],
+                        "centroids_x": [float(x) for x in centroids_x[start:end]],
+                        "centroids_y": [float(x) for x in centroids_y[start:end]],
+                        "centroids_z": [float(x) for x in centroids_z[start:end]],
+                        "radii": [float(x) for x in radii[start:end]],
                     },
                     namespace="/",
                 )
-            self.socketio.emit(
-                "classes_update_end", {"iteration": int(iteration)}, namespace="/"
-            )
+            self.socketio.emit("geometry_init_end", {}, namespace="/")
+            self._geometry_sent = True
+            self._geometry_cache = {
+                "num_cells": int(num_cells),
+                "chunk_size": int(chunk_size),
+                "cell_ids": cell_ids.tolist(),
+                "centroids_x": centroids_x.tolist(),
+                "centroids_y": centroids_y.tolist(),
+                "centroids_z": centroids_z.tolist(),
+                "radii": radii.tolist(),
+                "class_names": class_names,
+                "mcr": float(varbayes.cells.mcr),
+                "is_3d": is3d,
+                "voxel_size": voxel_size,
+                "img_dim": varbayes.config.get("img_dim", None),
+                "cell_call_tolerance": float(varbayes.config.get("CellCallTolerance", 0.02)),
+                "version": __version__,
+            }
+            self._num_cells_expected = num_cells
+            logger.info(f"Geometry cached: {num_cells} cells")
 
-            # Cache last classes/prob for late-joining clients
-            self._last_update = {
+        # CRITICAL FIX: Ensure num_cells matches geometry cache
+        # If num_cells differs from the geometry we sent, we need to adjust the data
+        if self._geometry_cache is not None:
+            cached_num_cells = self._geometry_cache["num_cells"]
+            if num_cells != cached_num_cells:
+                logger.error(
+                    f"CRITICAL BUG DETECTED! Iteration {iteration}: num_cells={num_cells} but geometry_cache has {cached_num_cells} cells!"
+                )
+                logger.error(
+                    "Attempting to fix by truncating/padding to match geometry..."
+                )
+
+                # Adjust arrays to match cached geometry size
+                if num_cells < cached_num_cells:
+                    # cell_classes/prob are too small - pad with zeros
+                    logger.warning(
+                        f"Padding cell_classes from {num_cells} to {cached_num_cells}"
+                    )
+                    padded_classes = np.zeros(cached_num_cells, dtype=np.uint8)
+                    padded_classes[:num_cells] = cell_classes
+                    cell_classes = padded_classes
+
+                    padded_prob = np.zeros(cached_num_cells, dtype=np.float32)
+                    padded_prob[:num_cells] = prob
+                    prob = padded_prob
+
+                    num_cells = cached_num_cells
+                elif num_cells > cached_num_cells:
+                    # cell_classes/prob are too large - truncate
+                    logger.warning(
+                        f"Truncating cell_classes from {num_cells} to {cached_num_cells}"
+                    )
+                    cell_classes = cell_classes[:cached_num_cells]
+                    prob = prob[:cached_num_cells]
+                    num_cells = cached_num_cells
+
+    def _send_class_updates(self, cell_classes, prob, num_cells, iteration, delta):
+        """Send the per iteration class assignments, chunked so no single
+        message gets too large."""
+        chunk_size = 5000 if num_cells > 10000 else num_cells
+
+        self.socketio.emit(
+            "classes_update_begin",
+            {
                 "iteration": int(iteration),
                 "delta": float(delta),
                 "num_cells": int(num_cells),
                 "chunk_size": int(chunk_size),
-                "cell_classes": cell_classes.tolist(),
-                "prob": prob.tolist(),
-            }
+            },
+            namespace="/",
+        )
+        for start in range(0, num_cells, chunk_size):
+            end = min(start + chunk_size, num_cells)
+            self.socketio.emit(
+                "classes_update_chunk",
+                {
+                    "start": int(start),
+                    "end": int(end),
+                    "cell_classes": cell_classes[start:end].tolist(),
+                    "prob": prob[start:end].tolist(),
+                },
+                namespace="/",
+            )
+        self.socketio.emit(
+            "classes_update_end", {"iteration": int(iteration)}, namespace="/"
+        )
 
-            # logger.info(f"Sent update for iteration {iteration} to all clients (delta={delta:.6f}, cells={len(cell_classes)})")
+        # Cache what we just sent, so a client connecting later can be caught up.
+        self._last_update = {
+            "iteration": int(iteration),
+            "delta": float(delta),
+            "num_cells": int(num_cells),
+            "chunk_size": int(chunk_size),
+            "cell_classes": cell_classes.tolist(),
+            "prob": prob.tolist(),
+        }
+
+
+    def _on_connect(self):
+        """A browser connected. Catch it up with whatever we have already sent."""
+        logger.info("Client connected to realtime viewer")
+        # Send cached geometry and last classes update if available
+        try:
+            if self._geometry_cache is not None:
+                geom = self._geometry_cache
+                n = geom["num_cells"]
+                chunk_size = geom.get("chunk_size", 5000)
+                class_names = geom.get("class_names", [])
+                # send geometry init in chunks
+                self.socketio.emit(
+                    "geometry_init_begin",
+                    {
+                        "num_cells": int(n),
+                        "chunk_size": int(chunk_size),
+                        "class_names": class_names,
+                        "mcr": geom.get("mcr"),
+                        "is_3d": bool(geom.get("is_3d", False)),
+                        "voxel_size": geom.get("voxel_size"),
+                        "img_dim": geom.get("img_dim"),
+                        "cell_call_tolerance": geom.get("cell_call_tolerance"),
+                        "version": __version__,
+                    },
+                    namespace="/",
+                )
+                for start in range(0, n, chunk_size):
+                    end = min(start + chunk_size, n)
+                    self.socketio.emit(
+                        "geometry_init_chunk",
+                        {
+                            "start": int(start),
+                            "end": int(end),
+                            "cell_ids": geom.get("cell_ids", list(range(n)))[start:end],
+                            "centroids_x": geom["centroids_x"][start:end],
+                            "centroids_y": geom["centroids_y"][start:end],
+                            "centroids_z": geom.get("centroids_z", [0] * n)[
+                                start:end
+                            ],
+                            "radii": geom["radii"][start:end],
+                        },
+                        namespace="/",
+                    )
+                self.socketio.emit("geometry_init_end", {}, namespace="/")
+
+            if hasattr(self, "_last_update") and self._last_update:
+                cached = self._last_update
+                n = cached.get("num_cells", 0)
+                chunk_size = cached.get("chunk_size", 5000)
+                self.socketio.emit(
+                    "classes_update_begin",
+                    {
+                        "iteration": int(cached["iteration"]),
+                        "delta": float(cached["delta"]),
+                        "num_cells": int(n),
+                        "chunk_size": int(chunk_size),
+                    },
+                    namespace="/",
+                )
+                for start in range(0, n, chunk_size):
+                    end = min(start + chunk_size, n)
+                    self.socketio.emit(
+                        "classes_update_chunk",
+                        {
+                            "start": int(start),
+                            "end": int(end),
+                            "cell_classes": cached["cell_classes"][start:end],
+                            "prob": cached["prob"][start:end],
+                        },
+                        namespace="/",
+                    )
+                self.socketio.emit(
+                    "classes_update_end",
+                    {"iteration": int(cached["iteration"])},
+                    namespace="/",
+                )
+        except Exception as e:
+            logger.warning("Failed to send cached state: %s", e, exc_info=True)
+
+    def _on_check_cell_request(self, data):
+        """The user ctrl-clicked a cell in the viewer and wants its breakdown."""
+        """Handle check_cell diagnostic request from client."""
+        logger.info(f"Received check_cell request: {data}")
+
+        try:
+            cell_label = data.get("cell_label")
+            comparison_class = data.get("comparison_class", "Zero")
+
+            if cell_label is None:
+                self.socketio.emit("check_cell_result", {
+                    "error": "Missing cell_label parameter"
+                }, namespace="/")
+                return
+
+            # Get VarBayes instance
+            if not self._varbayes_ref:
+                self.socketio.emit("check_cell_result", {
+                    "error": "VarBayes instance not available"
+                }, namespace="/")
+                return
+
+            # Import check_cell function
+            from pciSeq.src.core.utils import inspection
+
+            # IMPORTANT: The viewer now sends original_label directly as cell.id
+            # (We map seq_idx -> original_label in send_update and send it to viewer)
+            # So cell_label IS the original_label - no mapping needed!
+            original_label = cell_label
+
+            logger.info(f"Viewer sent original_label: {original_label}")
+
+            # Determine pciSeq-assigned class for this cell to validate request
+            label_map = self._varbayes_ref.config.get('label_map')
+            if label_map:
+                if original_label not in label_map:
+                    self.socketio.emit("check_cell_result", {
+                        "error": f"Cell label {original_label} not found in label map"
+                    }, namespace="/")
+                    return
+                seq_idx = label_map[original_label]
+            else:
+                seq_idx = original_label
+
+            pciseq_class = self._varbayes_ref.cells.class_names[
+                self._varbayes_ref.cells.classProb[seq_idx].argmax()
+            ]
+
+            # Guard: if user class equals assigned class, avoid pandas diff error
+            if str(comparison_class) == str(pciseq_class):
+                self.socketio.emit("check_cell_result", {
+                    "error": f"Comparison class equals assigned class ({pciseq_class}). Choose a different class."
+                }, namespace="/")
+                return
+
+            # Call check_cell with the original label (it will handle the mapping internally)
+            gene_data, contr_df, _ = inspection.check_cell(
+                self._varbayes_ref,
+                original_label,
+                comparison_class,
+                top_n=10,
+                show_plot=False
+            )
+
+            # seq_idx and pciseq_class already computed above
+
+            # Prepare data for JSON serialization
+            top_genes = []
+            bottom_genes = []
+
+            if 'diff' in contr_df.columns:
+                # Top genes (positive diff - favor pciSeq class)
+                top_sorted = contr_df.nlargest(10, 'diff')
+                for gene_name, row in top_sorted.iterrows():
+                    top_genes.append({
+                        "gene": str(gene_name),
+                        "value": float(row['diff'])
+                    })
+
+                # Bottom genes (negative diff - favor user class)
+                bottom_sorted = contr_df.nsmallest(10, 'diff')
+                for gene_name, row in bottom_sorted.iterrows():
+                    bottom_genes.append({
+                        "gene": str(gene_name),
+                        "value": float(row['diff'])
+                    })
+
+            # Calculate sums
+            top_sum = sum(g['value'] for g in top_genes)
+            bottom_sum = sum(g['value'] for g in bottom_genes)
+
+            # Prepare gene expression data table (MultiIndex columns)
+            gene_table_data = []
+            if gene_data is not None and not gene_data.empty:
+                # Build MultiIndex keys as created by inspection.check_cell
+                pc_col = (f"Cells typed as {pciseq_class}", "mean counts")
+                user_col = (f"Cells typed as {comparison_class}", "mean counts")
+                count_col = (f"This cell: ({original_label})", "counts")
+
+                for gene_name, row in gene_data.iterrows():
+                    # row is a Series with MultiIndex; use tuple keys
+                    mean_pciseq = float(row[pc_col]) if pc_col in row.index else 0.0
+                    mean_user = float(row[user_col]) if user_col in row.index else 0.0
+                    # Preserve decimals for this cell's counts
+                    gene_count = float(row[count_col]) if count_col in row.index else 0.0
+
+                    gene_table_data.append({
+                        "gene": str(gene_name),
+                        "mean_expr_pciseq": mean_pciseq,
+                        "mean_expr_user": mean_user,
+                        "gene_count": gene_count,
+                    })
+
+            # Send response
+            self.socketio.emit("check_cell_result", {
+                "cell_label": int(cell_label),
+                "pciseq_class": str(pciseq_class),
+                "user_class": str(comparison_class),
+                "top_genes": top_genes,
+                "bottom_genes": bottom_genes,
+                "top_sum": float(top_sum),
+                "bottom_sum": float(bottom_sum),
+                "gene_expression_data": gene_table_data
+            }, namespace="/")
 
         except Exception as e:
-            logger.error(f"Failed to send update: {e}")
+            logger.error(f"Error in check_cell handler: {e}", exc_info=True)
+            self.socketio.emit("check_cell_result", {
+                "error": str(e)
+            }, namespace="/")
 
     def __enter__(self):
         """Context manager support."""

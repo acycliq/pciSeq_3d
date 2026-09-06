@@ -13,7 +13,10 @@ def get_static_files(root):
         for name in files:
             out.append(os.path.join(path, name))
     return [
-        d.strip("./pciSeq/")
+        # relpath, not strip: str.strip takes a set of characters, so
+        # "pciSeq/config/x".strip("./pciSeq/") gives "onfig/x". It only works
+        # today because "src" happens to start with a letter not in that set.
+        os.path.relpath(d, "pciSeq")
         for d in out
         if (
             d.endswith(".html")
