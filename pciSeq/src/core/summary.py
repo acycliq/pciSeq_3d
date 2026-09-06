@@ -68,8 +68,14 @@ def cells_summary(cells, spots, genes, is3D):
     if is3D:
         df['sphere_scale'], df['sphere_rotation'] = sphere_props(cells)
         df['Z'] = ((cells.centroid['z'] * 1000).astype(np.int32) / 1000).tolist()
-        # move column Z after X, Y
-        df.insert(3, 'Z', df.pop('Z'))
+    else:
+        # 2D has no z to report, but the viewer's arrow export asks for the
+        # column whatever the data is, so give it zeros. Same idea as z_plane
+        # on the spots side. Without this cellData_to_arrow refuses to write
+        # and a 2D run comes out with no cells for the viewer.
+        df['Z'] = np.float32(0.0)
+    # move column Z after X, Y
+    df.insert(3, 'Z', df.pop('Z'))
 
     df.set_index(['Cell_Num'])
 
@@ -99,13 +105,16 @@ def spots_summary(spots, is3D):
                         'neighbour_prob': p.tolist(),
                         # 'omp_score': ((spots.data.score * 1000).astype(np.int32)/1000).tolist()
                         })
-    if is3D:
-        out['z'] = np.round(spots.data.z.astype('float64'), 3).tolist()
-        out['omp_score'] = np.round(spots.data.score.astype('float64'), 3).tolist()
-        out['omp_intensity'] = np.round(spots.data.intensity.astype('float64'), 3).tolist()
-        # move column z after x, y
-        z_pos = out.columns.get_loc('y') + 1
-        out.insert(z_pos, 'z', out.pop('z'))
+    # These three used to be written only for 3D, but the viewer reads all of
+    # them whatever the data is, so a 2D run left it with nothing to draw. In 2D
+    # z is zero for every spot anyway, and score and intensity are filled in by
+    # the validator when the caller has none.
+    out['z'] = np.round(spots.data.z.astype('float64'), 3).tolist()
+    out['omp_score'] = np.round(spots.data.score.astype('float64'), 3).tolist()
+    out['omp_intensity'] = np.round(spots.data.intensity.astype('float64'), 3).tolist()
+    # move column z after x, y
+    z_pos = out.columns.get_loc('y') + 1
+    out.insert(z_pos, 'z', out.pop('z'))
 
     return out
 

@@ -156,6 +156,8 @@ def adjust_for_anisotropy(
             - x : float, x coordinate
             - y : float, y coordinate
             - z_plane : float, z-plane index
+            - score : float, spot caller score, carried through untouched
+            - intensity : float, spot caller intensity, carried through untouched
 
     voxel_size : tuple of float, length 3
         Physical voxel dimensions (dx, dy, dz) in consistent units.

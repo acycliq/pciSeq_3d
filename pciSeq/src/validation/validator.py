@@ -157,6 +157,14 @@ class Validator:
             if 'z_plane' not in self.spots.columns:
                 self.spots['z_plane'] = 0
 
+        # score and intensity come from the spot caller and nothing in the model
+        # reads them, they just get carried through to geneData as omp_score and
+        # omp_intensity. Fill them in when they are not there so a caller who has
+        # no spot quality metrics is not forced to invent a column.
+        for col in ('score', 'intensity'):
+            if col not in self.spots.columns:
+                self.spots[col] = np.float32(1.0)
+
         # Check required columns
         required = {'gene_name', 'x', 'y', 'z_plane'}
         missing = required - set(self.spots.columns)

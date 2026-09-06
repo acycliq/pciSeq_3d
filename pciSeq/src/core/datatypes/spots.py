@@ -303,6 +303,9 @@ class Spots(object):
         eig_vals = cells.eig_vals[cell_label]
         eig_vecs = cells.eig_vecs[cell_label]
         if not is3D:
+            # centroids and spot coords are always x, y, z, but ini_cov builds a
+            # 2x2 in 2D, so drop z to match. z is all zeros here anyway, and
+            # keeping it would make the covariance singular on that axis.
             data = data[:, :-1]
             centroids = centroids[:, :-1]
         out = self.multiple_logpdfs(data, centroids, covs, eig_vals, eig_vecs)
