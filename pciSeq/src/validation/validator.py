@@ -65,6 +65,17 @@ class Validator:
         """
         logger.info("Starting validation pipeline")
 
+        # Check this before anything else. Running without a reference is no longer
+        # supported, and saying so first is more use than a type error about one of
+        # the other inputs.
+        if self.scdata is None:
+            raise ValueError(
+                "scRNAseq is required. pciSeq used to fall back on estimating the "
+                "cell class definitions from the spots alone, but that path never "
+                "worked properly and has been removed. Pass a reference matrix of "
+                "genes by cell classes."
+            )
+
         # Step 1: Validate types and normalize formats
         self._validate_types()
         self._normalize_inputs()
@@ -72,8 +83,7 @@ class Validator:
         # Step 2: Validate data structures
         self._validate_spots_schema()
         self._validate_coo_structure()
-        if self.scdata is not None:
-            self._validate_scdata_schema()
+        self._validate_scdata_schema()
 
         # Step 3: Clean and process data
         self._clean_spots()

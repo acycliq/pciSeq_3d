@@ -30,7 +30,6 @@ class Cells(object):
         classProb (np.array): Class probabilities for cells.
         class_names (list): Names of cell classes.
         _cov (np.array): Covariance matrices for cells.
-        nu_0 (float): Mean gene counts per cell.
         _centroid (pd.DataFrame): Centroid coordinates for cells.
         _gene_counts (np.array): Gene counts for cells.
         _background_counts (np.array): Num of spots assigned to background.
@@ -51,7 +50,6 @@ class Cells(object):
         self.class_names = None
         self._cov = self.ini_cov()
         self._eig_vals, self._eig_vecs = np.linalg.eigh(self._cov)
-        self.nu_0 = config['mean_gene_counts_per_cell']
         self._centroid = self.ini_centroids()
         self._gene_counts = None
         self._ini_gene_counts = None  # initial gene counts
@@ -291,7 +289,6 @@ class Cells(object):
         prob = spots.parent_cell_prob[:, :-1]
         _id = spots.parent_cell_id[:, :-1]
         xyz_spots = spots.xyz_coords
-        # out = self.ini_cov() * self.nu_0
         out = np.zeros(self.ini_cov().shape)
 
         mu_x = mu_bar[_id, 0]  # array of size [nS, N] with the x-coord of the centroid of the N closest cells

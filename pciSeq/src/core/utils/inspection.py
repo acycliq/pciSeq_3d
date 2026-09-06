@@ -344,7 +344,7 @@ def cell_typing_breakdown(obj, label, weights=None, show_plot=True):
     updated_alpha = zeta + ini_alpha
 
     # Step 4: Compute log_prior from updated alpha
-    if obj.single_cell.isMissing or prior_mode == 'weighted':
+    if prior_mode == 'weighted':
         log_prior = psi(updated_alpha) - psi(updated_alpha.sum())
     else:
         prior = updated_alpha / updated_alpha.sum()

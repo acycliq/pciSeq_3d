@@ -22,7 +22,6 @@ class CellClass(object):
         _names (np.array): Names of cell types.
         _alpha (np.array): Alpha values for cell types.
         config (dict): Configuration parameters for cell types.
-        single_cell_data_missing (bool): Indicates if single-cell data is missing.
     """
 
     def __init__(self, single_cell: SingleCell, config: Dict):
@@ -41,7 +40,6 @@ class CellClass(object):
         self._names = single_cell.classes
         self._alpha = None
         self.config = config
-        self.single_cell_data_missing = single_cell.isMissing
 
     @property
     def names(self) -> np.ndarray:
@@ -78,7 +76,7 @@ class CellClass(object):
         Weighted mode: Zero stays fixed, real classes from Dirichlet mean
             scaled to sum to (1 - zero_weight).
         """
-        if self.config['cell_type_prior'] == 'uniform' and not self.single_cell_data_missing:
+        if self.config['cell_type_prior'] == 'uniform':
             return self._initial_weights
 
         # Dirichlet mean for real classes, scaled by (1 - zero_weight)
@@ -95,7 +93,7 @@ class CellClass(object):
         Weighted mode: Zero gets log(zero_weight), real classes get
             log(1 - zero_weight) + psi(alpha_k) - psi(sum(alpha)).
         """
-        if self.config['cell_type_prior'] == 'uniform' and not self.single_cell_data_missing:
+        if self.config['cell_type_prior'] == 'uniform':
             return np.log(self._initial_weights)
 
         # E[log Dir_k] for real classes, shifted by log(1 - zero_weight)
@@ -111,7 +109,7 @@ class CellClass(object):
     @property
     def log_prior(self) -> np.ndarray:
         """Returns the log prior probabilities for cell types."""
-        if self.single_cell_data_missing or self.config['cell_type_prior'] == 'weighted':
+        if self.config['cell_type_prior'] == 'weighted':
             return self.logpi_bar
         else:
             return np.log(self.prior)

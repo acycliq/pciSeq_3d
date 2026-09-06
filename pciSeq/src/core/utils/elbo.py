@@ -275,7 +275,7 @@ def pi_prior(obj):
     E_q[log p(pi | alpha_0)] = -log B(alpha_0) + sum_k (alpha_0k - 1) * E[log pi_k]
     where E[log pi_k] = psi(alpha_post_k) - psi(sum(alpha_post))
     """
-    if obj.config['cell_type_prior'] != 'weighted' and not obj.single_cell.isMissing:
+    if obj.config['cell_type_prior'] != 'weighted':
         return 0.0
 
     from scipy.special import gammaln, psi
@@ -302,7 +302,7 @@ def entropy_pi(obj):
     H[Dirichlet(alpha)] = log B(alpha) + (sum(alpha) - K) * psi(sum(alpha))
                           - sum_k (alpha_k - 1) * psi(alpha_k)
     """
-    if obj.config['cell_type_prior'] != 'weighted' and not obj.single_cell.isMissing:
+    if obj.config['cell_type_prior'] != 'weighted':
         return 0.0
 
     from scipy.special import gammaln, psi

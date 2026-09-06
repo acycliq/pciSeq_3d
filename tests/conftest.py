@@ -58,8 +58,11 @@ def base_opts():
         "Inefficiency": 1.0,
         "InsideCellBonus": 0,
         "MisreadDensity": {"default": 1e-6},  # must be non zero, the rho prior divides by it
-        "cell_centroid_prior": 10,
-        "cell_cov_prior": 10,
+        # as dicts, which is what the model actually sees: the validator turns a
+        # bare number into {'default': n} before the run starts, so a fixture
+        # holding a plain int does not match a real config
+        "cell_centroid_prior": {"default": 10},
+        "cell_cov_prior": {"default": 10},
         "SpotReg": 0.1,
         "nNeighbors": 6,
         "rSpot": 2,
@@ -71,8 +74,6 @@ def base_opts():
         "is3D": True,
         "voxel_size": [1, 1, 1],
         "remove_flat_cells": True,
-        "mean_gene_counts_per_class": 60,
-        "mean_gene_counts_per_cell": 30,
     }
 
 

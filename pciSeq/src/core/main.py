@@ -138,7 +138,7 @@ class VarBayes:
                     'rGene', 'Inefficiency', 'InsideCellBonus', 'MisreadDensity',
                     'cell_centroid_prior', 'cell_cov_prior', 'SpotReg', 'nNeighbors', 'rSpot',
                     'save_data', 'output_path', 'cell_radius', 'cell_type_prior', 'is3D',
-                    'mean_gene_counts_per_class', 'mean_gene_counts_per_cell']
+                    ]
         missing = [param for param in required if param not in config]
         if missing:
             raise ValueError(f"Missing required config parameters: {missing}")
@@ -331,12 +331,8 @@ class VarBayes:
             self._step('cell_to_cellType', self.cell_to_cellType)
 
             # 7. update the dirichlet distribution
-            if self.single_cell.isMissing or (self.config['cell_type_prior'] == 'weighted'):
+            if self.config['cell_type_prior'] == 'weighted':
                 self._step('dalpha_upd', self.dalpha_upd)
-
-            # 8. Update single cell data
-            if self.single_cell.isMissing:
-                self._step('mu_upd', self.mu_upd)
 
             # 9. assign spots to cells
             # spots_to_cell_numba is the fast path. spots_to_cell (the plain numpy
@@ -795,35 +791,6 @@ class VarBayes:
         # 7. Update the cell covariance attribute. Get the eigenvals/eigenvectors too
         self.cells.cov = covariance_upd
         self.cells.eig_vals, self.cells.eig_vecs = np.linalg.eigh(covariance_upd)
-
-    # -------------------------------------------------------------------- #
-    def mu_upd(self) -> None:
-        """
-        Updates mean expression values when single-cell reference is missing.
-
-        Estimates mean expression for each gene and cell type using:
-            1. Current cell type assignments
-            2. Observed gene counts
-            3. Cell area factors
-            4. Current gamma and eta values
-
-        Updates:
-            - single_cell._mean_expression: Updated mean expression values
-            - single_cell._log_mean_expression: Log of mean expression values
-        """
-        classProb = self.cells.classProb[1:, :-1].copy()
-        geneCount = self.cells.geneCount[1:, :].copy()
-        gamma_bar = self.spots.gamma_bar[1:, :, :-1]
-        area_factor = self.cells.ini_cell_props['area_factor'][1:]
-
-        numer = oe.contract('ck, cg -> gk', classProb, geneCount, optimize='optimal')
-        denom = oe.contract('ck, c, cgk, g -> gk', classProb, area_factor, gamma_bar, self.genes.eta_bar,
-                            optimize='optimal')
-
-        me, lme = self.single_cell._gene_expressions(numer, denom)
-        self.single_cell._mean_expression = me
-        self.single_cell._log_mean_expression = lme
-
     # -------------------------------------------------------------------- #
     def dalpha_upd(self) -> None:
         """

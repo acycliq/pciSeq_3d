@@ -216,7 +216,7 @@ DEFAULT = {
     # improving the fit or working against it. An empty list is off and free.
     #
     # Valid names: geneCount_upd, rho_upd, eta_upd, theta_upd, gamma_upd,
-    # cell_to_cellType, dalpha_upd, mu_upd, spots_to_cell. Pass "all" for the lot,
+    # cell_to_cellType, dalpha_upd, spots_to_cell. Pass "all" for the lot,
     # but note the ELBO is expensive: scoring every step ran 4.8x slower on
     # silver 180, 1998s against 420s for the same 10 iterations.
     "elbo_per_step": [],
@@ -305,21 +305,4 @@ DEFAULT = {
     # Draw every cell at this radius instead of its own. None uses the real
     # sizes.
     "realtime_viewer_fixed_radius": None,
-
-
-    # *******************************************************************************
-    # Only used when you run without single cell reference data
-    # *******************************************************************************
-
-    # With no reference to work from, pciSeq estimates the class definitions as it
-    # goes and needs a starting scale. This is how many counts an average cell of
-    # a class is expected to show across the whole panel at the outset.
-    "mean_gene_counts_per_class": 60,
-
-
-    # The same starting scale seen from the cell's side: how many counts an
-    # average cell is expected to have in total. Together with the per class
-    # figure above it sets where the estimated definitions begin before the data
-    # moves them.
-    "mean_gene_counts_per_cell": 30,
 }

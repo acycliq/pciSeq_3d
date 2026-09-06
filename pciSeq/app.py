@@ -29,9 +29,9 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         The label image, one sparse matrix per z-plane. A list with more than one
         plane is treated as 3D.
 
-    scRNAseq : pd.DataFrame, optional
-        Single-cell reference data used to annotate the cell types. Leave it out to
-        run without a reference.
+    scRNAseq : pd.DataFrame
+        Single-cell reference data used to annotate the cell types, genes by cell
+        classes. Required.
 
     opts : dict, optional
         Any config values you want to override, e.g. {'max_iter': 500}. See the
@@ -106,7 +106,7 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 def cell_type(
         cells: pd.DataFrame,
         spots: pd.DataFrame,
-        scRNAseq: Optional[pd.DataFrame],
+        scRNAseq: pd.DataFrame,
         config: Dict[str, Any]
 ) -> Tuple[pd.DataFrame, pd.DataFrame, VarBayes]:
     """
@@ -118,8 +118,8 @@ def cell_type(
         Preprocessed cell data containing cell locations and boundaries
     spots : pd.DataFrame
         Preprocessed spot data containing gene expressions and coordinates
-    scRNAseq : Optional[pd.DataFrame]
-        Single-cell RNA sequencing reference data. Can be None if not using reference data
+    scRNAseq : pd.DataFrame
+        Single-cell RNA sequencing reference data, genes by cell classes. Required.
     config : Dict[str, Any]
         Configuration dictionary containing algorithm parameters
 
