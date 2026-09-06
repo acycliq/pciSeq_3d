@@ -6,7 +6,7 @@ keeps the default below.
 """
 
 
-DEFAULT = {
+MODEL = {
 
 
     # Genes to leave out of cell calling, e.g. ['Aldoc', 'Id2']. Every spot of an
@@ -273,13 +273,12 @@ DEFAULT = {
     # Drop cells that appear on a single z plane. These are usually segmentation
     # artefacts rather than real cells. Has no effect on 2D data.
     "remove_flat_cells": True,
+}
 
 
-
-    # *******************************************************************************
-    # Live viewer, optional
-    # *******************************************************************************
-
+# Settings for the live viewer, the browser view of a run as it happens. Kept
+# apart because none of them changes the result.
+LIVEVIEWER = {
     # Watch the cell calling as it runs, in a browser.
     "realtime_viewer": False,
 
@@ -297,6 +296,11 @@ DEFAULT = {
     # sizes.
     "realtime_viewer_fixed_radius": None,
 }
+
+
+# What a user can pass: the two groups above, merged.
+DEFAULT = {**MODEL, **LIVEVIEWER}
+
 
 
 # pciSeq works these out from your data and keeps them in the same dictionary as

@@ -323,6 +323,8 @@ For 0.147 um pixels and a 0.9 um z step, use [0.147, 0.147, 0.9].
 Drop cells that appear on a single z plane. These are usually segmentation
 artefacts rather than real cells. Has no effect on 2D data.
 
+## Live viewer
+
 ### `realtime_viewer`
 
 **Default:** `False`
