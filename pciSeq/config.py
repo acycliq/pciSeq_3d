@@ -232,11 +232,11 @@ DEFAULT = {
 
     # How many candidate cells each spot is scored against. The spot is compared
     # with its nearest cells and, on top of those, with the background, so at
-    # nNeighbors=6 there are seven options: six cells or the background, ie a
+    # nNeighbors=9 there are ten options: nine cells or the background, ie a
     # misread. Raising it lets a spot reach a cell further away, at the cost of
     # more work per iteration. Lowering it is faster but a spot near a cell
     # boundary may not see the cell it actually came from.
-    "nNeighbors": 6,
+    "nNeighbors": 9,
 
 
     # Write the results to disk as tsv files. Without an output_path they land in
