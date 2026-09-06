@@ -526,7 +526,32 @@ def gen_configuration():
         if comments:
             chunks.append("\n".join(comments))
             chunks.append("")
+
+    # RUNTIME_KEYS are not settings, so they have no entry in DEFAULT and never
+    # appear in the loop above. They still turn up in the config dictionary at
+    # runtime, so say what they are rather than leaving them unexplained. The
+    # text comes from the comment block sitting above RUNTIME_KEYS in config.py.
+    runtime = _runtime_keys_section(src_lines, tree)
+    if runtime:
+        chunks.extend(runtime)
+
     return "\n".join(chunks).rstrip() + "\n"
+
+
+def _runtime_keys_section(src_lines, tree):
+    """The 'worked out for you' section, built from RUNTIME_KEYS in config.py."""
+    node = None
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == "RUNTIME_KEYS" for t in n.targets):
+            node = n
+    if node is None:
+        return []
+    keys = [k.value for k in node.value.elts if isinstance(k, ast.Constant)]
+    comments = _comment_block_above(src_lines, node.lineno)
+    if not comments:
+        return []
+    return ["## Worked out for you", "", "\n".join(comments), ""]
 
 
 def main():

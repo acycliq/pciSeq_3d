@@ -24,9 +24,13 @@ class TestVarBayesInitialization:
         assert "Missing required config parameters" in str(excinfo.value)
 
     def test_validate_config_with_complete_params(self, base_opts):
-        """Test that complete config passes validation."""
+        """Test that complete config passes validation.
+
+        is3D is not a user option (see config.RUNTIME_KEYS), it is worked out from
+        the segmentation, but VarBayes still needs it present.
+        """
         # Should not raise any exception
-        VarBayes._validate_config(base_opts)
+        VarBayes._validate_config({**base_opts, 'is3D': True})
 
 
 class TestVarBayesGeneCountUpdate:

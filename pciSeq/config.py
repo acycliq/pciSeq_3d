@@ -275,12 +275,6 @@ DEFAULT = {
     "remove_flat_cells": True,
 
 
-    # Worked out from your data, not something you set. A list of several
-    # segmentation masks is treated as 3D, a single mask as 2D. Anything you pass
-    # here is overwritten.
-    "is3D": None,
-
-
 
     # *******************************************************************************
     # Live viewer, optional
@@ -303,3 +297,13 @@ DEFAULT = {
     # sizes.
     "realtime_viewer_fixed_radius": None,
 }
+
+
+# pciSeq works these out from your data and keeps them in the same dictionary as
+# the settings above.
+#
+# - `is3D`: a stack or a single plane, from the masks you passed.
+# - `img_dim`: width, height and number of planes of the label image.
+# - `label_map`: the renumbering applied to the cell labels, if any.
+RUNTIME_KEYS = ('is3D', 'img_dim', 'label_map')
+

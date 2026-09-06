@@ -32,7 +32,6 @@ _TYPE_SPECS = {
     "cell_type_prior": str,
     "cell_type_weights": (type(None), dict),
     "voxel_size": list,
-    "is3D": (type(None), bool),
     "remove_flat_cells": bool,
     "realtime_viewer": bool,
     "realtime_viewer_port": int,

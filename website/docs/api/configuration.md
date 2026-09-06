@@ -323,14 +323,6 @@ For 0.147 um pixels and a 0.9 um z step, use [0.147, 0.147, 0.9].
 Drop cells that appear on a single z plane. These are usually segmentation
 artefacts rather than real cells. Has no effect on 2D data.
 
-### `is3D`
-
-**Default:** `None`
-
-Worked out from your data, not something you set. A list of several
-segmentation masks is treated as 3D, a single mask as 2D. Anything you pass
-here is overwritten.
-
 ### `realtime_viewer`
 
 **Default:** `False`
@@ -356,3 +348,12 @@ all of them.
 
 Draw every cell at this radius instead of its own. None uses the real
 sizes.
+
+## Worked out for you
+
+pciSeq works these out from your data and keeps them in the same dictionary as
+the settings above.
+
+- `is3D`: a stack or a single plane, from the masks you passed.
+- `img_dim`: width, height and number of planes of the label image.
+- `label_map`: the renumbering applied to the cell labels, if any.
