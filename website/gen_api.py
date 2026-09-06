@@ -31,13 +31,6 @@ OUT = HERE / "docs" / "api"
 #     libvips), so the top-level scan misses both.
 #   - VarBayes is the model object that cell_type/fit build and return.
 # The two plain functions go with the others; VarBayes (a class) stays last.
-# The setting groups in config.py, in the order they should appear on the page.
-# The value is the section heading, or None to run the keys straight on.
-SETTING_GROUPS = {
-    "MODEL": None,
-    "LIVEVIEWER": "Live viewer",
-}
-
 EXTRA_API = [
     ("pciSeq.src.tiling.stage_image", "stage_image"),
     ("pciSeq.src.tiling.stage_image", "tile_maker"),
@@ -491,20 +484,15 @@ def gen_configuration():
     src_lines = src.splitlines()
     tree = ast.parse(src)
 
-    # config.py keeps the settings in named groups and merges them into DEFAULT,
-    # so walk the groups rather than DEFAULT itself: DEFAULT is {**MODEL, **...}
-    # and its keys are not literals. Each group becomes a section on the page.
-    groups = []                                    # [(name, heading, ast.Dict)]
+    # find the DEFAULT = {...} assignment
+    default_dict = None
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Assign):
-            continue
-        for tgt in node.targets:
-            if isinstance(tgt, ast.Name) and tgt.id in SETTING_GROUPS \
-                    and isinstance(node.value, ast.Dict):
-                groups.append((tgt.id, SETTING_GROUPS[tgt.id], node.value))
-    groups.sort(key=lambda g: list(SETTING_GROUPS).index(g[0]))
-    if not groups:
-        raise RuntimeError("found no setting groups in config.py")
+        if isinstance(node, ast.Assign):
+            for tgt in node.targets:
+                if isinstance(tgt, ast.Name) and tgt.id == "DEFAULT":
+                    default_dict = node.value
+    if not isinstance(default_dict, ast.Dict):
+        raise RuntimeError("could not find the DEFAULT dict in config.py")
 
     chunks = [
         "# Configuration (opts)",
@@ -525,11 +513,7 @@ def gen_configuration():
         "",
     ]
 
-    for group_name, heading, group_dict in groups:
-      if heading:
-          chunks.append("## " + heading)
-          chunks.append("")
-      for key_node, val_node in zip(group_dict.keys, group_dict.values):
+    for key_node, val_node in zip(default_dict.keys, default_dict.values):
         if not isinstance(key_node, ast.Constant):
             continue
         key = key_node.value
