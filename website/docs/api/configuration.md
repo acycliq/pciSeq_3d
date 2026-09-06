@@ -79,20 +79,17 @@ no correction at that level.
 **Default:** `20`
 
 Some probes work better than others, so the second correction, eta, works
-on one gene across every cell. It is fitted from your data, and the prior
-assumes it is 1, meaning that gene needs no adjustment of its own on top of
-whatever the other three corrections are already doing.
+on one gene across every cell. Eta is the gene's observed read count
+divided by the count the model expects for it. Above 1 the gene is picked
+up better than the panel rate, below 1 worse, and at 1 the two agree and
+nothing needs adjusting.
 
-rGene decides how easily that assumption is overturned by the data. Compare
-it against the total reads of the gene:
-
-rGene well below the gene's reads   the data wins, and eta settles at
-observed reads over expected reads
-rGene well above the gene's reads   the prior wins, and eta stays at 1
-
-Genes usually have thousands of reads, so at 20 the data wins comfortably
-for all but the quietest genes. Raise it into the thousands if you would
-rather every gene stayed at eta = 1 and took no correction of its own.
+The prior puts eta at 1, and rGene decides how firmly it is held there.
+What matters is the value of rGene compared to the gene's own read count
+across the whole section. Set it very large and eta stays at 1 for
+every gene, so the whole panel sits at the Inefficiency rate. At 20 rGene
+has almost no influence, because a gene picks up thousands of reads once
+they are counted section wide, and the data determine eta.
 
 ### `rTheta`
 
