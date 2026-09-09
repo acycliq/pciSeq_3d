@@ -59,19 +59,20 @@
   .tip .tsub { color:#9aa4b4; }
   canvas.dapi { display:block; width:100%; height:auto; }
 
-  .ctrl { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:14px 16px; }
+  .ctrl { background:var(--panel); border:1px solid var(--line); border-radius:6px;
+          padding:9px 12px; }
   .ctrlhead { display:flex; align-items:baseline; gap:12px; }
   .label { font-size:12px; color:var(--muted); font-weight:600; }
-  .val { font:600 17px ui-monospace,SFMono-Regular,Menlo,monospace;
+  .val { font:600 14px ui-monospace,SFMono-Regular,Menlo,monospace;
          font-variant-numeric:tabular-nums; color:var(--accent); }
   input[type=range] { width:100%; accent-color:var(--accent); margin-top:6px; }
   input[type=range]:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
   .ticks { display:flex; justify-content:space-between; color:var(--muted); font-size:11px;
            font-family:ui-monospace,monospace; }
   .hint { color:var(--muted); font-size:12px; margin:8px 0 0; }
-  .btnrow { display:flex; align-items:center; gap:10px; margin-top:12px; }
-  .btnrow button { font:inherit; font-size:13px; color:var(--ink); background:var(--panel);
-                   border:1px solid var(--line); border-radius:4px; padding:5px 14px;
+  .btnrow { display:flex; align-items:center; gap:8px; margin-top:10px; }
+  .btnrow button { font:inherit; font-size:12px; color:var(--muted); background:none;
+                   border:1px solid var(--line); border-radius:4px; padding:3px 10px;
                    cursor:pointer; }
   .btnrow button:hover { border-color:var(--accent); color:var(--accent); }
   .btnrow button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
@@ -194,7 +195,6 @@
     </div>
     <input id="eta" type="range" min="0.01" max="10" step="0.01" value="0.2"
            aria-label="Inefficiency" />
-    <div class="ticks"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span></div>
     <div class="btnrow">
       <button id="fit" type="button">Fit</button>
       <button id="reset" type="button">Reset</button>

@@ -10,7 +10,7 @@ pageClass: demo-wide
 
 **Simplifications are worth stating.**
 
-Eta is held at 1 throughout, so the demo shows three factors rather than four. Eta is one
+**Eta** is held at 1 throughout, so the demo shows three factors rather than four. Eta is one
 factor per gene, shared by every cell, and it absorbs the difference in how well each
 probe is detected: the gene's observed count over the count the model expects for it,
 above 1 where the gene is picked up better than the panel rate and below 1 where it is
