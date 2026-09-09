@@ -52,7 +52,6 @@ Dependencies:
 - scipy: For statistical operations
 - numpy_groupies: For group operations
 """
-import os
 import datetime
 import logging
 from typing import Dict, List, Optional, Tuple, Union, Any
@@ -467,36 +466,7 @@ class VarBayes:
         # for debugging, safe to remove in the future
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
-        # Experiment only, off unless PCISEQ_MRF_CAP is set. Brings the removed
-        # mrf cap back so it can be measured against the current weighting, and
-        # counts how many cells it protects each pass so the churn in that set
-        # can be seen.
-        if os.environ.get('PCISEQ_MRF_CAP'):
-            from .utils.mrf_cap import calc_capped_mrf
-            support = self.cells.mrf_support()
-            mrf, eff_beta = calc_capped_mrf(
-                contr, support, self.cellTypes.log_prior,
-                self.config['mrf_beta'], self.config['SpotReg'])
-            # What decides protection is whether Zero wins on data plus prior.
-            # eff_beta < beta also picks up the clip-to-zero band, so report both
-            # rather than conflating them.
-            _nK = contr.shape[1]
-            _D = (contr - contr[:, [_nK - 1]]) + (
-                self.cellTypes.log_prior - self.cellTypes.log_prior[_nK - 1])
-            _zero_wins = (_D[:, :_nK - 1] < 0).all(axis=1)
-            _capped = (eff_beta < self.config['mrf_beta'])
-            _cells_capped = _zero_wins
-            _prev = getattr(self, '_prev_capped', None)
-            _churn = -1 if _prev is None else int((_cells_capped != _prev).sum())
-            self._prev_capped = _cells_capped
-            logger.info('CAP iter %d: Zero wins on data+prior for %d of %d (%.2f%%), '
-                        'churn %d, any column reduced %.2f%%, mean support %.3f'
-                        % (self.iter_num, int(_zero_wins.sum()), _zero_wins.shape[0],
-                           100.0 * _zero_wins.mean(), _churn,
-                           100.0 * _capped.any(axis=1).mean(),
-                           float(support.sum(axis=1).mean())))
-        else:
-            mrf = self.cells.calc_mrf()
+        mrf = self.cells.calc_mrf()
         # mrf = self.cells.classProb[self.cells.nbrs].sum(axis=1)
         # Stop the neighbours from taking a cell off Zero when it has no reads
         # of its own to argue with. beta * nNeighbors is the most the mrf could
