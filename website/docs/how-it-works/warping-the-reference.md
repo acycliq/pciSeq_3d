@@ -158,10 +158,10 @@ the typical number of counts a cell has.
 
 ## The spatial factor (the MRF)
 
-You might be working with tissue where cells of the same type are strongly localised,
-arranged in layers or clear regions. The model uses this when it scores a cell against the
-candidate types: it adds a bonus to any type that the cell's neighbours already belong to,
-so a cell surrounded by one type is a little more likely to be called that type itself.
+Cells of the same type are often strongly localised, arranged in layers or clear regions.
+The model uses this when it scores a cell against the candidate types: it adds a bonus to
+any type the cell's neighbours already belong to, so a cell surrounded by one type is more
+likely to be called that type itself.
 
 This is the spatial factor, or MRF (short for Markov random field, a model where each cell's
 label depends on its neighbours' labels). The `mrf_beta` hyperparameter sets how strong it
@@ -173,163 +173,6 @@ A cell with almost no reads of its own has nothing to weigh against its neighbou
 spatial factor alone can decide what it is. The
 [Zero boost](../the-model/cell-class.md#the-zero-boost), off by default, protects such cells
 from being taken over by the type around them.
-
-<details>
-<summary>Earlier working, retained for the record and due for removal</summary>
-
-## The mrf cap
-
-::: warning Removed from the model
-The cap is not implemented in the current code. It did not converge, and two subsequent
-modifications behaved the same way. The section is retained because it describes the problem
-the Zero class presents, which remains. See
-[Why the cap does not converge](../the-model/cell-class.md#why-the-cap-does-not-converge).
-What is in the code, off by default, is the
-[Zero boost](../the-model/cell-class.md#the-zero-boost).
-:::
-
-The mrf cap was a limit on the spatial bonus, set separately for each cell and each candidate
-type. It stops the neighbours from adding so much that they overturn what a cell's own gene
-counts and prior already say.
-
-We added it because of empty cells. A near-empty cell has almost no gene counts of its own,
-so the spatial term dominates and the cell simply takes on the type of its neighbourhood.
-Worse, once it does, it becomes a neighbour that pushes the same type onto the next empty
-cell, so a single type can spread across a whole patch of background like a relay. The cap
-is there to stop that.
-
-### How it protects the Zero class
-
-For every cell and every candidate type the cap works out how strong the neighbour bonus
-would need to be to overtake Zero, and never lets the bonus grow that large, so long as the
-cell's own counts and the prior already point to Zero. Under the cap the Zero class gets no
-neighbour bonus of its own, so the whole job of the cap is to hold the other types back rather
-than to prop Zero up. The [Zero boost](../the-model/cell-class.md#the-zero-boost) that replaced
-it works the other way round, giving Zero a bonus and leaving the real classes alone.
-
-The result is a soft preference that cannot overrule the evidence. If a cell's own counts say
-it is empty, no amount of like-typed neighbours can flip it off Zero. If instead the counts
-genuinely favour a real type, there is nothing to protect, the cap does not act, and the
-neighbour bonus works at full strength. The formula is derived on the
-[cell-class assignment](../the-model/cell-class.md#the-mrf-cap) page.
-
-### Example: an empty cell
-
-Cell 16150 has zero gene counts. With `rTheta = 2` and a uniform class
-prior, the posterior of its cell-to-class assignment is almost uniform: Zero at 3.5%, all
-other classes with prob around 3.1% or 3.2%.
-
-<figure class="diagram">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 356" role="img" aria-label="Cell-to-class posterior for empty cell 16150, top 12 classes">
-  <text x="242" y="32.0" text-anchor="end" class="barc-name">Zero</text>
-  <rect x="262" y="19.0" width="430.0" height="17" rx="2.5" fill="#000000" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="699.0" y="32.0" class="barc-pct">3.6%</text>
-  <text x="242" y="59.0" text-anchor="end" class="barc-name">036 HPF CR Glut</text>
-  <rect x="262" y="46.0" width="389.1" height="17" rx="2.5" fill="#AA3377" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="658.1" y="59.0" class="barc-pct">3.2%</text>
-  <text x="242" y="86.0" text-anchor="end" class="barc-name">331 Peri NN</text>
-  <rect x="262" y="73.0" width="389.1" height="17" rx="2.5" fill="#AA3377" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="658.1" y="86.0" class="barc-pct">3.2%</text>
-  <text x="242" y="113.0" text-anchor="end" class="barc-name">045 OB-STR-CTX Inh IMN</text>
-  <rect x="262" y="100.0" width="389.1" height="17" rx="2.5" fill="#4477AA" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="658.1" y="113.0" class="barc-pct">3.2%</text>
-  <text x="242" y="140.0" text-anchor="end" class="barc-name">338 Lymphoid NN</text>
-  <rect x="262" y="127.0" width="389.1" height="17" rx="2.5" fill="#DD44AA" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="658.1" y="140.0" class="barc-pct">3.2%</text>
-  <text x="242" y="167.0" text-anchor="end" class="barc-name">337 DC NN</text>
-  <rect x="262" y="154.0" width="389.1" height="17" rx="2.5" fill="#FF9955" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="658.1" y="167.0" class="barc-pct">3.2%</text>
-  <text x="242" y="194.0" text-anchor="end" class="barc-name">336 Monocytes NN</text>
-  <rect x="262" y="181.0" width="389.1" height="17" rx="2.5" fill="#99DD55" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="658.1" y="194.0" class="barc-pct">3.2%</text>
-  <text x="242" y="221.0" text-anchor="end" class="barc-name">038 DG-PIR Ex IMN</text>
-  <rect x="262" y="208.0" width="385.9" height="17" rx="2.5" fill="#CC3333" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="654.9" y="221.0" class="barc-pct">3.2%</text>
-  <text x="242" y="248.0" text-anchor="end" class="barc-name">326 OPC NN</text>
-  <rect x="262" y="235.0" width="374.8" height="17" rx="2.5" fill="#CC5500" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="643.8" y="248.0" class="barc-pct">3.1%</text>
-  <text x="242" y="275.0" text-anchor="end" class="barc-name">332 SMC NN</text>
-  <rect x="262" y="262.0" width="373.5" height="17" rx="2.5" fill="#BBBBBB" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="642.5" y="275.0" class="barc-pct">3.1%</text>
-  <text x="242" y="302.0" text-anchor="end" class="barc-name">319 Astro-TE NN</text>
-  <rect x="262" y="289.0" width="351.4" height="17" rx="2.5" fill="#BF94E4" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="620.4" y="302.0" class="barc-pct">2.9%</text>
-  <text x="242" y="329.0" text-anchor="end" class="barc-name">333 Endo NN</text>
-  <rect x="262" y="316.0" width="342.4" height="17" rx="2.5" fill="#A07038" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="611.4" y="329.0" class="barc-pct">2.8%</text>
-</svg>
-<figcaption>Empty cell 16150 at <code>rTheta = 2</code>: the cell-to-class posterior is almost uniform (top 12 of 39 classes; bar length is relative to the top class).</figcaption>
-</figure>
-
-The near-uniform **cell-to-class** posterior (the distribution over which type the cell is,
-not the posterior of any single scale factor) comes from theta. The cell has no counts, so
-theta collapses for every class, scaling each class's predicted expression down to the floor.
-The gene likelihood is then the same across classes, and the uniform prior adds no separation,
-so the cell-to-class posterior is almost uniform. Zero ends up just ahead because of the cap:
-it holds every real class a fixed distance below Zero, so the classes pressing hardest against
-it, the ones with enough like-typed neighbours, land right underneath at 3.2% against Zero's
-3.5%. They cannot get any closer.
-
-At `rTheta = 2` the cap does its job and Zero wins, but only just: the cell-to-class posterior
-is almost uniform. How concentrated that posterior becomes on Zero is set by `rTheta`.
-
-### The same cell with a stronger Zero prior
-
-Raise `rTheta` from 2 to 20 and theta can no longer collapse as far. Theta is fit per cell
-**and** per class, so even for this one empty cell it takes a different value for each class:
-at `rTheta = 20` those values land in the 0.2 to 0.6 range, against the near-zero they reached
-at `rTheta = 2`. Here is the same cell.
-
-<figure class="diagram">
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 356" role="img" aria-label="Cell-to-class posterior for empty cell 16150, top 12 classes">
-  <text x="242" y="32.0" text-anchor="end" class="barc-name">Zero</text>
-  <rect x="262" y="19.0" width="430.0" height="17" rx="2.5" fill="#000000" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="699.0" y="32.0" class="barc-pct">31.2%</text>
-  <text x="242" y="59.0" text-anchor="end" class="barc-name">336 Monocytes NN</text>
-  <rect x="262" y="46.0" width="389.1" height="17" rx="2.5" fill="#99DD55" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="658.1" y="59.0" class="barc-pct">28.2%</text>
-  <text x="242" y="86.0" text-anchor="end" class="barc-name">338 Lymphoid NN</text>
-  <rect x="262" y="73.0" width="389.1" height="17" rx="2.5" fill="#DD44AA" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="658.1" y="86.0" class="barc-pct">28.2%</text>
-  <text x="242" y="113.0" text-anchor="end" class="barc-name">045 OB-STR-CTX Inh IMN</text>
-  <rect x="262" y="100.0" width="66.9" height="17" rx="2.5" fill="#4477AA" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="335.9" y="113.0" class="barc-pct">4.8%</text>
-  <text x="242" y="140.0" text-anchor="end" class="barc-name">337 DC NN</text>
-  <rect x="262" y="127.0" width="31.7" height="17" rx="2.5" fill="#FF9955" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="300.7" y="140.0" class="barc-pct">2.3%</text>
-  <text x="242" y="167.0" text-anchor="end" class="barc-name">331 Peri NN</text>
-  <rect x="262" y="154.0" width="22.7" height="17" rx="2.5" fill="#AA3377" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="291.7" y="167.0" class="barc-pct">1.6%</text>
-  <text x="242" y="194.0" text-anchor="end" class="barc-name">036 HPF CR Glut</text>
-  <rect x="262" y="181.0" width="13.8" height="17" rx="2.5" fill="#AA3377" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="282.8" y="194.0" class="barc-pct">1.0%</text>
-  <text x="242" y="221.0" text-anchor="end" class="barc-name">038 DG-PIR Ex IMN</text>
-  <rect x="262" y="208.0" width="8.6" height="17" rx="2.5" fill="#CC3333" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="277.6" y="221.0" class="barc-pct">0.6%</text>
-  <text x="242" y="248.0" text-anchor="end" class="barc-name">332 SMC NN</text>
-  <rect x="262" y="235.0" width="8.2" height="17" rx="2.5" fill="#BBBBBB" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="277.2" y="248.0" class="barc-pct">0.6%</text>
-  <text x="242" y="275.0" text-anchor="end" class="barc-name">326 OPC NN</text>
-  <rect x="262" y="262.0" width="5.7" height="17" rx="2.5" fill="#CC5500" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="274.7" y="275.0" class="barc-pct">0.4%</text>
-  <text x="242" y="302.0" text-anchor="end" class="barc-name">333 Endo NN</text>
-  <rect x="262" y="289.0" width="3.4" height="17" rx="2.5" fill="#A07038" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="272.4" y="302.0" class="barc-pct">0.2%</text>
-  <text x="242" y="329.0" text-anchor="end" class="barc-name">319 Astro-TE NN</text>
-  <rect x="262" y="316.0" width="2.9" height="17" rx="2.5" fill="#BF94E4" stroke="currentColor" stroke-opacity="0.28" stroke-width="1" />
-  <text x="271.9" y="329.0" class="barc-pct">0.2%</text>
-</svg>
-<figcaption>The same cell at <code>rTheta = 20</code>: the high-expression classes drop out, leaving Zero and the two lowest-expression classes (top 12 of 39).</figcaption>
-</figure>
-
-Zero climbs from 3.5% to 31%. Because theta can no longer shrink to near zero, a
-high-expression class like Oligo (theta 0.37 here) still predicts far more counts than the
-cell's zero, so it is penalised and its probability drops to 0. The lowest-expression classes
-on this panel, Monocytes and Lymphoid, predict almost nothing whatever theta does, because
-their reference expression is tiny; they stay beside Zero at 28%, and the stronger prior
-cannot separate them.
-
-</details>
 
 It reads the current gene counts per cell, the current cell-type estimates and the
 raw cell type definitions, and produces a warped expected expression rescaled at every

@@ -181,7 +181,7 @@
           barely express</li>
     </ul>
     <p>
-      In each cell's panel, next to the spot count, <b>estimated</b> is the total the cell's
+      In each cell's panel, next to the spot count, <b>expected</b> is the total the cell's
       true class specifies at the current settings. It turns orange when it departs from the
       observed count.
     </p>
@@ -537,7 +537,7 @@
       var ratio = pred / Math.max(c.total, 1);
       var off = Math.abs(Math.log(ratio)) > 0.35;      // more than about 1.4x either way
       document.getElementById("s" + i).innerHTML =
-        c.total + ' spots, estimated <span style="color:' +
+        c.total + ' spots, expected <span style="color:' +
         (off ? cssVar("--c0") : cssVar("--muted")) + '">' + Math.round(pred) + '</span>';
 
       var el = document.getElementById("v" + i);
