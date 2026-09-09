@@ -217,21 +217,6 @@
 .barc-name { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; }
 .barc-pct { fill: var(--vp-c-text-1); font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; font-size: 13px; opacity: 0.6; }
 
-/* The scaling factors demo is an embedded page of its own and was drawn for a
-   1000px column, so it gets the full width rather than the reading column. */
-.demo-page .VPDoc .content-container {
-  max-width: none;
-}
-
-/* The demo sits on the page with no frame around it, so the prose above and
-   below it has to line up with the prose inside it. That means dropping the
-   68ch measure here, the demo runs the full column. */
-.demo-page .vp-doc p,
-.demo-page .vp-doc ul,
-.demo-page .vp-doc ol {
-  max-width: none;
-}
-
 
 /* Demo, option A. The page keeps the column, margins and 68ch measure of every
    other page. Only the demo runs wide, over the outline column, which is empty

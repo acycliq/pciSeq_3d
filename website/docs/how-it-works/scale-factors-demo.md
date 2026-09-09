@@ -1,12 +1,12 @@
 ---
-# the demo was drawn for a 1000px column, so give it the full width
-pageClass: demo-page
-aside: false
+# standard column, margins and reading measure. Only the demo runs wide.
+pageClass: demo-wide
 ---
 
 # 2a. Demo: the scaling factors
 
-<DemoFrame src="/cells-demo.html" title="Interactive demo of the scaling factors" />
+<DemoFrame src="/cells-demo.html?narrow=1&amp;fold=1" wide
+           title="Interactive demo of the scaling factors" />
 
 The demo runs standalone at
 [cells-demo.html](../cells-demo.html){target="_blank"} if the frame above is too cramped.
