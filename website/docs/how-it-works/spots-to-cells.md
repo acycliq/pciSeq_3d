@@ -1,7 +1,7 @@
 
-# Block 4: Assigning spots to cells
+# 4. Assigning spots to cells
 
-The final block of the loop assigns each RNA spot to the cell most likely to have
+The last of the four assigns each RNA spot to the cell most likely to have
 produced it, or to the background. It also closes the loop: once the spots are
 reassigned, the gene counts per cell change, and the next iteration begins.
 
@@ -10,12 +10,11 @@ assign the spot to whichever explains it best.
 
 ## The assignment score
 
-When a cell weighs up a spot, it asks two questions: **where are you?** and **what are
-you?** The first is geometry; the second is about identity - whether a cell like this would
-produce this gene. The score adds the two together.
+The score combines two quantities: how far the spot lies from the cell, and how likely a
+cell of that type is to produce that gene. The first is geometry, the second identity.
 
 <figure class="diagram">
-<svg class="sb-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 372" role="img" aria-label="The building blocks of the spot-to-cell score">
+<svg class="sb-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 372" role="img" aria-label="The terms of the spot-to-cell score">
 <rect class="sb-root" x="380" y="12" width="180" height="42" rx="11" />
 <text class="sb-root-txt" x="470" y="39" text-anchor="middle">spot &#8594; cell score</text>
 <path class="sb-link" d="M 470,54 L 470,92" />
@@ -68,7 +67,7 @@ produce this gene. The score adds the two together.
 <text class="sb-q" x="826" y="292" text-anchor="middle">readable?</text>
 <text class="sb-cap" x="826" y="326" text-anchor="middle">vs background</text>
 </svg>
-<figcaption>The score, block by block. One block asks <em>where</em> the spot is; four ask <em>what</em> it is. The score simply adds them up.</figcaption>
+<figcaption>The score, term by term. One term asks <em>where</em> the spot is; four ask <em>what</em> it is. The score simply adds them up.</figcaption>
 </figure>
 
 ### Spatial fit
@@ -81,7 +80,7 @@ It is a hard geometric measurement, and it says nothing about which gene the spo
 
 The "what" splits into four, each a different way of asking *does this gene belong in this
 cell?* All four are weighted by how **confident** we are about the cell's type (from
-[block 3](cell-to-celltype.md)): the surer the cell is of what it is, the more decisively
+[cell typing](cell-to-celltype.md)): the surer the cell is of what it is, the more decisively
 each one speaks.
 
 **Alignment - does the cell's *type* express this gene?** If the cell is probably a type
@@ -91,7 +90,8 @@ all else equal: it is drawn to the one whose likely type expresses the gene. Tha
 between what the cell probably is and what the gene marks - is its *alignment*.
 
 **Gravity - is this a big, active cell?** Some cells gather more transcripts than their type
-predicts (the per-cell scaling from [block 2](warping-the-reference.md)). Read that as the
+predicts (the per-cell scaling from
+[warping the cell type definitions](warping-the-reference.md)). Read that as the
 cell's **mass**: a heavier cell pulls harder, so with everything else equal a spot drifts
 toward whichever cell is already capturing the most. A "rich-get-richer" pull that lets a
 clearly active cell claim the ambiguous spots around it.
@@ -115,7 +115,7 @@ pixel falls within a cell's segmented boundary; it is off by default.
 ## The background option
 
 Each spot also competes against the background option from
-[block 1](misread-density.md). If no nearby cell explains the spot better than the
+[the misread density](misread-density.md). If no nearby cell explains the spot better than the
 background, the spot is attributed to the background. This is how genuine misreads are
 filtered out: they fail to exceed the background level for any cell.
 
@@ -130,12 +130,12 @@ single cell.
 ## Feedback into the next iteration
 
 Reassigning the spots changes how many copies of each gene fall within each cell. These
-updated counts are the inputs that [block 1](misread-density.md) and
-[block 2](warping-the-reference.md) require for the next iteration. The estimates are
+updated counts are the inputs that [the misread density](misread-density.md) and
+[the warping](warping-the-reference.md) require for the next iteration. The estimates are
 refined on each pass, and when the spot probabilities stop changing the algorithm has
 converged and returns its result.
 
-The block reads spot locations, cell-type probabilities, the warped definitions with their
+It reads spot locations, cell-type probabilities, the warped definitions with their
 scaling factors, and the per-gene background rates. It produces a probability distribution
 over the nearby cells and the background for every spot. Those probabilities become the
 updated gene counts that drive the next iteration.

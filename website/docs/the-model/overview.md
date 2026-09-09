@@ -1,7 +1,7 @@
 
 # The model: formal definition
 
-The [how it works](../how-it-works/overview.md) section explains the algorithm one block
+The [how it works](../how-it-works/overview.md) section explains the algorithm one piece
 at a time, in words. This section states the same model formally and derives every update
 equation. It follows *The extended pciSeq model* (v0.3), which is the version the
 `dev_3d` code implements. The model builds on the original construction of Qian et al.

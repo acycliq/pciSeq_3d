@@ -4,7 +4,8 @@
 Three corrections sit between the scRNA-seq reference and the in situ experiment, each
 rescaling the expected expression at a different level of detail. They are what let the
 model compare a cell's observed counts against the reference on a fair footing: the
-[warping the reference](../how-it-works/warping-the-reference.md) page gives the intuition,
+[warping the cell type definitions](../how-it-works/warping-the-reference.md) page gives the
+intuition,
 and the sections below give the derivations.
 
 | Factor | Indexed by | Corrects |
@@ -120,7 +121,8 @@ $k$, so it needs no weighting by $\bar\zeta_{c,k}$ in its own update.
 #### The prior strength $r_\theta$
 
 $r_\theta$ sets how far the data are allowed to move $\theta_c$ from its baseline of $1$.
-Both extremes are legitimate; the right choice depends on how much you trust the counts:
+Both extremes are legitimate; the choice depends on how far the counts are to be
+trusted:
 
 - **Weak prior ($r_\theta$ small).** The posterior is essentially data-driven:
   $\hat\theta_{c\mid k} \approx \bar N_c / (\text{predicted total under } k)$, the cell's
@@ -128,8 +130,8 @@ Both extremes are legitimate; the right choice depends on how much you trust the
 - **Strong prior ($r_\theta \to \infty$).** The posterior collapses onto the prior:
   $\hat\theta_{c\mid k} \to 1$, and the whole-cell correction is effectively switched off.
 
-So a weak prior is a perfectly reasonable choice when you want the data to drive inference.
-One consequence requires care, for **near-empty cells**.
+A weak prior is therefore reasonable where the data are to drive the correction. One
+consequence requires care, for **near-empty cells**.
 
 Take a cell with very few spots (a small $\bar N_c$) under a weak prior. $\hat\theta_{c\mid k}$
 is then free to collapse to a very small value, and a small $\theta$ scales the predicted

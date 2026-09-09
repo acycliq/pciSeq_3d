@@ -47,10 +47,17 @@ export default defineConfig({
         link: '/how-it-works/overview',
         items: [
           { text: 'Overview', link: '/how-it-works/overview' },
-          { text: 'Block 1: Misread density', link: '/how-it-works/misread-density' },
-          { text: 'Block 2: Warping the reference', link: '/how-it-works/warping-the-reference' },
-          { text: 'Block 3: Cell to cell type', link: '/how-it-works/cell-to-celltype' },
-          { text: 'Block 4: Spots to cells', link: '/how-it-works/spots-to-cells' },
+          { text: '1. Misread density', link: '/how-it-works/misread-density' },
+          {
+            text: '2. Warping the cell type definitions',
+            link: '/how-it-works/warping-the-reference',
+            // the demo hangs off this one, so it sits indented under it
+            items: [
+              { text: '2a. Demo: the scaling factors', link: '/how-it-works/scale-factors-demo' },
+            ],
+          },
+          { text: '3. Cell to cell type', link: '/how-it-works/cell-to-celltype' },
+          { text: '4. Spots to cells', link: '/how-it-works/spots-to-cells' },
         ],
       },
       {

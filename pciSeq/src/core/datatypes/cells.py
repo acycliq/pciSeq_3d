@@ -1,4 +1,5 @@
 # Standard library imports
+import os
 import logging
 from typing import Tuple, Dict, Any
 
@@ -385,25 +386,46 @@ class Cells(object):
         # neighbour distances, so what counts as close depends on how crowded that
         # bit of tissue is. This is what banksy calls scaled_gaussian.
         #
-        # We used to use 1/d here. The trouble with it is that it has no ceiling:
-        # when two cells nearly touch, 1/d goes through the roof and that one
-        # neighbour walks off with nearly all the weight, up to 7.6 out of 9 on
-        # the espio cells. The cell's class then gets decided by a single
-        # neighbour and the two of them can sit there flipping each other back and
-        # forth forever. exp(-(d/sigma)^2) is flat near zero, so a neighbour that
-        # is very close does not gain much by being closer still, and the worst
-        # any single one gets is about 3 out of 9.
-        #
-        # It still weighs by distance, more so than 1/d did if anything: the
-        # nearest neighbour counts about 3.2x the furthest, against 2.2x for 1/d,
-        # and the weights drop off at every rank for every cell.
+        # exp(-(d/sigma)^2) is flat near zero, so a neighbour that is very close
+        # does not gain much by being closer still, and the worst any single one
+        # gets is about 3 out of 9. It still weighs by distance: the nearest
+        # neighbour counts about 3.2x the furthest, and the weights drop off at
+        # every rank for every cell.
         #
         # Normalise so the weights sum to nNeighbors (e.g. 9), matching the
         # scale of zeta (class probs sum to 1 per neighbor, 9 neighbors total).
         # This way proximity and zeta contribute equally to the MRF potential.
-        sigma = np.median(self.nbrs['distances'], axis=1, keepdims=True)
-        nbrs_prxmty = np.exp(-(self.nbrs['distances'] / sigma) ** 2)
-        nbrs_prxmty = nbrs_prxmty / nbrs_prxmty.sum(axis=1, keepdims=True) * nbrs_idx.shape[1]
+        d = self.nbrs['distances']
+        nN = nbrs_idx.shape[1]
+
+        # Experiment only, both off unless the env vars are set. PCISEQ_MRF_WEIGHT
+        # picks the shape of the weight, PCISEQ_MRF_NORM picks how the row is
+        # scaled. Defaults reproduce the shipped behaviour exactly.
+        _shape = os.environ.get('PCISEQ_MRF_WEIGHT', 'gaussian')
+        _norm = os.environ.get('PCISEQ_MRF_NORM', 'row')
+
+        if _shape == 'gaussian':
+            sigma = np.median(d, axis=1, keepdims=True)
+            nbrs_prxmty = np.exp(-(d / sigma) ** 2)
+        elif _shape == 'invd':
+            nbrs_prxmty = 1.0 / np.maximum(d, 1e-6)
+        elif _shape == 'uniform':
+            nbrs_prxmty = np.ones_like(d)
+        else:
+            raise ValueError('PCISEQ_MRF_WEIGHT must be gaussian, invd or uniform')
+
+        if _norm == 'row':
+            # every cell gets the same total, nN. This is what ships.
+            nbrs_prxmty = nbrs_prxmty / nbrs_prxmty.sum(axis=1, keepdims=True) * nN
+        elif _norm == 'global':
+            # one constant for the whole section, so rows average nN but a cell
+            # with distant neighbours genuinely receives less pull. Keeps total
+            # mrf strength comparable to 'row', which is the point of the test.
+            nbrs_prxmty = nbrs_prxmty / nbrs_prxmty.sum(axis=1).mean() * nN
+        elif _norm == 'none':
+            pass
+        else:
+            raise ValueError('PCISEQ_MRF_NORM must be row, global or none')
 
         # Proximity-weighted sum of neighbour class probabilities (zeta)
         nbr_probs = self.classProb[nbrs_idx]  # (nC, nN, nK)

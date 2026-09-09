@@ -43,6 +43,6 @@ to cell types.
 To run it, either call [`fit`](api/reference.md#fit) from Python or describe the dataset in
 a config file and use the [command line](api/command-line.md).
 
-The following pages describe how the algorithm works, one building block at a time. Begin
+The following pages describe how the algorithm works, one piece at a time. Begin
 with the [overview](how-it-works/overview.md) for the structure of the loop, then read
-the blocks in order.
+them in order.

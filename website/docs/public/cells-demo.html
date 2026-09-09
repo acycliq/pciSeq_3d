@@ -1,0 +1,696 @@
+<!doctype html>
+<title>Scaling Factors Demo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600&display=swap">
+<style>
+  :root { --ground:#fbfbfd; --panel:#fff; --ink:#3c3c43; --muted:#656c7a; --line:#e2e5eb;
+          --accent:#3b6ea5; --c0:#c2683a; --c1:#3b6ea5; --c2:#4a8a6f; --good:#3f7d54; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#14161a; --panel:#1b1e24; --ink:#e6e9ee; --muted:#98a0af; --line:#2b3038;
+      --accent:#6fa3d8; --c0:#e08a54; --c1:#6fa3d8; --c2:#63b189; --good:#6ab585; } }
+  :root[data-theme="dark"] {
+    --ground:#14161a; --panel:#1b1e24; --ink:#e6e9ee; --muted:#98a0af; --line:#2b3038;
+    --accent:#6fa3d8; --c0:#e08a54; --c1:#6fa3d8; --c2:#63b189; --good:#6ab585; }
+
+  body { background:var(--ground); color:var(--ink); margin:0; padding:24px;
+         font:16px/1.7 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+  .wrap { max-width:1000px; margin:0 auto; display:flex; flex-direction:column; gap:18px; }
+  h1 { font-family:"IBM Plex Serif",Georgia,"Times New Roman",serif;
+       font-size:24px; margin:0; font-weight:600; letter-spacing:-.01em; }
+  .guide h2 { font-size:13px; margin:0 0 8px; text-transform:uppercase;
+              letter-spacing:.07em; color:var(--muted); font-weight:600; }
+  .guide h2 + p { margin-top:0; }
+  .guide p { margin:0 0 14px; }
+  .guide p:last-child { margin-bottom:0; }
+  .guide ul { margin:0 0 18px; padding-left:22px; }
+  .guide li { margin:8px 0; padding-left:2px; }
+  .qa { border-left:2px solid var(--line); padding:0 0 0 18px; margin:14px 0; }
+  .qa > summary { cursor:pointer; list-style:none; padding:7px 0; font-weight:500;
+                  display:flex; gap:9px; align-items:baseline; }
+  .qa > summary::-webkit-details-marker { display:none; }
+  .qa > summary::before { content:"\25B8"; color:var(--accent); display:inline-block;
+                          transition:transform .15s ease; }
+  .qa[open] > summary::before { transform:rotate(90deg); }
+  @media (prefers-reduced-motion: reduce) {
+    .qa > summary::before { transition:none; } }
+  .qa > summary:hover { color:var(--accent); }
+  .qa .qabody { padding:4px 0 12px; }
+  .qa p { margin:0 0 12px; }
+  .qa p:last-child { margin-bottom:0; }
+  .keypoint { border-left:3px solid var(--c0); background:var(--panel);
+              padding:12px 16px; margin:18px 0; font-weight:500; }
+  .guide h2:not(:first-child) { margin-top:34px; }
+  /* ?narrow=1: prose takes the same 68 character measure the docs pages use,
+     while the field and the panels keep the full width. */
+  body.narrow .wrap > div > p,
+  body.narrow .guide p,
+  body.narrow .guide ul,
+  body.narrow .qa > summary,
+  body.narrow .caption { max-width:68ch; }
+  .field { border:1px solid var(--line); border-radius:6px; overflow:hidden; background:#05070d;
+           position:relative; }
+  canvas.dapi { cursor:crosshair; }
+  .tip { position:absolute; pointer-events:none; z-index:5; display:none;
+         background:rgba(10,14,22,0.94); border:1px solid rgba(255,255,255,0.22);
+         border-radius:4px; padding:5px 8px; font-size:12px; color:#f0f3f8;
+         white-space:nowrap; transform:translate(-50%, -140%); }
+  .tip b { font-weight:600; }
+  .tip .tsw { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .tip .tsub { color:#9aa4b4; }
+  canvas.dapi { display:block; width:100%; height:auto; }
+
+  .ctrl { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:14px 16px; }
+  .ctrlhead { display:flex; align-items:baseline; gap:12px; }
+  .label { font-size:12px; color:var(--muted); font-weight:600; }
+  .val { font:600 17px ui-monospace,SFMono-Regular,Menlo,monospace;
+         font-variant-numeric:tabular-nums; color:var(--accent); }
+  input[type=range] { width:100%; accent-color:var(--accent); margin-top:6px; }
+  input[type=range]:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+  .ticks { display:flex; justify-content:space-between; color:var(--muted); font-size:11px;
+           font-family:ui-monospace,monospace; }
+  .hint { color:var(--muted); font-size:12px; margin:8px 0 0; }
+  .btnrow { display:flex; align-items:center; gap:10px; margin-top:12px; }
+  .btnrow button { font:inherit; font-size:13px; color:var(--ink); background:var(--panel);
+                   border:1px solid var(--line); border-radius:4px; padding:5px 14px;
+                   cursor:pointer; }
+  .btnrow button:hover { border-color:var(--accent); color:var(--accent); }
+  .btnrow button:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  .btnrow #fit { border-color:var(--accent); color:var(--accent); font-weight:600; }
+
+  .charts { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .chart.col1 { grid-column:1; grid-row:2; }
+  .chart.col2 { grid-column:2; grid-row:2; }
+  @media (max-width:760px) { .charts { grid-template-columns:1fr; }
+                             .chart.col1, .chart.col2 { grid-column:1; grid-row:auto; } }
+  .chart { background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:12px 14px; }
+  .chart h3 { margin:0 0 2px; font-size:14px; font-weight:600; }
+  .sub { color:var(--muted); font-size:11px; margin-bottom:10px; }
+  .bars { display:flex; align-items:flex-end; gap:14px; height:104px; }
+  .bcol { flex:1; display:flex; flex-direction:column; align-items:center; gap:5px; height:100%;
+          justify-content:flex-end; }
+  .bfill { width:100%; border-radius:3px 3px 0 0; min-height:2px; transition:height .1s ease; }
+  @media (prefers-reduced-motion:reduce) { .bfill { transition:none; } }
+  .bpct { font:11px ui-monospace,monospace; font-variant-numeric:tabular-nums; color:var(--ink); }
+  .bname { font-size:11px; color:var(--muted); }
+  .called { margin-top:9px; font-size:12px; }
+  .thetabox { margin-top:11px; padding-top:9px; border-top:1px solid var(--line); }
+  .thetahead { display:flex; justify-content:space-between; align-items:baseline; }
+  .tval { font:600 12px ui-monospace,SFMono-Regular,Menlo,monospace;
+          font-variant-numeric:tabular-nums; color:var(--accent); }
+  input.tslider { width:100%; accent-color:var(--accent); margin-top:3px; }
+  input.tslider:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  .gridwrap { border:1px solid var(--line); border-radius:6px; background:var(--panel);
+              width:max-content; max-width:100%; }
+  table.sc { border-collapse:collapse; font-size:12px; white-space:nowrap; }
+  table.sc th, table.sc td { border:1px solid var(--line); padding:5px 9px; }
+  table.sc thead th { background:var(--panel); font-weight:600; text-align:center; }
+  table.sc tbody th { background:var(--panel); text-align:left; font-weight:600; }
+  table.sc td { text-align:right; font-family:ui-monospace,monospace;
+                font-variant-numeric:tabular-nums; }
+  table.sc td.zero { color:var(--muted); opacity:.45; }
+  table.sc tfoot th, table.sc tfoot td { border-top:2px solid var(--muted);
+                                         font-weight:600; background:var(--panel); }
+  table.sc tfoot th { color:var(--muted); text-transform:uppercase;
+                      letter-spacing:.06em; font-size:11px; }
+  .gsw { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:5px; }
+  .caption { color:var(--muted); font-size:12px; margin:0 0 8px; }
+  .llpair { display:grid; grid-template-columns:1fr 1fr; gap:16px;
+            margin:18px 0 8px; max-width:640px; }
+  @media (max-width:600px) { .llpair { grid-template-columns:1fr; } }
+  .llpanel { background:var(--panel); border:1px solid var(--line); border-radius:6px;
+             padding:14px 16px 12px; }
+  .llpanel .label { display:block; margin-bottom:12px; }
+  .llnote { color:var(--muted); font-size:11px; margin:10px 0 0; }
+</style>
+
+<div class="wrap">
+  <div>
+    <h1>A mini demo</h1>
+  </div>
+
+  <div class="guide">
+    <p>
+      We have created a minimal set of cell type definitions for three hippocampal classes, CA1,
+      CA2 and CA3, shown below.
+    </p>
+    <div class="gridwrap" style="margin-bottom:14px">
+      <table class="sc" id="grid"></table>
+    </div>
+    <p>
+      In the image below there are five cells. Cells 1, 2 and 3 were generated from CA1, CA2 and
+      CA3 at one fifth of these counts: Cell 1 has 93 spots where the CA1 definition specifies
+      466. <b>Inefficiency</b> is the setting for that shortfall.
+    </p>
+    <p>
+      Cell 4 is a second CA2 cell, dimmer again by a factor of ten: 11 spots where CA2 specifies
+      120 once the Inefficiency is applied. <b>Theta</b> is the setting for what the Inefficiency
+      leaves unexplained.
+    </p>
+    <p>
+      Cell 5 is a CA1 cell with one gene out of line, 14 Nptx1 spots where CA1 specifies 2 after
+      the Inefficiency. <b>Gamma</b> is the setting for what the other two leave unexplained,
+      gene by gene.
+    </p>
+    <details class="qa">
+      <summary><span>There is a fourth scaling factor, eta. Why is it not here?</span></summary>
+      <div class="qabody">
+        <p>It is held at 1 for simplicity. Eta is per gene across all cells, so it
+          sits between the Inefficiency and theta in granularity. Once theta and gamma make sense,
+          eta follows the same pattern.</p>
+      </div>
+    </details>
+
+  <div class="field">
+    <canvas class="dapi" id="dapi" width="1180" height="700"
+            aria-label="Simulated field of cells, hover a spot to see its gene"></canvas>
+    <div class="tip" id="tip"></div>
+  </div>
+
+    <h2>Inefficiency</h2>
+    <p>
+      With every theta at 1, drag the Inefficiency slider. The cells were built at one fifth of
+      the reference, so all three are called correctly at around 0.2. Move away from that and
+      they start to break:
+    </p>
+    <ul>
+      <li>below about 0.15, Cell 1 is called CA3</li>
+      <li>above about 0.35, Cell 3 is called CA1</li>
+      <li>Cell 2 is never miscalled, because it carries Pcp4, which the other two classes
+          barely express</li>
+    </ul>
+    <p>
+      In each cell's panel, next to the spot count, <b>estimated</b> is the total the cell's
+      true class specifies at the current settings. It turns orange when it departs from the
+      observed count.
+    </p>
+  </div>
+
+  <div class="ctrl">
+    <div class="ctrlhead">
+      <span class="label">Inefficiency</span>
+      <span class="val" id="etaval">0.20</span>
+      <span class="hint" style="margin:0">multiplies every gene of every class by the same number</span>
+    </div>
+    <input id="eta" type="range" min="0.01" max="10" step="0.01" value="0.2"
+           aria-label="Inefficiency" />
+    <div class="ticks"><span>0</span><span>2</span><span>4</span><span>6</span><span>8</span><span>10</span></div>
+    <div class="btnrow">
+      <button id="fit" type="button">Fit</button>
+      <button id="reset" type="button">Reset</button>
+      <span class="hint" id="fitnote">Fit puts every slider where the data says it should be.</span>
+    </div>
+  </div>
+
+
+  <div id="scaledblock">
+    <p class="caption">The definitions after the panel-wide scaling, every value multiplied by
+      <span class="val" id="etaval2" style="font-size:13px">0.20</span>.
+      Each cell's own theta is applied on top of this.</p>
+    <div class="gridwrap"><table class="sc" id="grid2"></table></div>
+  </div>
+  <div class="charts" id="charts"></div>
+
+  <div class="guide">
+      <h2>Theta</h2>
+      <ul>
+        <li>Indexed by cell and class. Cell 1's slider multiplies the CA1 definitions by theta,
+            on top of the Inefficiency, while CA2 and CA3 stay scaled by the Inefficiency alone.
+            The cell's counts are then scored against all three, and the probabilities follow.</li>
+        <li>Drag it away from that and the class specifies too many counts, or too few. An
+            untouched rival eventually fits better and takes the call: Cell 1 goes to CA3 below
+            0.55 and again above about 2.</li>
+        <li>Cells 1, 2 and 3 need no scaling beyond the Inefficiency, so their theta stays at 1.</li>
+        <li>Cell 4 was built from the CA2 definitions but deliberately with far fewer spots, 11
+            where CA2 specifies 120 after the Inefficiency. At theta 1 it is miscalled as CA1. Pull its theta down to
+            about 0.1 and CA2 fits.</li>
+      </ul>
+
+      <details class="qa">
+        <summary><span>For Cell 1, dragging the slider right and raising theta pushes the
+          probability of CA3 to 100%. Why?</span></summary>
+        <div class="qabody">
+          <p>Theta multiplies the CA1 definitions, so the counts CA1 specifies grow
+            well beyond what the cell actually has. CA2 and CA3 are untouched. CA1 becomes the
+            least plausible of the three, and CA3, already the closer of the other two, takes the
+            call.</p>
+          <p class="keypoint">A probability of 100% does not necessarily mean a perfect match. It
+            can be the least bad of three poor options.</p>
+        </div>
+      </details>
+
+      <details class="qa">
+        <summary><span>Cell 4 is called CA2 for any theta below about 0.96 and CA1 above it. The
+          slider gives no reason to prefer one value over another. How does pciSeq choose theta
+          rather than leaving it open?</span></summary>
+        <div class="qabody">
+          <p>It does not choose, it computes one theta for every candidate class:</p>
+          <p style="font-family:ui-monospace,monospace;font-size:13px;margin-left:14px">
+            theta(cell, class) = (N + rTheta - 1) / (rTheta + expected)
+          </p>
+          <p>N is the cell's observed count and expected is what that class specifies after the
+            Inefficiency. rTheta is a hyperparameter, 25 by default.
+            For Cell 4, with N = 11:</p>
+          <p style="font-family:ui-monospace,monospace;font-size:13px;margin-left:14px">
+            CA1&nbsp; expected&nbsp; 93&nbsp; &rarr;&nbsp; theta 0.30<br>
+            CA2&nbsp; expected 120&nbsp; &rarr;&nbsp; theta 0.24<br>
+            CA3&nbsp; expected 141&nbsp; &rarr;&nbsp; theta 0.21
+          </p>
+          <p>Strictly, theta is not the raw ratio of observed to expected; rTheta shrinks that
+            ratio toward 1. At low values the shrinkage is negligible and theta is
+            data-driven; at high values theta remains close to 1 regardless of the counts. rTheta
+            therefore controls how far the data are permitted to move theta. For Cell 4 the raw
+            ratio is 11 / 120 = 0.09, which rTheta lifts to 0.24.</p>
+        </div>
+      </details>
+
+      <details class="qa">
+        <summary><span>So we have three thetas for the cell, one per class. What happens
+          next?</span></summary>
+        <div class="qabody">
+          <p>Each class is scored with its own theta, giving an adjusted set of
+            definitions per class:</p>
+          <p style="font-family:ui-monospace,monospace;font-size:13px;margin-left:14px">
+            adjusted_expression(gene, class) = single_cell_data(gene, class) &times; Inefficiency
+            &times; theta(cell, class)
+          </p>
+          <p>The cell's gene counts are then scored against the adjusted expression above,
+            assuming a negative binomial distribution, giving one log-likelihood per class. A
+            softmax over those three totals gives the probabilities.</p>
+          <div class="llpair">
+            <div class="llpanel">
+              <div class="label">log-likelihood, Cell 4, theta fitted per class</div>
+              <div id="llbars"></div>
+            </div>
+            <div class="llpanel">
+              <div class="label">probability, Cell 4</div>
+              <div id="pbars"></div>
+              <p class="llnote">softmax of the totals on the left</p>
+            </div>
+          </div>
+        </div>
+      </details>
+
+    <h2>Gamma</h2>
+    <ul>
+      <li>Indexed by cell, class and gene, the finest of the three. Cell 5's slider scales the
+          expected Nptx1 count for CA1 in that cell, and nothing else: not Nptx1 in other cells,
+          not other genes in this one.</li>
+      <li>The observed counts never change. Gamma moves what the class expects, then every gene
+          including Nptx1 is scored against the negative binomial and the contributions are
+          summed.</li>
+      <li>Cell 5 has 14 Nptx1 spots where CA1 expects 2. At gamma 1 that excess makes CA3 the
+          better fit and the cell is called CA3. Raise gamma to about 6.5, the ratio of observed
+          to expected, and CA1 wins.</li>
+      <li>Theta cannot do this. It scales every gene together, so it cannot absorb one gene
+          without distorting the other thirteen.</li>
+    </ul>
+  </div>
+
+<script src="./cells-demo-data.js"></script>
+<script>
+// When the page is embedded in the docs it lives in an iframe, which cannot size
+// itself, so post the height out and let the host resize us. The host also tells us
+// which theme it is in, since prefers-color-scheme knows nothing about its toggle.
+(function measure() {
+  // the host asks for the docs reading measure with ?narrow=1
+  if (location.search.indexOf("narrow") !== -1) document.body.classList.add("narrow");
+})();
+
+(function foldTable() {
+  // ?fold=1 puts the scaled definitions behind the same disclosure the answers use.
+  // Built here rather than in the markup so the plain page keeps a plain table.
+  if (location.search.indexOf("fold") === -1) return;
+  var block = document.getElementById("scaledblock");
+  if (!block) return;
+  var cap = block.querySelector(".caption"), grid = block.querySelector(".gridwrap");
+  var det = document.createElement("details");
+  det.className = "qa";
+  var sum = document.createElement("summary");
+  cap.style.margin = "0";
+  sum.appendChild(cap);
+  var body = document.createElement("div");
+  body.className = "qabody";
+  body.appendChild(grid);
+  det.appendChild(sum);
+  det.appendChild(body);
+  block.appendChild(det);
+})();
+
+(function embedded() {
+  if (window.parent === window) return;
+  // the host sizes us to fit, so we never scroll on our own. Without this the
+  // browser keeps a scrollbar gutter from the moment before the height arrives.
+  document.documentElement.style.overflow = "hidden";
+  // sit on the host page rather than in a box of our own
+  document.body.style.background = "transparent";
+  document.body.style.padding = "0";
+  // fill the host column so our left edge lines up with its text
+  var wrap = document.querySelector(".wrap");
+  if (wrap) wrap.style.maxWidth = "none";
+  // the host page has its own title above us, no need for a second one
+  var h1 = document.querySelector("h1");
+  if (h1) h1.hidden = true;
+  var send = function () {
+    // measure the body, not the html element. The html element stretches to the
+    // height the host just gave us, so measuring it feeds our own answer back in
+    // and the frame grows a couple of pixels on every tick, forever.
+    var h = Math.ceil(document.body.getBoundingClientRect().height) + 1;
+    parent.postMessage({ demoHeight: h }, "*");
+  };
+  window.addEventListener("load", send);
+  window.addEventListener("resize", send);
+  if (window.ResizeObserver) new ResizeObserver(send).observe(document.body);
+  window.addEventListener("message", function (ev) {
+    var t = ev.data && ev.data.theme;
+    if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+    // answer anything the host sends. If it mounted after we had already loaded it
+    // missed our first height and this is how it asks again.
+    send();
+  });
+})();
+</script>
+<script>
+(function () {
+  "use strict";
+  var BUILT_ETA = 0.2, R = 2.0;
+  var CLSCOL = ["--c0", "--c1", "--c2"];
+  var CELLS = [
+    { label: "Cell 1", src: "CA1", cx: 0.18, cy: 0.34, r: 70, theta: 1 },
+    { label: "Cell 2", src: "CA2", cx: 0.50, cy: 0.30, r: 64, theta: 1 },
+    { label: "Cell 3", src: "CA3", cx: 0.82, cy: 0.38, r: 60, theta: 1 },
+    { label: "Cell 4", src: "CA2", cx: 0.50, cy: 0.76, r: 58, theta: 0.1 },
+    { label: "Cell 5", src: "CA1", cx: 0.18, cy: 0.78, r: 66, theta: 1,
+      anomaly: { gene: "Nptx1", spots: 14 } }
+  ];
+  CELLS.forEach(function (c) {
+    c.ci = REF.classes.indexOf(c.src);
+    // spots are the definition scaled by the inefficiency and then by this cell's theta
+    c.counts = REF.mu.map(function (row) { return Math.round(row[c.ci] * BUILT_ETA * c.theta); });
+    // one gene may be over represented in this cell alone, which is what gamma is for
+    if (c.anomaly) {
+      c.gi = REF.genes.indexOf(c.anomaly.gene);
+      c.counts[c.gi] = c.anomaly.spots;
+    }
+    c.total = c.counts.reduce(function (a, b) { return a + b; }, 0);
+  });
+
+  // Chosen by maximising the minimum CIELAB distance over a mid-tone pool, so no two
+  // genes look alike and every colour reads on both the dark field and the white table.
+  // Minimum separation is 35.7, against 5.9 for an even sweep round the hue wheel.
+  var PALETTE = ["#e42fe4","#2fe42f","#d0631b","#2fc0e4","#db8ab5","#beca72","#2f6ce4",
+                 "#1bd09f","#e42f60","#e1a384","#9fd01b","#d09f1b","#8a9adb","#a955be"];
+  var COLOUR = REF.genes.map(function (_, i) { return PALETTE[i % PALETTE.length]; });
+  var cssVar = function (n) {
+    return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); };
+
+  function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+  function gauss(r){var u=1-r(),v=r();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+  function lgamma(z){var g=[676.5203681218851,-1259.1392167224028,771.32342877765313,
+    -176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,
+    1.5056327351493116e-7];
+    if(z<0.5)return Math.log(Math.PI/Math.sin(Math.PI*z))-lgamma(1-z);
+    z-=1;var x=0.99999999999980993;
+    for(var i=0;i<g.length;i++)x+=g[i]/(z+i+1);
+    var t=z+g.length-0.5;
+    return 0.5*Math.log(2*Math.PI)+(z+0.5)*Math.log(t)-t+Math.log(x);}
+  function nbLogPmf(n,mu,r){var p=r/(r+mu);
+    return lgamma(n+r)-lgamma(r)-lgamma(n+1)+r*Math.log(p)+n*Math.log(1-p);}
+
+  // ---------- the field, painted once ----------
+  var SPOTS = [];
+  (function paintField() {
+    var cv = document.getElementById("dapi"), ctx = cv.getContext("2d");
+    var W = cv.width, H = cv.height, rand = mulberry32(20260907);
+    ctx.fillStyle = "#05070d"; ctx.fillRect(0, 0, W, H);
+    for (var i = 0; i < 4800; i++) {
+      ctx.fillStyle = "rgba(90,120,190," + (0.012 + rand() * 0.028).toFixed(3) + ")";
+      ctx.beginPath(); ctx.arc(rand() * W, rand() * H, rand() * 2.3, 0, 6.2832); ctx.fill();
+    }
+    function nucleus(x, y, r, bright) {
+      var g = ctx.createRadialGradient(x, y, r * 0.15, x, y, r);
+      g.addColorStop(0, "rgba(150,185,255," + 0.85 * bright + ")");
+      g.addColorStop(0.55, "rgba(80,120,215," + 0.42 * bright + ")");
+      g.addColorStop(1, "rgba(30,55,130,0)");
+      ctx.fillStyle = g; ctx.save(); ctx.translate(x, y); ctx.rotate(rand() * 6.28);
+      ctx.scale(1, 0.78 + rand() * 0.3); ctx.beginPath(); ctx.arc(0, 0, r, 0, 6.2832);
+      ctx.restore(); ctx.fill();
+    }
+    for (var k = 0; k < 14; k++) nucleus(rand()*W, rand()*H, 24+rand()*20, 0.5+rand()*0.3);
+    CELLS.forEach(function (c) { nucleus(c.cx*W, c.cy*H, c.r, 1); });
+    CELLS.forEach(function (c) {
+      var cx = c.cx*W, cy = c.cy*H;
+      c.counts.forEach(function (n, gi) {
+        for (var s = 0; s < n; s++) {
+          var sx = cx + gauss(rand) * c.r * 0.6, sy = cy + gauss(rand) * c.r * 0.6;
+          SPOTS.push({ x: sx, y: sy, gi: gi, cell: c });
+          ctx.beginPath(); ctx.arc(sx, sy, 3.1, 0, 6.2832);
+          ctx.fillStyle = COLOUR[gi]; ctx.fill();
+          ctx.lineWidth = 0.8; ctx.strokeStyle = "rgba(0,0,0,0.55)"; ctx.stroke();
+        }
+      });
+    });
+    ctx.font = "600 15px system-ui, sans-serif"; ctx.textAlign = "center";
+    CELLS.forEach(function (c) {
+      ctx.fillStyle = "rgba(255,255,255,0.92)";
+      ctx.fillText(c.label + "  (" + c.total + " spots)", c.cx*W, c.cy*H + c.r + 28);
+    });
+  })();
+
+  // ---------- the three charts ----------
+  var charts = document.getElementById("charts");
+  CELLS.forEach(function (c, i) {
+    var d = document.createElement("div");
+    d.className = "chart" + (i === 3 ? " col2" : (i === 4 ? " col1" : ""));
+    d.innerHTML = '<h3>' + c.label + '</h3><div class="sub" id="s' + i + '">' +
+      c.total + ' spots</div>' +
+      '<div class="bars">' + REF.classes.map(function (name, k) {
+        return '<div class="bcol">' +
+                 '<span class="bpct" id="p' + i + '_' + k + '">0%</span>' +
+                 '<div class="bfill" id="b' + i + '_' + k +
+                   '" style="background:' + cssVar(CLSCOL[k]) + ';height:2px"></div>' +
+                 '<span class="bname">' + name + '</span>' +
+               '</div>';
+      }).join("") + '</div><div class="called" id="v' + i + '"></div>' +
+      '<div class="thetabox">' +
+        '<div class="thetahead"><span class="label">Theta (' + c.label + ', class ' +
+          c.src + ')</span>' +
+        '<span class="tval" id="tv' + i + '">1.00</span></div>' +
+        '<input class="tslider" id="th' + i + '" type="range" min="0.01" max="10" step="0.01"' +
+        ' value="1" aria-label="theta for ' + c.label + '" />' +
+      '</div>' +
+      (c.anomaly ? '<div class="thetabox">' +
+        '<div class="thetahead"><span class="label">Gamma (' + c.label + ', ' +
+          c.anomaly.gene + ')</span>' +
+        '<span class="tval" id="gv' + i + '">1.00</span></div>' +
+        '<input class="tslider" id="gm' + i + '" type="range" min="0.01" max="10" step="0.01"' +
+        ' value="1" aria-label="gamma for ' + c.anomaly.gene + ' in ' + c.label + '" />' +
+      '</div>' : '');
+    charts.appendChild(d);
+  });
+
+  function render() {
+    var eta0 = parseFloat(document.getElementById("eta").value);
+    var shown = eta0.toFixed(2);
+    document.getElementById("etaval").textContent = shown;
+    document.getElementById("etaval2").textContent = shown;
+    document.getElementById("grid2").innerHTML = gridHTML(eta0, 0);
+
+    CELLS.forEach(function (c, i) {
+      var th = parseFloat(document.getElementById("th" + i).value);
+      document.getElementById("tv" + i).textContent = th.toFixed(2);
+      var gm = 1;
+      if (c.anomaly) {
+        gm = parseFloat(document.getElementById("gm" + i).value);
+        document.getElementById("gv" + i).textContent = gm.toFixed(2);
+      }
+      // theta is indexed by cell and class, so it scales this cell's own class only
+      var ll = REF.classes.map(function (_, k) {
+        var s = 0;
+        for (var g = 0; g < REF.mu.length; g++) {
+          var lam = eta0 * REF.mu[g][k] * (k === c.ci ? th : 1);
+          if (c.anomaly && g === c.gi && k === c.ci) lam *= gm;
+          s += nbLogPmf(c.counts[g], lam, R);
+        }
+        return s;
+      });
+      var mx = Math.max.apply(null, ll);
+      var ex = ll.map(function (v) { return Math.exp(v - mx); });
+      var tot = ex.reduce(function (a, b) { return a + b; }, 0);
+      var p = ex.map(function (v) { return v / tot; });
+      var best = p.indexOf(Math.max.apply(null, p));
+
+      p.forEach(function (v, k) {
+        document.getElementById("b" + i + "_" + k).style.height = (4 + v * 78) + "px";
+        document.getElementById("p" + i + "_" + k).textContent =
+          (v * 100 < 0.05 && v > 0) ? "<0.1%" : (v * 100).toFixed(1) + "%";
+      });
+      // the running total for this cell's own class, the one the sliders act on, so the
+      // number keeps tracking the sliders instead of jumping when the call flips
+      var pred = 0;
+      for (var g2 = 0; g2 < REF.mu.length; g2++) {
+        var l2 = eta0 * th * REF.mu[g2][c.ci];
+        if (c.anomaly && g2 === c.gi) l2 *= gm;
+        pred += l2;
+      }
+      var ratio = pred / Math.max(c.total, 1);
+      var off = Math.abs(Math.log(ratio)) > 0.35;      // more than about 1.4x either way
+      document.getElementById("s" + i).innerHTML =
+        c.total + ' spots, estimated <span style="color:' +
+        (off ? cssVar("--c0") : cssVar("--muted")) + '">' + Math.round(pred) + '</span>';
+
+      var el = document.getElementById("v" + i);
+      var right = REF.classes[best] === c.src;
+      el.innerHTML = right
+        ? '<span style="color:' + cssVar("--good") + '">&#10003;</span> called ' +
+          REF.classes[best]
+        : '<span style="color:' + cssVar("--c0") + '">&#10007;</span> called ' +
+          REF.classes[best] + ', it is ' + c.src;
+    });
+    summaryPanels(eta0);
+  }
+
+  // ---------- the worked example in the theta answer ----------
+  // Cell 4, scored the way pciSeq does it: one theta computed per candidate class,
+  // not whatever the slider happens to be set to.
+  var LL_EXAMPLE = 3, RTHETA = 25;
+
+  function summaryPanels(eta0) {
+    var c = CELLS[LL_EXAMPLE];
+    var tot = REF.classes.map(function (_, k) {
+      var expected = 0;
+      for (var g = 0; g < REF.mu.length; g++) expected += eta0 * REF.mu[g][k];
+      var th = (c.total + RTHETA - 1) / (RTHETA + expected);
+      var s = 0;
+      for (var g2 = 0; g2 < REF.mu.length; g2++)
+        s += nbLogPmf(c.counts[g2], eta0 * th * REF.mu[g2][k], R);
+      return s;
+    });
+    var bt = tot.indexOf(Math.max.apply(null, tot));
+
+    var worst = Math.min.apply(null, tot), best = tot[bt];
+    var span = Math.max(best - worst, 1e-6);
+    document.getElementById("llbars").innerHTML = '<div class="bars">' +
+      REF.classes.map(function (cl, k) {
+        var frac = 1 - (best - tot[k]) / span;
+        return '<div class="bcol">' +
+                 '<span class="bpct">' + tot[k].toFixed(1) + '</span>' +
+                 '<div class="bfill" style="background:' + cssVar(CLSCOL[k]) +
+                   ';height:' + (6 + 76 * frac).toFixed(0) + 'px"></div>' +
+                 '<span class="bname">' + cl + '</span>' +
+               '</div>';
+      }).join("") + '</div>';
+
+    var ex = tot.map(function (v) { return Math.exp(v - best); });
+    var sum = ex.reduce(function (a, b) { return a + b; }, 0);
+    document.getElementById("pbars").innerHTML = '<div class="bars">' +
+      REF.classes.map(function (cl, k) {
+        var pv = ex[k] / sum;
+        return '<div class="bcol">' +
+                 '<span class="bpct">' + (pv * 100 < 0.05 && pv > 0 ? "&lt;0.1%" :
+                   (pv * 100).toFixed(1) + "%") + '</span>' +
+                 '<div class="bfill" style="background:' + cssVar(CLSCOL[k]) +
+                   ';height:' + (4 + pv * 78).toFixed(0) + 'px"></div>' +
+                 '<span class="bname">' + cl + '</span>' +
+               '</div>';
+      }).join("") + '</div>';
+  }
+
+  // ---------- the two grids ----------
+  function gridHTML(scale, dp) {
+    return "<thead><tr><th>gene</th>" + REF.classes.map(function (c, k) {
+        return '<th style="color:' + cssVar(CLSCOL[k]) + '">' + c + "</th>"; }).join("") +
+      "</tr></thead><tbody>" + REF.genes.map(function (g, gi) {
+        return '<tr><th><span class="gsw" style="background:' + COLOUR[gi] + '"></span>' + g +
+          "</th>" + REF.classes.map(function (_, ci) {
+            var v = REF.mu[gi][ci] * scale;
+            return '<td class="' + (v < 0.5 ? "zero" : "") + '">' + v.toFixed(dp) + "</td>";
+          }).join("") + "</tr>"; }).join("") + "</tbody>" +
+      "<tfoot><tr><th>total</th>" + REF.classes.map(function (_, ci) {
+        var t = 0;
+        for (var g = 0; g < REF.mu.length; g++) t += REF.mu[g][ci] * scale;
+        return "<td>" + t.toFixed(dp) + "</td>";
+      }).join("") + "</tr></tfoot>";
+  }
+  document.getElementById("grid").innerHTML = gridHTML(1, 0);
+
+  // ---------- hover a spot to see which gene it is ----------
+  (function tooltips() {
+    var cv = document.getElementById("dapi"), tip = document.getElementById("tip");
+    cv.addEventListener("mousemove", function (ev) {
+      var rect = cv.getBoundingClientRect();
+      var sx = cv.width / rect.width, sy = cv.height / rect.height;
+      var mx = (ev.clientX - rect.left) * sx, my = (ev.clientY - rect.top) * sy;
+      var best = null, bestD = 7 * sx;               // within about 7 css pixels
+      for (var i = 0; i < SPOTS.length; i++) {
+        var d = Math.hypot(SPOTS[i].x - mx, SPOTS[i].y - my);
+        if (d < bestD) { bestD = d; best = SPOTS[i]; }
+      }
+      if (!best) { tip.style.display = "none"; return; }
+      var n = best.cell.counts[best.gi];
+      tip.innerHTML = '<span class="tsw" style="background:' + COLOUR[best.gi] + '"></span>' +
+        '<b>' + REF.genes[best.gi] + '</b> <span class="tsub">' + n +
+        (n === 1 ? ' spot' : ' spots') + ' in ' + best.cell.label + '</span>';
+      tip.style.left = (best.x / sx) + "px";
+      tip.style.top = (best.y / sy) + "px";
+      tip.style.display = "block";
+    });
+    cv.addEventListener("mouseleave", function () { tip.style.display = "none"; });
+  })();
+
+  // ---------- solve for the sliders ----------
+  // Inefficiency is fitted once for the whole field, then each cell's theta is its
+  // observed total over what its best class specifies, and gamma is the same ratio for
+  // the one anomalous gene. Exactly what the model does, just done in one step.
+  function fit() {
+    var eta0 = 0.2;                                   // the level the whole field sits at
+    document.getElementById("eta").value = eta0;
+
+    CELLS.forEach(function (c, i) {
+      // Give every candidate class its own theta, and its own gamma where a gene is
+      // anomalous, then compare. Fitting to whichever class happens to be winning first
+      // would just confirm a miscall, which is why this is done per class.
+      var bestK = 0, bestLL = -Infinity, bestTh = 1, bestGm = 1;
+      REF.classes.forEach(function (_, k) {
+        var gm = 1;
+        if (c.anomaly) gm = c.counts[c.gi] / Math.max(eta0 * REF.mu[c.gi][k], 1e-6);
+        var pred = 0;
+        for (var g = 0; g < REF.mu.length; g++)
+          pred += eta0 * REF.mu[g][k] * (c.anomaly && g === c.gi && k === c.ci ? gm : 1);
+        var th = c.total / Math.max(pred, 1e-6);
+        var ll = 0;
+        for (var g2 = 0; g2 < REF.mu.length; g2++) {
+          var lam = eta0 * REF.mu[g2][k] * (k === c.ci ? th : 1) *
+                    (c.anomaly && g2 === c.gi && k === c.ci ? gm : 1);
+          ll += nbLogPmf(c.counts[g2], lam, R);
+        }
+        if (ll > bestLL) { bestLL = ll; bestK = k; bestTh = th; bestGm = gm; }
+      });
+      document.getElementById("th" + i).value =
+        Math.min(10, Math.max(0.01, bestTh)).toFixed(2);
+      if (c.anomaly) document.getElementById("gm" + i).value =
+        Math.min(10, Math.max(0.01, bestGm)).toFixed(2);
+    });
+    render();
+  }
+
+  function reset() {
+    document.getElementById("eta").value = 0.2;
+    CELLS.forEach(function (c, i) {
+      document.getElementById("th" + i).value = 1;
+      if (c.anomaly) document.getElementById("gm" + i).value = 1;
+    });
+    render();
+  }
+
+  document.getElementById("fit").addEventListener("click", fit);
+  document.getElementById("reset").addEventListener("click", reset);
+  document.getElementById("eta").addEventListener("input", render);
+  CELLS.forEach(function (c, i) {
+    document.getElementById("th" + i).addEventListener("input", render);
+    if (c.anomaly) document.getElementById("gm" + i).addEventListener("input", render);
+  });
+  render();
+})();
+</script>

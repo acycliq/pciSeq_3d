@@ -1,5 +1,5 @@
 
-# Block 3: Assigning cells to cell types
+# 3. Assigning cells to cell types
 
 At this point in the loop two inputs are available: the gene counts within each cell, and
 the warped definitions, now on the correct scale for the experiment. The model can then
@@ -51,7 +51,7 @@ effectively empty: debris, poorly segmented fragments, or cells whose markers ar
 from the gene panel. Providing this class prevents such cells from being forced onto a
 genuine type to which they do not belong.
 
-The block reads the gene counts per cell, the warped definitions, the class prior and the
+It reads the gene counts per cell, the warped definitions, the class prior and the
 neighbourhood structure, and produces a probability distribution over cell types for every
-cell. [Block 4](spots-to-cells.md) uses that distribution to assess which spots a cell is
+cell. [Spot assignment](spots-to-cells.md) uses that distribution to assess which spots a cell is
 likely to emit.

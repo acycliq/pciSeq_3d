@@ -1,47 +1,29 @@
 
-# Block 2: Warping the cell type definitions
+# 2. Warping the cell type definitions
 
-This block is the most subtle of the four, and the hardest to verify.
+This is the most subtle of the four, and the hardest to verify.
 
-The cell type definitions are a lookup table: for every known cell type, they list the
-average expression of every gene, measured in a **separate** scRNA-seq experiment. The
-problem is that the in situ experiment in front of you does not behave exactly like that
-separate experiment. Genes are detected at different efficiencies, some cells capture
-more transcripts than others, and the overall scale is different. If you compared your
-cells against the raw definitions, the match would be off for reasons that have nothing
-to do with biology.
+The cell type definitions give the average expression of each gene in each known cell
+type, measured by scRNA-seq. That measurement comes from a different technology to the
+one that produced the spots. Detection efficiency varies between genes, transcript
+capture varies between cells, and the two experiments differ in overall scale, so
+observed counts and raw definitions are not on comparable footing. pciSeq therefore
+**warps** the definitions before comparing: it rescales the expected expression to the
+scale of the current experiment.
 
-So before comparing, pciSeq **warps** the definitions to fit this experiment. It rescales
-the expected expression numbers until they are on the same scale as what you actually
-observe.
-
-This calibration is also part of how the model separates signal from noise. Once the
-technical losses are absorbed by these factors, genuine reads align with the adjusted
-expected expression, while reads that match no calibrated cell type are left to be
-accounted for as background. Putting the definitions on the right scale is therefore not
-only about comparability; it is also what lets real expression be told apart from
-technical noise.
-
-## Sources of difficulty
-
-The outputs of the other blocks can be inspected directly. Spot-to-cell assignments can
-be overlaid on the image and assessed for spatial plausibility, and a cell's assigned
-type can be compared against the expression of established marker genes. The adjustments
-made in this block admit no comparable check. The inefficiency factors are **nuisance
-parameters**: quantities the model must estimate in order to reach the results of
-interest (the cell types and spot assignments), but which are not themselves reported.
-They are latent, never observed, and there is no ground truth against which to validate
-them. They are identified only indirectly, through the improvement they
-produce in the agreement between cells and their assigned types. Their influence is
-evident in the final result, but the adjustments themselves are not, which makes this
-block intrinsically harder to validate than the assignment steps.
+The other three steps produce output that can be inspected: spot-to-cell assignments
+overlay on the image and can be judged for spatial plausibility, and an assigned cell
+type can be checked against established marker genes. The correction factors admit no
+such check. They are **nuisance parameters**, estimated only because the cell types and
+spot assignments depend on them, and absent from the output. Nothing observed corresponds to
+them, so they are identified indirectly, through the agreement they produce between
+cells and their assigned types.
 
 ## The scaling factors
 
-The warp is not one number. It is a **family of correction factors**, each one rescaling
-the expected expression at a different level of detail. pciSeq calls them
-*inefficiencies*, because they mostly describe how much signal is lost relative to the
-single-cell data.
+The warp is not one number but a **family of correction factors**, each rescaling the
+expected expression at a different level of detail. pciSeq calls them *inefficiencies*,
+since they mostly describe signal lost relative to the single-cell data.
 
 From the broadest to the most specific:
 
@@ -58,7 +40,7 @@ From the broadest to the most specific:
   Some cells simply yield more transcripts than the definitions predict, others fewer;
   theta is a single whole-cell **scalar** that stretches or shrinks that cell's expected
   counts across all its genes. It is worked out separately for every type the cell might be,
-  because what counts as "expected" depends on which type you are testing it against.
+  because what counts as "expected" depends on the type being tested.
 
 - **gamma** ($\gamma_{g,c\mid k}$) - one factor **per gene, per cell, per candidate type**.
   This is the most fine-grained and idiosyncratic correction: it adjusts a single gene
@@ -70,7 +52,7 @@ the same no matter what type a cell turns out to be. The two fine ones, **theta*
 **gamma**, are
 **conditional on the class**: they are recomputed for each candidate type, because the
 expectation they correct against is itself class-specific. This is why
-[block 3](cell-to-celltype.md) can use them while it scores a cell against every type at
+[cell typing](cell-to-celltype.md) can use them while it scores a cell against every type at
 once.
 
 ## Granularity of the factors
@@ -119,6 +101,10 @@ triplet, Inefficiency, eta, theta and gamma multiply into a single number, and t
 rescales the reference expression for exactly that triplet. The four levels of granularity are
 just how that one combined adjustment is built up.
 
+The [demo](scale-factors-demo.md) puts three of them on sliders, over a field of five
+cells generated from known class definitions, so the effect of each factor on the call
+can be seen directly.
+
 ## Inefficiencies
 
 Although each acts at a different level of detail, **every inefficiency is the same
@@ -142,23 +128,33 @@ observed**. The only thing that differs between the factors is the level of aggr
 before the ratio is formed: a single gene-cell pair under one type, a whole cell under
 one type, or a whole gene across all cells.
 
-The block therefore reduces to a single principle applied at different scales: **observed
+It therefore reduces to a single principle applied at different scales: **observed
 over expected.**
 
-## Theta
+## The priors
 
-Theta is one of the scaling factors: it rescales the single-cell reference for a whole cell
-at once.
+Each factor has a prior centred on 1, meaning no rescaling, and is regulated by a hyperparameter
+that determines how firmly it is held there: `rGene` for eta, `rTheta` for theta, `rSpot` for
+gamma. Whether a factor actually moves depends on that hyperparameter against the number of
+counts available to estimate it, and those counts differ by orders of magnitude between the three
+levels.
 
-**Empty or near-empty cells.** Since theta is observed over expected, it can **potentially**
-scale the reference data down by a large amount to match a cell's few counts. A real class
-scaled down that far predicts almost nothing, so it can compete with the Zero class for the
-cell.
+- **eta** is estimated from one gene's reads across the whole section, typically thousands. At
+  the default `rGene` of 20 the prior is negligible and the data determine the final (that is,
+  posterior) eta.
+- **theta** is estimated from one cell's reads, typically tens. At the default `rTheta` of 25 the
+  prior is comparable to the data. Lower it to around 2 and the data determine the posterior
+  theta. It has to stay above 1: theta is
+  $(\text{reads} + r_\theta - 1) / (r_\theta + \text{expected})$, so at 1 or below a cell with no
+  reads gives a theta of zero or less.
+- **gamma** is estimated from one gene in one cell, usually a fraction of a read. The default
+  `rSpot` of 2 therefore dominates, which is the intent: there is too little data at that level
+  to estimate anything on its own. `rSpot` is also the dispersion of the negative binomial, since
+  integrating gamma out is what produces it.
 
-For this to happen the hyperparameter `rTheta` has to be close to its lowest value. `rTheta`
-is the strength of theta's prior: a value close to $1.0$ makes the prior very weak and lets
-the data drive theta freely. With a weak prior, theta on a near-empty cell collapses for
-every class alike, and the cell-to-class posterior comes out close to uniform.
+Raise any of them and that factor stays near 1, so that level stops rescaling the definitions.
+Lower it and the data determine the posterior. As a rule of thumb for `rTheta`, start at roughly
+the typical number of counts a cell has.
 
 ## The spatial factor (the MRF)
 
@@ -173,6 +169,14 @@ is: the bonus for a type adds up the neighbours that favour it, with closer neig
 counting more. A large `mrf_beta` weighs the neighbours heavily; at `mrf_beta = 0` the factor
 is off and only the gene counts and the prior decide the type.
 
+A cell with almost no reads of its own has nothing to weigh against its neighbours, so the
+spatial factor alone can decide what it is. The
+[Zero boost](../the-model/cell-class.md#the-zero-boost), off by default, protects such cells
+from being taken over by the type around them.
+
+<details>
+<summary>Earlier working, retained for the record and due for removal</summary>
+
 ## The mrf cap
 
 ::: warning Removed from the model
@@ -180,6 +184,8 @@ The cap is not implemented in the current code. It did not converge, and two sub
 modifications behaved the same way. The section is retained because it describes the problem
 the Zero class presents, which remains. See
 [Why the cap does not converge](../the-model/cell-class.md#why-the-cap-does-not-converge).
+What is in the code, off by default, is the
+[Zero boost](../the-model/cell-class.md#the-zero-boost).
 :::
 
 The mrf cap was a limit on the spatial bonus, set separately for each cell and each candidate
@@ -196,9 +202,10 @@ is there to stop that.
 
 For every cell and every candidate type the cap works out how strong the neighbour bonus
 would need to be to overtake Zero, and never lets the bonus grow that large, so long as the
-cell's own counts and the prior already point to Zero. The Zero class gets no neighbour bonus
-of its own, so the whole job of the cap is to hold the other types back rather than to prop
-Zero up.
+cell's own counts and the prior already point to Zero. Under the cap the Zero class gets no
+neighbour bonus of its own, so the whole job of the cap is to hold the other types back rather
+than to prop Zero up. The [Zero boost](../the-model/cell-class.md#the-zero-boost) that replaced
+it works the other way round, giving Zero a bonus and leaving the real classes alone.
 
 The result is a soft preference that cannot overrule the evidence. If a cell's own counts say
 it is empty, no amount of like-typed neighbours can flip it off Zero. If instead the counts
@@ -322,29 +329,8 @@ on this panel, Monocytes and Lymphoid, predict almost nothing whatever theta doe
 their reference expression is tiny; they stay beside Zero at 28%, and the stronger prior
 cannot separate them.
 
-### The breadth of theta
+</details>
 
-Theta was not introduced to handle empty or near-empty cells alone; its scope is wider. It lets the model type cells whose total counts sit far from
-what the reference predicts, rescaling the class expectations up or down until they match the
-cell. An empty cell is just the extreme
-case, zero counts, so every class has to shrink to fit it. So `rTheta`, the strength of
-theta's prior, controls how freely theta may stretch to fit such cells: weak, and here the
-cell-to-class posterior spreads across every class; strong, and only the classes that are
-genuinely near empty in the reference still fit. Even at `rTheta = 20` Zero is not confident on
-its own; separating it from those last two classes is a job for a prior weight on the Zero
-class.
-
-Do not read this as "`rTheta = 20` is the better setting." It is one cell, shown only to make
-the mechanism visible: what theta does and how `rTheta` tunes it. Which value to actually use
-is a whole-dataset question, decided by how cells are typed across the board, not by one cell,
-and a higher `rTheta` can look more sensible here yet give worse calls overall.
-
-As a rule of thumb, start `rTheta` at roughly the typical number of counts a cell has, then
-lower it to let the data drive theta, or raise it and theta tends toward 1, so it stops
-rescaling the cell type definitions (the other three factors still act on them).
-
-<small>*The cell in this example comes from Christina's Fiona dataset.*</small>
-
-The block reads the current gene counts per cell, the current cell-type estimates and the
+It reads the current gene counts per cell, the current cell-type estimates and the
 raw cell type definitions, and produces a warped expected expression rescaled at every
-level. [Block 3](cell-to-celltype.md) scores cells against types using it.
+level. [Cell typing](cell-to-celltype.md) scores cells against types using it.

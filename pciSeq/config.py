@@ -72,7 +72,7 @@ DEFAULT = {
     # across the whole section. Set it very large and eta stays at 1 for
     # every gene, so the whole panel sits at the Inefficiency rate. At 20 rGene
     # has almost no influence, because a gene picks up thousands of reads once
-    # they are counted section wide, and the data determine eta.
+    # they are counted section wide, and the data determine the posterior eta.
     "rGene": 20,
 
 
@@ -191,7 +191,7 @@ DEFAULT = {
     # You can give one number for all genes, or a dictionary with a 'default' key
     # plus per gene overrides for genes you know are dirty:
     #   {'default': 1e-6, 'Plp1': 1e-4}
-    # A bare number is turned into {'default': <number>} for you.
+    # A bare number is turned into {'default': ...} with that number for you.
     #
     # Raising it makes the background a stronger competitor, so more spots are
     # called misreads. Lowering it pushes more spots into cells.

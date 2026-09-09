@@ -26,9 +26,9 @@ approximation is fitted by **coordinate ascent**: an iterative loop that updates
 factor at a time, each to its optimal form given the current estimates of all the
 others. Each latent variable is therefore estimated **conditionally on the rest**. Every
 sweep tightens the approximation, and the loop runs until the estimates converge. The
-four blocks below are exactly these conditional updates.
+four sections below are exactly these conditional updates.
 
-## The four building blocks
+## The variational loop
 
 <figure class="diagram">
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-label="The pciSeq variational loop">
@@ -44,15 +44,15 @@ four blocks below are exactly these conditional updates.
     <path class="vl-arc-band" d="M 416.6,60.7 A 190,190 0 0,1 585.1,207.3 L 598.8,204.1 L 565.0,250.0 L 522.8,221.7 L 536.4,218.5 A 140,140 0 0,0 412.2,110.5 Z" />
     <text class="vl-text-label"><textPath href="#vlTxtPath1" startOffset="50%" text-anchor="middle">Misread Density</textPath></text>
     <path class="vl-arc-band vl-arc-highlight" d="M 589.3,266.6 A 190,190 0 0,1 442.7,435.1 L 445.9,448.8 L 400.0,415.0 L 428.3,372.8 L 431.5,386.4 A 140,140 0 0,0 539.5,262.2 Z" />
-    <text class="vl-text-label"><textPath href="#vlTxtPath2" startOffset="50%" text-anchor="middle">Warping Reference</textPath></text>
+    <text class="vl-text-label"><textPath href="#vlTxtPath2" startOffset="50%" text-anchor="middle">Warping Definitions</textPath></text>
     <path class="vl-arc-band" d="M 383.4,439.3 A 190,190 0 0,1 214.9,292.7 L 201.2,295.9 L 235.0,250.0 L 277.2,278.3 L 263.6,281.5 A 140,140 0 0,0 387.8,389.5 Z" />
     <text class="vl-text-label"><textPath href="#vlTxtPath3" startOffset="50%" text-anchor="middle">Cell Typing</textPath></text>
     <path class="vl-arc-band" d="M 210.7,233.4 A 190,190 0 0,1 357.3,64.9 L 354.1,51.2 L 400.0,85.0 L 371.7,127.2 L 368.5,113.6 A 140,140 0 0,0 260.5,237.8 Z" />
     <text class="vl-text-label"><textPath href="#vlTxtPath4" startOffset="50%" text-anchor="middle">Spot Assignment</textPath></text>
   </g>
 </svg>
-<figcaption>The variational loop. Each block feeds the next, and the last block feeds
-back into the first. The loop runs until the spot assignments stop changing.</figcaption>
+<figcaption>Each one feeds the next, and the last feeds back into the first. The loop
+runs until the spot assignments stop changing.</figcaption>
 </figure>
 
 1. **[Estimate the misread density per gene.](misread-density.md)**
@@ -61,7 +61,7 @@ back into the first. The loop runs until the spot assignments stop changing.</fi
 
 2. **[Warp the cell type definitions.](warping-the-reference.md)**
    Rescale the cell type definitions so they match the scale and characteristics of
-   *this* experiment. This is the most subtle block, and the hardest to verify, because
+   *this* experiment. This is the most subtle of the four, and the hardest to verify, because
    it happens entirely behind the scenes.
 
 3. **[Assign cells to cell types.](cell-to-celltype.md)**
@@ -73,9 +73,9 @@ back into the first. The loop runs until the spot assignments stop changing.</fi
    whether it is background noise).
 
 Then the loop closes: new spot assignments change the gene counts per cell, which feeds
-straight back into block 1, and the cycle repeats.
+straight back into [the misread density](misread-density.md), and the cycle repeats.
 
-## Why the blocks form a loop
+## Why they form a loop
 
 Running the steps only once, in sequence, would leave each one based on crude initial
 estimates of the others: the misread density would rest on a provisional spot assignment,
@@ -97,10 +97,10 @@ Taking the maximum is deliberate, and it is strict: one spot still moving betwee
 cells holds the whole run open, even when every other spot has settled. A mean would
 have declared convergence long before.
 
-## Block 2 in more detail
+## Warping in more detail
 
-Three of the four blocks produce quantities that can be inspected directly: background
-rates, cell-type scores, and spot assignments. Block 2 is different: the warped
+Three of the four produce quantities that can be inspected directly: background
+rates, cell-type scores, and spot assignments. The warping is different: the warped
 definitions it produces are fully latent, with no observed counterpart, and are
 identified only through their effect on the agreement between cells and types. It is where
 the [family of inefficiency factors](warping-the-reference.md) is estimated.

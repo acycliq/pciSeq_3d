@@ -122,15 +122,23 @@ $$
 After rescaling to sum to 2, $w_B = 1.583$ and $w_C = 0.417$, so $B$ contributes to $A$'s
 score with 3.8 times the weight of $C$.
 
-**Comparison with $1/d$.** An inverse-distance weight is unbounded as $d \to 0$. Two cells
-in near contact then give one neighbour almost the entire weight budget; the largest single
-weight measured on the Espio data was 7.6 out of 9. The class of such a cell is determined by
-a single neighbour, and the two cells can alternate indefinitely without reaching a fixed
-point. The gaussian is flat at the origin, so decreasing an already small distance changes
-the weight little, and the largest single weight measured under it is approximately 3 out of
-9. Discrimination by distance is nonetheless stronger over the range that occurs in practice:
-the nearest neighbour carries 3.2 times the weight of the furthest, compared with 2.2 for
-$1/d$.
+## Protecting the Zero class
+
+The MRF term brings neighbourhood information into the cell typing, which helps wherever cells
+of the same class sit together. However, it could have a side effect on cells with few reads.
+Such a cell has little expression of its own, so the neighbour term could become the deciding
+factor in which class the cell is assigned, and a cell that should be typed Zero is given
+whatever class dominates around it.
+
+The effect propagates. A relabelled cell becomes evidence for its own neighbours, so across a
+patch of near-empty cells one real class spreads from cell to cell.
+
+Preventing this means protecting Zero where the cell's own expression supports it, without
+weakening the neighbour term for cells that do have reads, since that is what the term is for.
+The [Zero boost](#the-zero-boost) does this.
+
+<details>
+<summary>Earlier working, retained for the record and due for removal</summary>
 
 ## The MRF cap
 
@@ -140,7 +148,8 @@ was run on four datasets and did not converge: the convergence measure settles i
 cycle between 0.42 and 0.54 rather than approaching a fixed point. Two subsequent
 modifications, one of them provably optimal per cell, behave the same way. The derivation is
 retained here; the measurements are in
-[Why the cap does not converge](#why-the-cap-does-not-converge).
+[Why the cap does not converge](#why-the-cap-does-not-converge). What is in the code, off
+by default, is the [Zero boost](#the-zero-boost).
 :::
 
 The spatial term can outweigh the gene evidence when $\beta$ is large and a cell's
@@ -427,6 +436,66 @@ Measured on silver 180 with `mrf_beta` $=1.5$ and `rTheta` $=2$; the first three
 a fixed point within 300 iterations.
 
 Each variant makes Zero win by a boundary, and the accuracy with which that boundary is
-computed does not determine the outcome. A protection that instead gives Zero a margin
-varying continuously with the cell's own evidence, placing no cell on a boundary, does
-converge.
+computed does not determine the outcome.
+
+</details>
+
+## The Zero boost
+
+The boost gives Zero a margin that varies continuously with how much evidence the cell has of
+its own. No cell is left balanced on a decision boundary, and nothing is conditioned on which
+class the data currently favours. Implemented as `zero_boost` and off by default, it sets the
+Zero column of the MRF term outright:
+
+$$
+\mathrm{mrf}_{c,\text{Zero}} = \beta\,|\mathcal{N}_c|\;e^{-N_c/r_0},
+$$
+
+where $N_c$ is the cell's total read count and $r_0$ is the `zero_boost_r0` setting, a decay
+length measured in reads. The Zero column is substituted rather than incremented, and the real
+classes are untouched, so the MRF still moves a cell between two real classes as before.
+
+### The ceiling
+
+$\beta|\mathcal{N}_c|$ is the largest MRF value any class can attain. The distance weights are
+normalised to sum to $|\mathcal{N}_c|$ ([weighting the neighbours by
+distance](#weighting-the-neighbours-by-distance)) and no $\zeta_{c',k}$ exceeds 1, so
+
+$$
+\mathrm{mrf}_{c,k} = \beta \sum_{c'\in\mathcal{N}_c} w_{c,c'}\,\zeta_{c',k} \;\le\; \beta\,|\mathcal{N}_c|,
+$$
+
+with equality only when every neighbour is class $k$ at probability 1. At $N_c = 0$ the boost
+equals that ceiling, so on neighbour evidence a real class can at best draw level with Zero and
+never exceed it.
+
+Dividing by $\beta$ expresses the boost as a number of neighbour votes,
+$|\mathcal{N}_c|\,e^{-N_c/r_0}$.
+
+*One vote here means one neighbour at full weight, $w_{c,c'} = 1$, assigned to that class with
+probability 1.* It is a unit of support, not a count of cells: the weights are not equal, so a
+close neighbour can carry around 3 votes and a distant one a fraction of that. Three votes might
+therefore be one adjacent cell or four remote ones. At $|\mathcal{N}_c| = 9$ and $r_0 = 2$:
+
+| reads in the cell | min neighbour votes to overturn Zero |
+| --- | --- |
+| 0 | 9.0, the ceiling, so unattainable |
+| 2 | 3.3 |
+| 4 | 1.2 |
+
+The margin therefore depends on each cell's read count rather than on a single global setting:
+complete for an empty cell, negligible for one with reads.
+
+An empty cell cannot be moved off Zero, since the boost equals the ceiling. A miscalled cell in
+the wrong region is still corrected by its neighbours, since only the Zero column is modified and
+the real classes retain the full $\beta$.
+
+The protection is partial for cells with a few reads: they receive a reduced margin, and enough
+agreeing neighbours will still move them. A guarantee would require a threshold, which would
+leave those cells on a decision boundary.
+
+### Settings
+
+`zero_boost` is `False` by default, so none of the above applies unless it is switched on.
+`zero_boost_r0` sets the decay length; raising it extends the protection to cells with more
+reads. Both are described in the [configuration reference](../api/configuration.md).

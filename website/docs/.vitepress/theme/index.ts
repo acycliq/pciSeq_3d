@@ -2,6 +2,7 @@
 import { h } from 'vue'
 import DefaultTheme from 'vitepress/theme'
 import NotFound from './NotFound.vue'
+import DemoFrame from './DemoFrame.vue'
 import './custom.css'
 
 export default {
@@ -10,5 +11,9 @@ export default {
     return h(DefaultTheme.Layout, null, {
       'not-found': () => h(NotFound),
     })
+  },
+  // available in any markdown page, see how-it-works/scale-factors-demo.md
+  enhanceApp({ app }) {
+    app.component('DemoFrame', DemoFrame)
   },
 }

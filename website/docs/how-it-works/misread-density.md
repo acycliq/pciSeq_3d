@@ -1,5 +1,5 @@
 
-# Block 1: Estimating the misread density
+# 1. Estimating the misread density
 
 Not every detected spot corresponds to a genuine transcript. Some reads arise from
 technical artefacts, optical crosstalk, or decoding errors. The misread density
@@ -17,7 +17,7 @@ occur at a constant rate everywhere in the section, independent of location. A g
 a high background rate therefore produces spurious spots throughout the tissue, including
 regions far from any cell, whereas a gene with a low rate does so rarely.
 
-When a spot is assigned later, in [block 4](spots-to-cells.md), this rate sets the score
+When a spot is assigned later, in [spot assignment](spots-to-cells.md), this rate sets the score
 of the background option. The background competes with the candidate cells as a constant,
 location-independent alternative: a spot is assigned to a cell only if that cell explains
 it better than the background would.
@@ -40,7 +40,7 @@ $$
 This ratio of an observed count to the extent over which it is spread is the first
 instance of a form that recurs throughout pciSeq: an estimate expressed as an observed
 quantity divided by an expected one. The same structure underlies the scaling factors in
-the next block.
+the next step.
 
 Formally, with a conjugate Gamma prior the background rate has a Gamma posterior whose
 mean is exactly this ratio (regularised by the prior):
@@ -60,6 +60,6 @@ that belong to cells into the background instead. The
 [full derivation](../the-model/misread-density.md) covers both the correction and the
 role of $r_\rho$.
 
-The block reads the spots attributed to the background on the previous iteration and
-produces a per-gene background rate. [Block 4](spots-to-cells.md) uses that rate as the
+It reads the spots attributed to the background on the previous iteration and
+produces a per-gene background rate. [Spot assignment](spots-to-cells.md) uses that rate as the
 background option each spot is compared against.

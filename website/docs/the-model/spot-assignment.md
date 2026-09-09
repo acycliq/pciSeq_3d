@@ -1,7 +1,7 @@
 
 # Derivation: the spot-to-cell assignment $q(z)$
 
-The last block of the loop assigns each spot to the cell most likely to have produced it,
+The last part of the loop assigns each spot to the cell most likely to have produced it,
 or to the background. The latent variable is the indicator $z_{s,c}$, which is $1$ when spot
 $s$ belongs to cell $c$. We derive its variational posterior $q(z_{s,c})$ the same way as
 the other factors: keep the terms of the log-joint that involve $z_{s,c}$, take expectations
