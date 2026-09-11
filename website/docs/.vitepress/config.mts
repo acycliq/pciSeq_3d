@@ -84,6 +84,7 @@ export default defineConfig({
             items: apiFunctions,
           },
           { text: 'Working with results', link: '/api/working-with-results' },
+          { text: 'Live viewer', link: '/api/live-viewer' },
           { text: 'SpatialData store', link: '/api/spatialdata-store' },
           { text: 'Configuration (opts)', link: '/api/configuration' },
           { text: 'Command line', link: '/api/command-line' },
