@@ -43,6 +43,9 @@ Beyond the gene-expression match, two further terms enter the score:
   constraint: it is added to the score, so strong gene evidence can outweigh it. Its size
   is bounded, and how it is built is set out in
   [the model derivation](../the-model/cell-class.md#weighting-the-neighbours-by-distance).
+  Close sister classes can be grouped so the neighbours back them all equally and the
+  expression alone decides between them, see
+  [pooling sister classes](../the-model/cell-class.md#pooling-sister-classes).
 
 ## The Zero class
 

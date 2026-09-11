@@ -142,11 +142,11 @@ DEFAULT = {
     # A list of groups, each group a list of 2 or more class names spelled
     # exactly like the scRNAseq columns. A class can only be in one group.
     #
-    #     [["037 DG Glut", "038 DG-PIR Ex IMN"],
-    #      ["052 Pvalb Gaba", "053 Sst Gaba", "046 Vip Gaba"]]
+    #     [["037 DG Glut", "038 DG-PIR Ex IMN"]]
     #
-    # Keep in mind a big group is a strong statement: every class in it gets the
-    # support of the whole group.
+    # Keep groups small. The neighbour votes for the classes in a group add up, so
+    # a big group can win cells from classes outside it that it would not have won
+    # before. See "Pooling sister classes" in the docs.
     #
     # None means no groups.
     "mrf_pooled_classes": None,

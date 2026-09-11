@@ -122,6 +122,83 @@ $$
 After rescaling to sum to 2, $w_B = 1.583$ and $w_C = 0.417$, so $B$ contributes to $A$'s
 score with 3.8 times the weight of $C$.
 
+### Pooling sister classes
+
+Some classes in the reference are close relatives. `037 DG Glut` and `038 DG-PIR Ex IMN` are
+an example: they share most of their markers, `037` is common in the dentate gyrus and `038`
+is rare. A `038` cell usually sits inside a patch of `037` cells, and the MRF works against it.
+
+**Example.** Take a cell whose 9 neighbours are 8 confident `037` cells and 1 confident `038`
+cell. To keep the numbers simple, say all 9 are equally close (weight 1 each) and
+$\beta = 1$. The neighbour bonus is then
+
+- `037`: 8 (eight neighbours back it)
+- `038`: 1 (one neighbour backs it)
+
+Now say the cell's own reads fit `038` better: its log-likelihood is $-100$ under `038` and
+$-103$ under `037`. Adding the bonus:
+
+| | reads | bonus | total |
+|---|---|---|---|
+| `037` | $-103$ | $8$ | $-95$ |
+| `038` | $-100$ | $1$ | $-99$ |
+
+`037` wins by 4, and after the softmax the cell is `037` with probability 0.98. The reads said
+`038`, but the neighbours outvoted them. The neighbours are not really evidence here, though.
+Both classes live in the same place, so being surrounded by `037` cells says very little about
+whether this cell is `037` or `038`.
+
+The `mrf_pooled_classes` setting fixes this. Put the two classes in a group,
+
+```python
+opts = {
+    "mrf_pooled_classes": [["037 DG Glut", "038 DG-PIR Ex IMN"]],
+}
+```
+
+and a neighbour of either class backs both. The bonus becomes $8 + 1 = 9$ for each:
+
+| | reads | bonus | total |
+|---|---|---|---|
+| `037` | $-103$ | $9$ | $-94$ |
+| `038` | $-100$ | $9$ | $-91$ |
+
+The bonus is the same for both so it cancels out, and the reads decide: `038` with
+probability 0.95. The neighbours still count against every class outside the group, so a
+patch of DG cells still pulls the cell away from, say, an interneuron class.
+
+A group can hold more than two classes, but keep groups small. Pooling does more than stop the
+neighbours choosing inside the group: the votes spread across the group add up, and that
+total goes up against every class outside it. Take a cell whose 9 neighbours are 4 cells of a
+pyramidal class `P` and 5 interneurons, each from a different interneuron class:
+
+| | bonus for `P` | bonus for each interneuron class |
+|---|---|---|
+| no pooling | $4$ | $1$ |
+| all interneurons in one group | $4$ | $5$ |
+
+Without pooling the neighbours favour `P`. With the interneurons pooled they favour
+"interneuron", even though no single interneuron class has more than one neighbour. With a
+pair like `037` and `038`, which sit in the same place anyway, this hardly matters. With a big
+group it can pull in cells the group would not have won before.
+
+**In the maths.** The MRF prior rewards two neighbours for having the same class. Pooling
+changes that to "the same class, or two classes in the same group". The support that
+multiplies $\beta$ becomes
+
+$$
+\tilde S_{c,j} = \begin{cases}
+\sum_{k \in G} S_{c,k} & \text{if class } j \text{ is in a group } G, \\
+S_{c,j} & \text{otherwise,}
+\end{cases}
+$$
+
+which in the example is $\tilde S_{037} = \tilde S_{038} = 8 + 1$. The ceiling from the
+previous section still holds: a neighbour's class probabilities add up to at most 1, over a
+group as well as over one class, so the term still never exceeds $\beta \cdot \texttt{nNeighbors}$.
+
+**A class can only be in one group.**
+
 ## Protecting the Zero class
 
 The MRF term brings neighbourhood information into the cell typing, which helps wherever cells
