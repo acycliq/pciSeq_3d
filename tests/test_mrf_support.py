@@ -7,6 +7,7 @@ This pins down that calc_mrf still comes out the same, and that the weights
 behave the way the docstring says they do.
 """
 import numpy as np
+import pytest
 
 
 def test_calc_mrf_is_support_times_beta(minimal_varbayes):
@@ -50,31 +51,36 @@ def test_weights_sum_to_nNeighbors_and_fall_off_with_distance():
     assert w.max() < nN, "no single neighbour may take the whole row"
 
 
-def test_similarity_pair_pools_the_support(minimal_varbayes):
-    """A pair gives both sister classes the sum of their support, the rest stay put."""
+def test_pooled_group_shares_the_support(minimal_varbayes):
+    """Every class in a group gets the group's total support, the rest stay put."""
     vb = minimal_varbayes
     vb.initialise_state()
 
     names = list(vb.cells.class_names)
-    ia, ib = names.index("Type_A"), names.index("Type_B")
+    group = ["Type_A", "Type_B", "Type_C"]
+    idx = [names.index(n) for n in group]
 
     plain = vb.cells.mrf_support().copy()
-    vb.config["similarity_pairs"] = [("Type_A", "Type_B")]
+    vb.config["mrf_pooled_classes"] = [group]
     pooled = vb.cells.mrf_support()
 
-    summed = plain[:, ia] + plain[:, ib]
-    np.testing.assert_allclose(pooled[:, ia], summed, rtol=1e-12)
-    np.testing.assert_allclose(pooled[:, ib], summed, rtol=1e-12)
+    summed = plain[:, idx].sum(axis=1)
+    for k in idx:
+        np.testing.assert_allclose(pooled[:, k], summed, rtol=1e-12)
 
-    others = [k for k in range(len(names)) if k not in (ia, ib)]
+    others = [k for k in range(len(names)) if k not in idx]
     np.testing.assert_allclose(pooled[:, others], plain[:, others], rtol=0, atol=0)
 
 
-def test_similarity_pair_with_a_typo_fails(minimal_varbayes):
-    import pytest
-
+@pytest.mark.parametrize("groups, match", [
+    ([["Type_A", "Type_Typo"]], "Type_Typo"),                 # not a class
+    ([["Type_A"]], "at least 2"),                             # group of one
+    ([["Type_A", "Type_B"], ["Type_B", "Type_C"]], "Type_B"),  # class in two groups
+    ([["Type_A", "Type_A"]], "Type_A"),                       # same class twice
+])
+def test_bad_pooled_groups_fail(minimal_varbayes, groups, match):
     vb = minimal_varbayes
     vb.initialise_state()
-    vb.config["similarity_pairs"] = [("Type_A", "Type_Typo")]
-    with pytest.raises(ValueError, match="Type_Typo"):
+    vb.config["mrf_pooled_classes"] = groups
+    with pytest.raises(ValueError, match=match):
         vb.cells.mrf_support()

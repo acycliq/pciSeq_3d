@@ -139,7 +139,7 @@ def mrf_prior(obj):
         mrf_cj = mrf_beta * sum_k A_jk * sum_n prxmty_{c,n} * zeta_{nbrs(c,n), k}
 
     where prxmty_{c,n} are 1/distance weights normalised so they sum to nNeighbors,
-    and A is a class-similarity matrix (identity plus configured similarity pairs).
+    and A is the class pooling matrix (identity plus the mrf_pooled_classes groups).
     Both factors are already baked into the matrix returned by calc_mrf.
 
     The expected MRF contribution under q is:

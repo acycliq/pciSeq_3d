@@ -151,27 +151,31 @@ together rather than grouped.
 
 Set it to 0 to switch the mrf off.
 
-### `similarity_pairs`
+### `mrf_pooled_classes`
 
 **Default:** `None`
 
-Pairs of sister classes that the neighbours should not try to tell apart.
+Groups of sister classes that the neighbours should not try to tell apart.
 
-Normally a neighbour of class A only backs A. Put A and B in a pair and a
-neighbour of either one backs both of them the same, so the mrf gives the
-two the same bonus and the gene counts alone pick the winner.
+Normally a neighbour of class A only backs A. Put A, B and C in a group
+and a neighbour of any of them backs all three the same, so the mrf gives
+them the same bonus and the gene counts alone pick between them.
 
 Handy when a rare class sits inside a big patch of a very similar one,
-like 038 DG-PIR Ex IMN inside 037 DG Glut. Without the pair the
+like 038 DG-PIR Ex IMN inside 037 DG Glut. Without the group the
 neighbours all vote 037 and the rare cell loses to it even when its own
 reads lean towards 038.
 
-A list of 2-item lists or tuples, the names spelled exactly like the
-scRNAseq columns:
+A list of groups, each group a list of 2 or more class names spelled
+exactly like the scRNAseq columns. A class can only be in one group.
 
-[("037 DG Glut", "038 DG-PIR Ex IMN")]
+[["037 DG Glut", "038 DG-PIR Ex IMN"],
+["052 Pvalb Gaba", "053 Sst Gaba", "046 Vip Gaba"]]
 
-None means no pairs.
+Keep in mind a big group is a strong statement: every class in it gets the
+support of the whole group.
+
+None means no groups.
 
 ### `zero_boost`
 

@@ -415,35 +415,48 @@ class Cells(object):
         nbr_probs = self.classProb[nbrs_idx]  # (nC, nN, nK)
         support = (nbr_probs * nbrs_prxmty[:, :, None]).sum(axis=1)
 
-        # Sister classes from similarity_pairs share their support, see below
-        pairs = self.config.get("similarity_pairs") or []
-        if not pairs:
+        # Classes grouped in mrf_pooled_classes share their support, see below
+        groups = self.config.get("mrf_pooled_classes") or []
+        if not groups:
             return support
-        A = self.class_similarity(pairs)
+        A = self.class_pooling(groups)
         return np.einsum('ck, kj -> cj', support, A)
 
-    def class_similarity(self, pairs):
-        """The (nK, nK) matrix that pools the mrf support of sister classes.
+    def class_pooling(self, groups):
+        """The (nK, nK) matrix that pools the mrf support of classes in a group.
 
         A[k, j] = 1 means a neighbour of class k backs the cell being class j.
         It starts as the identity, the usual mrf where a neighbour only backs its
-        own class. Each pair (a, b) then gets A[a, b] = A[b, a] = 1, so a
-        neighbour of either class backs both. Both classes end up with the same
-        support, s_a + s_b, and the mrf has nothing to say about which of the
-        two it is. The gene counts decide that.
+        own class. For each group the block of A covering its classes is then
+        set to all ones, so a neighbour of any class in the group backs every
+        class in it. They all end up with the same support, the sum over the
+        group, and the mrf has nothing to say about which one it is. The gene
+        counts decide that.
 
-        With classes [X, a, b] and support [2, 5, 1] for some cell, the pair
-        (a, b) turns it into [2, 6, 6].
+        With classes [X, a, b, c], support [2, 5, 1, 3] for some cell and the
+        group [a, b, c], the support becomes [2, 9, 9, 9].
+
+        A class can only be in one group. If b was in [a, b] and [b, c], b would
+        get s_a + s_b + s_c while a and c get less, so b would win just because
+        it sits in the middle. That is why it is an error, same for a group
+        with a single class, which would do nothing.
         """
         class_list = list(self.class_names)
         A = np.eye(len(class_list), dtype=np.float64)
-        for a, b in pairs:
-            missing = [n for n in (a, b) if n not in class_list]
+        seen = set()
+        for group in groups:
+            if len(group) < 2:
+                raise ValueError(f"mrf_pooled_classes: {group} needs at least 2 classes")
+            missing = [n for n in group if n not in class_list]
             if missing:
                 # fail loudly, a typo here would otherwise just do nothing
-                raise ValueError(f"similarity_pairs: {missing} not found in the cell classes")
-            ia, ib = class_list.index(a), class_list.index(b)
-            A[ia, ib] = A[ib, ia] = 1
+                raise ValueError(f"mrf_pooled_classes: {missing} not found in the cell classes")
+            for n in group:
+                if n in seen:
+                    raise ValueError(f"mrf_pooled_classes: {n} is in more than one group (or twice in the same one)")
+                seen.add(n)
+            idx = [class_list.index(n) for n in group]
+            A[np.ix_(idx, idx)] = 1
         return A
 
     def calc_mrf(self):
