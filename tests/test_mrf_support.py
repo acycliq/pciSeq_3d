@@ -48,3 +48,33 @@ def test_weights_sum_to_nNeighbors_and_fall_off_with_distance():
     np.testing.assert_allclose(w.sum(axis=1), nN, rtol=1e-12)
     assert (np.diff(w[0]) < 0).all(), "weights must drop off as distance grows"
     assert w.max() < nN, "no single neighbour may take the whole row"
+
+
+def test_similarity_pair_pools_the_support(minimal_varbayes):
+    """A pair gives both sister classes the sum of their support, the rest stay put."""
+    vb = minimal_varbayes
+    vb.initialise_state()
+
+    names = list(vb.cells.class_names)
+    ia, ib = names.index("Type_A"), names.index("Type_B")
+
+    plain = vb.cells.mrf_support().copy()
+    vb.config["similarity_pairs"] = [("Type_A", "Type_B")]
+    pooled = vb.cells.mrf_support()
+
+    summed = plain[:, ia] + plain[:, ib]
+    np.testing.assert_allclose(pooled[:, ia], summed, rtol=1e-12)
+    np.testing.assert_allclose(pooled[:, ib], summed, rtol=1e-12)
+
+    others = [k for k in range(len(names)) if k not in (ia, ib)]
+    np.testing.assert_allclose(pooled[:, others], plain[:, others], rtol=0, atol=0)
+
+
+def test_similarity_pair_with_a_typo_fails(minimal_varbayes):
+    import pytest
+
+    vb = minimal_varbayes
+    vb.initialise_state()
+    vb.config["similarity_pairs"] = [("Type_A", "Type_Typo")]
+    with pytest.raises(ValueError, match="Type_Typo"):
+        vb.cells.mrf_support()

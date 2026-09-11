@@ -413,7 +413,38 @@ class Cells(object):
 
         # Proximity-weighted sum of neighbour class probabilities (zeta)
         nbr_probs = self.classProb[nbrs_idx]  # (nC, nN, nK)
-        return (nbr_probs * nbrs_prxmty[:, :, None]).sum(axis=1)
+        support = (nbr_probs * nbrs_prxmty[:, :, None]).sum(axis=1)
+
+        # Sister classes from similarity_pairs share their support, see below
+        pairs = self.config.get("similarity_pairs") or []
+        if not pairs:
+            return support
+        A = self.class_similarity(pairs)
+        return np.einsum('ck, kj -> cj', support, A)
+
+    def class_similarity(self, pairs):
+        """The (nK, nK) matrix that pools the mrf support of sister classes.
+
+        A[k, j] = 1 means a neighbour of class k backs the cell being class j.
+        It starts as the identity, the usual mrf where a neighbour only backs its
+        own class. Each pair (a, b) then gets A[a, b] = A[b, a] = 1, so a
+        neighbour of either class backs both. Both classes end up with the same
+        support, s_a + s_b, and the mrf has nothing to say about which of the
+        two it is. The gene counts decide that.
+
+        With classes [X, a, b] and support [2, 5, 1] for some cell, the pair
+        (a, b) turns it into [2, 6, 6].
+        """
+        class_list = list(self.class_names)
+        A = np.eye(len(class_list), dtype=np.float64)
+        for a, b in pairs:
+            missing = [n for n in (a, b) if n not in class_list]
+            if missing:
+                # fail loudly, a typo here would otherwise just do nothing
+                raise ValueError(f"similarity_pairs: {missing} not found in the cell classes")
+            ia, ib = class_list.index(a), class_list.index(b)
+            A[ia, ib] = A[ib, ia] = 1
+        return A
 
     def calc_mrf(self):
         """The mrf term: the neighbour support times mrf_beta. (nC, nK).

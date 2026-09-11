@@ -151,6 +151,28 @@ together rather than grouped.
 
 Set it to 0 to switch the mrf off.
 
+### `similarity_pairs`
+
+**Default:** `None`
+
+Pairs of sister classes that the neighbours should not try to tell apart.
+
+Normally a neighbour of class A only backs A. Put A and B in a pair and a
+neighbour of either one backs both of them the same, so the mrf gives the
+two the same bonus and the gene counts alone pick the winner.
+
+Handy when a rare class sits inside a big patch of a very similar one,
+like 038 DG-PIR Ex IMN inside 037 DG Glut. Without the pair the
+neighbours all vote 037 and the rare cell loses to it even when its own
+reads lean towards 038.
+
+A list of 2-item lists or tuples, the names spelled exactly like the
+scRNAseq columns:
+
+[("037 DG Glut", "038 DG-PIR Ex IMN")]
+
+None means no pairs.
+
 ### `zero_boost`
 
 **Default:** `False`
