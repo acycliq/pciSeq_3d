@@ -417,29 +417,37 @@ class Cells(object):
 
         # Classes grouped in mrf_pooled_classes share their support, see below
         groups = self.config.get("mrf_pooled_classes") or []
-        if not groups:
-            return support
-        A = self.class_pooling(groups)
-        return np.einsum('ck, kj -> cj', support, A)
+        if groups:
+            A = self.class_pooling(groups)
+            support = np.einsum('ck, kj -> cj', support, A)
+
+        # If a cell is surrounded by Zero cells, don't let the mrf pull it towards
+        # Zero. Zero just never gets any neighbour support. Zero is the last
+        # column. Note zero_boost, if on, overwrites this column later anyway.
+        # 11-Sep-2026: Commenting it out, I have my second thoughts
+        # support[:, -1] = 0
+        return support
 
     def class_pooling(self, groups):
-        """The (nK, nK) matrix that pools the mrf support of classes in a group.
+        """Makes the classes in a group share their neighbour support.
 
-        A[k, j] = 1 means a neighbour of class k backs the cell being class j.
-        It starts as the identity, the usual mrf where a neighbour only backs its
-        own class. For each group the block of A covering its classes is then
-        set to all ones, so a neighbour of any class in the group backs every
-        class in it. They all end up with the same support, the sum over the
-        group, and the mrf has nothing to say about which one it is. The gene
-        counts decide that.
+        Say a cell has 9 neighbours, 8 of them 037 DG Glut and 1 of them
+        038 DG-PIR Ex IMN. Normally 037 gets a support of 8 and 038 gets 1, so
+        the neighbours push the cell to 037. Put the two in a group and both
+        get 8 + 1 = 9. Same bonus for both, so it cancels out and the gene
+        counts pick between them.
 
-        With classes [X, a, b, c], support [2, 5, 1, 3] for some cell and the
-        group [a, b, c], the support becomes [2, 9, 9, 9].
+        This returns a (nK, nK) matrix A and the caller does support @ A. A
+        starts as the identity, which leaves the support as it is. Then for
+        every group the square block of A for those classes is set to 1, which
+        gives each class in the group the sum over the whole group. Classes
+        not in any group keep their own support.
 
-        A class can only be in one group. If b was in [a, b] and [b, c], b would
-        get s_a + s_b + s_c while a and c get less, so b would win just because
-        it sits in the middle. That is why it is an error, same for a group
-        with a single class, which would do nothing.
+        A class can only be in one group. With [class_a, class_b] and
+        [class_b, class_c], class_b would get the support of all three while
+        class_a and class_c only get two each, so class_b would win just for
+        being in both. That raises an error, so does a group with one class
+        (it does nothing) and a name that isn't one of the classes.
         """
         class_list = list(self.class_names)
         A = np.eye(len(class_list), dtype=np.float64)
