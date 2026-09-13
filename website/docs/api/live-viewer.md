@@ -59,7 +59,7 @@ about that class.
 
 **Pan and zoom** with the mouse.
 
-**Cells that just changed class** get a cyan ring that fades out over two seconds, so you
+**Cells that just changed class** swell up and shrink back over two seconds, so you
 can see where the assignments are still moving.
 
 ## Cell classes
