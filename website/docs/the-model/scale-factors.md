@@ -365,6 +365,9 @@ q(\eta_g')
 \;}
 $$
 
+*Note.* Background and Zero-cell reads are not produced by a class profile, so in practice $\bar N_g$
+excludes them. $\eta_g'$ is then reads observed in real-class cells (ie any class except Zero) over reads predicted for them.
+
 The sum runs over all cells and candidate classes, weighted by the soft class assignments
 $\bar\zeta_{c,k}$, since $\eta_g'$ is shared and aggregates evidence from every cell. A value
 $\eta_g' > 1$ means gene $g$ is detected better than the baseline, $\eta_g' < 1$ worse. The
