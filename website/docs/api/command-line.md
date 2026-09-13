@@ -124,8 +124,8 @@ can hold well over 8 GB per run.
 ## Validating a config
 
 `--dry-run` prints the settings that would be used and stops, without reading
-any data. Useful for catching a typo in a sweep in a second rather than after
-the inputs have loaded.
+any data. Use it to eyeball a sweep before launching it. It does not check the
+key names, an unknown key is only caught once the run starts.
 
 ```bash
 pciseq run analysis.yaml --set rTheta=5 --dry-run
