@@ -205,6 +205,7 @@
                 x: state.geom.centroids_x[i],
                 y: state.geom.centroids_y[i],
                 radius: state.geom.radii[i],
+                plane: state.geom.planeId ? state.geom.planeId[i] : null,  // positional, same order as the geometry arrays
                 class: state.stream.cell_classes[i],
                 prob: state.stream.prob[i]
             };
@@ -255,6 +256,7 @@
                 x: state.geom.centroids_x[i],
                 y: state.geom.centroids_y[i],
                 radius: state.geom.radii[i],
+                plane: state.geom.planeId ? state.geom.planeId[i] : null,  // positional, same order as the geometry arrays
                 class: classes[i],
                 prob: prob ? prob[i] : 1.0
             };

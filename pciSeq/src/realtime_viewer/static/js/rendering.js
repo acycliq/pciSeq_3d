@@ -100,7 +100,7 @@
 
         // Further filter by plane if enabled
         if (state.planeFilterEnabled && state.geom && state.geom.planeId && state.selectedPlane !== null) {
-            visibleCells = visibleCells.filter(cell => state.geom.planeId[cell.id] === state.selectedPlane);
+            visibleCells = visibleCells.filter(cell => cell.plane === state.selectedPlane);
         }
 
         console.log(`=== RENDER (iter ${state.iteration}) ===`);
