@@ -206,30 +206,6 @@ is in [the cell scale factor](/the-model/scale-factors#theta) and
 
 ## Run provenance
 
-Every run stamps itself with the code that produced it, so a result found months later can
-be traced back without relying on notes:
+Every run records the version, branch and commit that produced it, in `varBayes.metadata`
+and in the saved output. See [Installation](../installation.md#run-provenance).
 
-```python
-varBayes.metadata
-# {'version':    '0.0.66.dev0',
-#  'branch':     'dev_3d',
-#  'commit':     '6db6dc8',
-#  'build_date': 'unknown',
-#  'created_at': '2026-09-04T12:47:51Z'}
-```
-
-The same dictionary is written into `diagnostics.db` under the `pciSeq_provenance` key of the
-`metadata` table, so it survives in the saved output rather than only in the live object:
-
-```python
-import sqlite3, json
-
-con = sqlite3.connect('.../viewer_data/diagnostics/diagnostics.db')
-row = con.execute(
-    "select value from metadata where key = 'pciSeq_provenance'").fetchone()
-print(json.loads(row[0]))
-```
-
-`commit` is the one to quote when comparing two runs. The model changes between commits, so
-two results are only directly comparable when this matches, or when you know what changed in
-between.

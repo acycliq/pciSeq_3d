@@ -42,6 +42,7 @@ export default defineConfig({
 
     sidebar: [
       { text: 'Introduction', link: '/' },
+      { text: 'Installation', link: '/installation' },
       {
         text: 'How it works',
         link: '/how-it-works/overview',
