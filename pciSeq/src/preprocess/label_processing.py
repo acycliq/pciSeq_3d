@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 def process_labels(coo_list: List[coo_matrix]) -> Tuple[List[coo_matrix], Optional[Dict]]:
     """
     Ensure cell labels are sequential (1..N) across all planes.
-    Works directly on sparse .data arrays — no dense conversion needed.
+    Works directly on sparse .data arrays - no dense conversion needed.
 
     Args:
         coo_list: List of sparse matrices containing cell labels

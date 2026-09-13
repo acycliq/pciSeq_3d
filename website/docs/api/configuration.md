@@ -341,10 +341,8 @@ Where the results go. 'default' means your system temp folder.
 
 **Default:** `None`
 
-Cell radius, in the same units as the spot coordinates. Leave it at None
-and the mean radius across all segmented cells is used, which is usually
-what you want. Set it only if the segmentation gives sizes you do not
-trust.
+Cell radius, in the same units as the spot coordinates. None means half
+the mean radius of the segmented cells. A value given here is used as is.
 
 ### `cell_type_prior`
 

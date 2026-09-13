@@ -87,13 +87,13 @@ def poisson_process_loglikelihood(obj):
     cfg = obj.config
     nN = cfg['nNeighbors'] + 1
     g_s = spots.gene_id                    # (nS,) gene index per spot
-    q_z = spots.parent_cell_prob           # (nS, nN) — q(z_s)
+    q_z = spots.parent_cell_prob           # (nS, nN) - q(z_s)
     cell_ids = spots.parent_cell_id        # (nS, nN)
     log_mu = np.log(mu_gk)                 # (nG, nK)
-    log_theta = np.log(theta_ck)           # (nC, nK) — point estimate, so E[log] = log
-    E_log_gamma = spots.log_gamma_bar      # (nC, nG, nK) — E_q[log gamma] = psi(a) - log(b)
-    E_log_eta = obj.genes.logeta_bar       # (nG,) — E_q[log eta] = psi(a) - log(b)
-    mvn_loglik = spots.mvn_loglik_arr      # (nS, nN) — spatial: multivariate normal log-pdf
+    log_theta = np.log(theta_ck)           # (nC, nK) - point estimate, so E[log] = log
+    E_log_gamma = spots.log_gamma_bar      # (nC, nG, nK) - E_q[log gamma] = psi(a) - log(b)
+    E_log_eta = obj.genes.logeta_bar       # (nG,) - E_q[log eta] = psi(a) - log(b)
+    mvn_loglik = spots.mvn_loglik_arr      # (nS, nN) - spatial: multivariate normal log-pdf
     bonus = spots.bonus_mask * cfg['InsideCellBonus']
 
     # Background: q(z_s = bg) * E[log rho_g]
@@ -101,7 +101,7 @@ def poisson_process_loglikelihood(obj):
     term2_bg = np.sum(q_z[:, -1] * log_rho)
 
     # Signal: for each neighbor cell, sum over classes weighted by q(zeta)
-    log_mu_s = log_mu[g_s, :]              # (nS, nK) — precompute, same for all neighbors
+    log_mu_s = log_mu[g_s, :]              # (nS, nK) - precompute, same for all neighbors
     term2_sig = 0.0
     for n in range(nN - 1):
         c_n = cell_ids[:, n]
@@ -281,7 +281,7 @@ def pi_prior(obj):
 
     from scipy.special import gammaln, psi
 
-    # alpha is (nK-1,) — real classes only, prior alpha_0 = ones
+    # alpha is (nK-1,) - real classes only, prior alpha_0 = ones
     alpha_0 = np.ones(obj.cellTypes.nK - 1, dtype=np.float32)
     alpha_post = obj.cellTypes.alpha
 
@@ -344,7 +344,7 @@ def entropy_gamma(obj):
     alpha = obj.spots._post_shape           # (nC, nG) or (nC, nG, nK)
     beta = obj.spots._post_rate             # (nC, nG, nK)
 
-    # alpha may be (nC, nG) — broadcast over K
+    # alpha may be (nC, nG) - broadcast over K
     if alpha.ndim == 2:
         alpha = alpha[:, :, None]
 
