@@ -179,7 +179,7 @@ class RealtimeViewerServer:
             iteration: int
                 Current iteration number
             delta: float
-                Convergence metric (mean probability change)
+                Convergence metric (max absolute change in parent_cell_prob)
 
         IMPORTANT - Cell Label Mapping processing:
         ========================================

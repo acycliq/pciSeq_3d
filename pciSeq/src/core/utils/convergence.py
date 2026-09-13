@@ -62,6 +62,16 @@ def has_converged(
         raise
 
 
+def _mrf_weights(dist):
+    """Neighbour weights the way cells.calc_mrf builds them: gaussian in the
+    distance with sigma the median of the row, scaled to sum to nNeighbors.
+    Keep in step with calc_mrf, this is only here so the diagnostics below
+    print the weights the mrf actually used."""
+    sigma = np.median(dist)
+    w = np.exp(-(dist / sigma) ** 2)
+    return w / w.sum() * len(dist)
+
+
 def log_iteration_diagnostics(vb, i, delta, p0, classProb_before):
     """Read-only per-iteration diagnostic logging. Changes no model state."""
     # note: this is the single largest spot-to-cell prob change, not a mean
@@ -154,13 +164,12 @@ def log_iteration_diagnostics(vb, i, delta, p0, classProb_before):
             )
 
             # Neighbour cells that drive this cell's MRF. The MRF support is a
-            # distance-weighted vote of these neighbours' classes (reconstructed
-            # here exactly as in cells.calc_mrf). Watching them across
-            # iterations shows which neighbours flip and produce the MRF swing.
+            # distance-weighted vote of these neighbours' classes, same weights
+            # as cells.calc_mrf. Watching them across iterations shows which
+            # neighbours flip and produce the MRF swing.
             nbr_ids = vb.cells.nbrs['indices'][moved_cell]
             nbr_dist = vb.cells.nbrs['distances'][moved_cell]
-            prox = 1.0 / nbr_dist
-            prox = prox / prox.sum() * len(nbr_ids)
+            prox = _mrf_weights(nbr_dist)
             nbr_cp = vb.cells.classProb[nbr_ids]
             nbr_top = np.argmax(nbr_cp, axis=1)
             nbr_desc = " | ".join(
@@ -194,8 +203,7 @@ def log_iteration_diagnostics(vb, i, delta, p0, classProb_before):
             # as c{moved_cell} in this list with its weight.
             dom_ids = vb.cells.nbrs['indices'][dom]
             dom_dist = vb.cells.nbrs['distances'][dom]
-            dom_prox = 1.0 / dom_dist
-            dom_prox = dom_prox / dom_prox.sum() * len(dom_ids)
+            dom_prox = _mrf_weights(dom_dist)
             dom_cp = vb.cells.classProb[dom_ids]
             dom_top = np.argmax(dom_cp, axis=1)
             dom_desc = " | ".join(

@@ -138,7 +138,8 @@ def mrf_prior(obj):
     For each cell c:
         mrf_cj = mrf_beta * sum_k A_jk * sum_n prxmty_{c,n} * zeta_{nbrs(c,n), k}
 
-    where prxmty_{c,n} are 1/distance weights normalised so they sum to nNeighbors,
+    where prxmty_{c,n} are gaussian distance weights (sigma = the cell's median
+    neighbour distance) normalised so they sum to nNeighbors,
     and A is the class pooling matrix (identity plus the mrf_pooled_classes groups).
     Both factors are already baked into the matrix returned by calc_mrf.
 
