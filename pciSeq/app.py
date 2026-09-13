@@ -137,7 +137,8 @@ def cell_type(
     ValueError
         If input data is invalid or incompatible
     RuntimeError
-        If cell typing algorithm fails to converge
+        If cell typing fails. Not converging is not a failure, it only logs a
+        warning.
     """
     try:
         # Extract callback from config BEFORE creating VarBayes

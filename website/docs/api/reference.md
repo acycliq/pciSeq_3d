@@ -85,7 +85,7 @@ Perform cell typing using Variational Bayes algorithm.
 - **`ValueError`**
   If input data is invalid or incompatible
 - **`RuntimeError`**
-  If cell typing algorithm fails to converge
+  If cell typing fails. Not converging is not a failure, it only logs a warning.
 
 
 ## `stage_data`
