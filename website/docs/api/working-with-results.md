@@ -115,11 +115,11 @@ attributes and methods; this section shows how to make sense of the main ones.
 
 [`cell_type`](./reference#cell-type) returns the model directly. `fit` does not,
 but with `save_data=True` (the default) it serialises the model to
-`<output_path>/data/debug/pciSeq.pickle`:
+`<output_path>/pciSeq/data/debug/pciSeq.pickle`:
 
 ```python
 import pandas as pd
-obj = pd.read_pickle('<output_path>/data/debug/pciSeq.pickle')
+obj = pd.read_pickle('<output_path>/pciSeq/data/debug/pciSeq.pickle')
 ```
 
 The model holds the run dimensions and a small object graph: `obj.cells`,

@@ -7,7 +7,7 @@ description: The zarr store a run writes next to the tsv files, element by eleme
 
 When `save_data` is on, a run writes its results twice: once as tsv files for the
 viewer, and once as a [SpatialData](https://scverse-spatialdata.readthedocs.io/)
-zarr store at `<output>/data/spatialdata.zarr`. The zarr store is the copy meant
+zarr store at `<output_path>/pciSeq/data/spatialdata.zarr`. The zarr store is the copy meant
 for the scverse tools: open it in napari via napari-spatialdata, or hand it to
 squidpy, scanpy or plain anndata.
 
@@ -30,7 +30,7 @@ Three typical uses:
 (`pip install napari-spatialdata`):
 
 ```bash
-python -m napari_spatialdata view <output>/data/spatialdata.zarr
+python -m napari_spatialdata view <output_path>/pciSeq/data/spatialdata.zarr
 ```
 
 **Programmatic access.** See the [worked example](#worked-example) below. That
@@ -42,7 +42,7 @@ reference material.
 ```python
 import spatialdata as sd
 
-sdata = sd.read_zarr('/path/to/output/data/spatialdata.zarr')
+sdata = sd.read_zarr('/path/to/output/pciSeq/data/spatialdata.zarr')
 print(sdata)
 ```
 

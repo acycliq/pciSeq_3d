@@ -338,12 +338,12 @@ Args:
     config: Configuration dictionary containing algorithm parameters
 
 ::: tip Obtaining a fitted instance
-`VarBayes` is not instantiated directly in normal use. [`fit`](#fit) and [`cell_type`](#cell-type) construct and run it. `cell_type` returns the fitted instance; `fit` does not, but when `save_data=True` (the default) the fitted model is serialised to `<output_path>/data/debug/pciSeq.pickle` (`output_path` defaults to a temporary directory). The attributes and methods below operate on a loaded instance; [Working with results](./working-with-results) walks through the main ones with examples.
+`VarBayes` is not instantiated directly in normal use. [`fit`](#fit) and [`cell_type`](#cell-type) construct and run it. `cell_type` returns the fitted instance; `fit` does not, but when `save_data=True` (the default) the fitted model is serialised to `<output_path>/pciSeq/data/debug/pciSeq.pickle` (`output_path` defaults to a temporary directory). The attributes and methods below operate on a loaded instance; [Working with results](./working-with-results) walks through the main ones with examples.
 
 ```python
 import pandas as pd
 
-obj = pd.read_pickle('<output_path>/data/debug/pciSeq.pickle')
+obj = pd.read_pickle('<output_path>/pciSeq/data/debug/pciSeq.pickle')
 
 obj.metadata
 obj.check_cell(my_label=42, user_class='Astro')
