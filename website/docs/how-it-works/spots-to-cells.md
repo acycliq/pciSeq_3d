@@ -79,9 +79,9 @@ It is a hard geometric measurement, and it says nothing about which gene the spo
 ### Expression fit
 
 The "what" splits into four, each a different way of asking *does this gene belong in this
-cell?* All four are weighted by how **confident** we are about the cell's type (from
+cell?* The first three are weighted by how **confident** we are about the cell's type (from
 [cell typing](cell-to-celltype.md)): the surer the cell is of what it is, the more decisively
-each one speaks.
+each one speaks. The fourth depends on the gene alone.
 
 **Alignment - does the cell's *type* express this gene?** If the cell is probably a type
 that makes the gene strongly, the spot fits; if its type rarely produces the gene, the spot
