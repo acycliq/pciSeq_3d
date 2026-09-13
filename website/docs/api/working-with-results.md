@@ -27,7 +27,7 @@ cell.
 | Column | Type | Meaning |
 | --- | --- | --- |
 | `Cell_Num` | int | Cell label. The cell's identity, matching the label image. |
-| `X`, `Y`, `Z` | float | Fitted cell centroid. `Z` is present only for 3D data. |
+| `X`, `Y`, `Z` | float | Fitted cell centroid. `Z` is 0 for 2D data. |
 | `ClassName` | list of str | Candidate cell classes, sorted by descending probability. |
 | `Prob` | list of float | Probability of each class, lined up with `ClassName`. |
 | `Genenames` | list of str | Genes assigned to the cell, sorted by descending count. |
@@ -84,12 +84,12 @@ One row per spot, recording where each spot was assigned.
 | `gene_name` | str | The gene the spot belongs to. |
 | `gene_id` | int | Integer index of the gene into the gene panel. |
 | `spot_id` | int | The spot's identity. |
-| `x`, `y`, `z` | float | Spot coordinates. `z` is present only for 3D data. |
+| `x`, `y`, `z` | float | Spot coordinates. `z` is 0 for 2D data. |
 | `plane_id` | int | The z-plane the spot sits on. |
 | `neighbour` | int | The most likely parent cell label (the top of `neighbour_array`). |
 | `neighbour_array` | list of int | The candidate parent cells, sorted by descending probability. The background cell `0` means a misread. |
 | `neighbour_prob` | list of float | Probability of each candidate, lined up with `neighbour_array`. |
-| `omp_score`, `omp_intensity` | float | Spot detection score and intensity. 3D data only. |
+| `omp_score`, `omp_intensity` | float | Spot detection score and intensity. 1.0 when the input spots had no such columns. |
 
 ### geneData column relationships
 
