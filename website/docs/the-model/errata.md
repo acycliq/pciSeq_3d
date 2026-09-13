@@ -94,7 +94,7 @@ expected log-joint (full derivation on the [efficiency](scale-factors.md#eta) pa
 $$
 \eta_g' \sim \mathrm{Gamma}\big(N_g + r_\eta,\; r_\eta + S_g\big),
 \qquad
-S_g = \sum_{c,k} \bar\zeta_{c,k}\, \eta_0\mu_{g,k}\, A_c\, \bar\gamma_{g,c}\, \bar\theta_c .
+S_g = \sum_{c,\,k\neq\text{zero}} \bar\zeta_{c,k}\, \eta_0\mu_{g,k}\, A_c\, \bar\gamma_{g,c}\, \bar\theta_c .
 $$
 
 The relative factor reads off cleanly against the baseline: $\eta_g' = 1$ is a gene detected
@@ -115,7 +115,7 @@ relative one is just better conditioned for the optimiser.
 | Relative, $\eta_g'$ | $\mathrm{Gamma}(r_\eta, r_\eta)$ | $\mathrm{Gamma}\big(N_g + r_\eta,\ r_\eta + S_g\big)$ |
 | Absolute, $\eta_g = \eta_0\,\eta_g'$ | $\mathrm{Gamma}(r_\eta, r_\eta/\eta_0)$ | $\mathrm{Gamma}\big(N_g + r_\eta,\ (r_\eta + S_g)/\eta_0\big)$ |
 
-with $N_g$ the observed spots of gene $g$ and $S_g$ as above (the per-cell factor
+with $N_g$ the reads of gene $g$ in cells (background and Zero-cell reads excluded) and $S_g$ as above (the per-cell factor
 $\bar\theta_c$ is this model's extension; the original paper omits it). The code uses the
 relative form: it centres the working variable at $1.0$, preconditions the optimisation near
 the right order of magnitude, and vectorises cleanly across genes.
