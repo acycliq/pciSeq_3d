@@ -90,6 +90,7 @@ One row per spot, recording where each spot was assigned.
 | `neighbour_array` | list of int | The candidate parent cells, sorted by descending probability. The background cell `0` means a misread. |
 | `neighbour_prob` | list of float | Probability of each candidate, lined up with `neighbour_array`. |
 | `omp_score`, `omp_intensity` | float | Spot detection score and intensity. 1.0 when the input spots had no such columns. |
+| `is_hard_misread` | uint8 | 1 when the argmax over the candidate probabilities is the background, ie most likely neighbour is 0. Only in the tsv and feather files. |
 
 ### geneData column relationships
 
