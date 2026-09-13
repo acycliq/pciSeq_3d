@@ -15,7 +15,7 @@ pciseq run analysis.yaml
 
 ## The config file
 
-Four sections. `spots` and `masks` are required, `scrnaseq` and `opts` are
+Four sections. `spots`, `masks` and `scrnaseq` are required, `opts` is
 optional.
 
 ```yaml
