@@ -40,7 +40,8 @@ Beyond the gene-expression match, two further terms enter the score:
   isolated, biologically implausible assignments. Nearby neighbours count for more than
   distant ones, on a scale set per cell from its own neighbour distances, so "close" means
   the same thing in dense and sparse tissue. The term is a soft preference rather than a
-  constraint: it is added to the score, so strong gene evidence can outweigh it. Its size
+  constraint: it is added to the score, so strong gene evidence can outweigh it. Its
+  strength is the `mrf_beta` setting, `0` switches it off. Its size
   is bounded, and how it is built is set out in
   [the model derivation](../the-model/cell-class.md#weighting-the-neighbours-by-distance).
   Close sister classes can be grouped so the neighbours back them all equally and the
@@ -52,7 +53,10 @@ Beyond the gene-expression match, two further terms enter the score:
 One class, labelled **Zero**, expects no expression. It absorbs cells that are
 effectively empty: debris, poorly segmented fragments, or cells whose markers are absent
 from the gene panel. Providing this class prevents such cells from being forced onto a
-genuine type to which they do not belong.
+genuine type to which they do not belong. A near-empty cell has nothing to weigh against
+its neighbours, so the spatial term alone can pull it onto the type around it. The
+[Zero boost](../the-model/cell-class.md#the-zero-boost) (`zero_boost`, off by default)
+protects such cells.
 
 It reads the gene counts per cell, the warped definitions, the class prior and the
 neighbourhood structure, and produces a probability distribution over cell types for every
