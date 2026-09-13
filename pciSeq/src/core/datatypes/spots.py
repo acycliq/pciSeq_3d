@@ -60,7 +60,9 @@ class Spots(object):
 
     def __getstate__(self):
         """
-        Customizes the state for pickling, excluding certain attributes.
+        Customizes the state for pickling. gamma_bar and log_gamma_bar are
+        left out only to keep the pickle file small, they are cells x genes x
+        classes and nothing downstream needs them.
 
         Returns:
             dict: Attributes to be serialized.

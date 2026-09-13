@@ -199,7 +199,9 @@ is in [the cell scale factor](/the-model/scale-factors#theta) and
   and class.
 - `spots.gamma_bar` is `(nC, nG, nK)`, the posterior mean expression rate per
   cell, gene and class. This is a cells x genes x classes array, so it can be
-  very large; index into it rather than materialising the whole thing.
+  very large; index into it rather than materialising the whole thing. It is
+  dropped from the pickle to keep the file small, so it is only available on
+  the instance returned by `cell_type`.
 
 ## Run provenance
 
