@@ -245,10 +245,9 @@ block of 100 x 100 pixels over 10 planes with a voxel size of
 as 100 x 100 x 10 x 2.5 = 250,000 units of volume, and expecting one misread
 of a gene in it means a density of 1/250,000, or 4e-6.
 
-You can give one number for all genes, or a dictionary with a 'default' key
-plus per gene overrides for genes you know are dirty:
-{'default': 1e-6, 'Plp1': 1e-4}
-A bare number is turned into {'default': ...} with that number for you.
+Give one number, or a dictionary with a 'default' key: {'default': 1e-6}.
+A bare number is turned into {'default': ...} for you. Only the 'default'
+key is read, per gene entries are not used.
 
 Raising it makes the background a stronger competitor, so more spots are
 called misreads. Lowering it pushes more spots into cells.
