@@ -20,6 +20,10 @@ a spot depends on the types of the cells around it. Both are returned as probabi
 - For every spot, a probability distribution over its candidate parent cells and the
   background.
 
+`fit` returns both as pandas DataFrames. If `save_data` is `True`, they are also written
+to `output_path` as tsv and feather files and as a SpatialData zarr store, and the fitted
+model is pickled. See [Working with results](api/working-with-results.md).
+
 ## Probabilistic output
 
 Every assignment is a probability, not a label. Segmentation boundaries are imprecise,
