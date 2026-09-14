@@ -30,7 +30,7 @@ cell.
 | `ClassName` | list of str | Candidate cell classes, sorted by descending probability. |
 | `Prob` | list of float | Probability of each class, lined up with `ClassName`. |
 | `Genenames` | list of str | Genes assigned to the cell, sorted by descending count. |
-| `CellGeneCount` | list of float | Expected count for each gene, lined up with `Genenames`. Counts are soft, so they can be fractional. |
+| `CellGeneCount` | list of float | Expected count of each gene, lined up with `Genenames`: the sum of the assignment probabilities of the gene's spots, see [probabilistic output](../index.md#probabilistic-output). |
 | `spot_id` | list of list of int | The spot ids that make up each gene's count, lined up with `Genenames`. |
 | `gaussian_contour` | list | The 3-sigma ellipse outline of the cell, for drawing. |
 | `sphere_scale`, `sphere_rotation` | list | 3D ellipsoid drawing parameters. 3D data only. |

@@ -26,11 +26,14 @@ model is pickled. See [Working with results](api/working-with-results.md).
 
 ## Probabilistic output
 
-Every assignment is a probability, not a label. Segmentation boundaries are imprecise,
-detection is imperfect and a fraction of the reads are noise, so a single answer would
-discard the uncertainty. A spot inside one cell whose gene the cell's type expresses
-gets a probability near one; a spot on a boundary is split between the cells; a spot
-matching no cell goes to the background. Cell types are treated the same way.
+Assignments are probabilities rather than labels, because segmentation boundaries are
+imprecise, detection is imperfect and a fraction of the reads are noise. A spot on the
+boundary of two cells receives probability on both; a spot that no cell explains is
+assigned to the background. Cell type assignments are probabilities in the same way.
+
+A cell's count of a gene is the sum of the assignment probabilities of that gene's spots,
+so it is an expected count rather than an integer. Four spots of Plp1 assigned to the cell
+with probability 1 and one with probability 0.3 give a count of 4.3.
 
 ## Usage
 

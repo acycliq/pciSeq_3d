@@ -104,7 +104,7 @@ layout.
 | `obsm['spatial']` | Centroid `(X, Y, Z)`. `X`, `Y` equal `cellData`'s; `Z` is in plane units, see the tip below. |
 | `obsm['class_prob']` | The full class posterior, shape `(n_cells, n_classes)`. Columns line up with `uns['class_names']`. |
 | `uns['class_names']` | Class names, the reference taxonomy plus `'Zero'`, the background class, appended last. |
-| `X` | Sparse cell by gene count matrix, csr. Counts are soft, so entries can be fractional, exactly like `cellData.CellGeneCount`. |
+| `X` | Sparse cell by gene matrix of expected counts, csr, the same values as `cellData.CellGeneCount`. |
 | `var_names` | The gene panel, matching `cellData.Genenames`. |
 
 ::: tip Z units differ from cellData on purpose
