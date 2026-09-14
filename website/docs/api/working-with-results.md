@@ -5,9 +5,8 @@ description: What pciSeq.fit() returns, the columns of cellData and geneData, an
 
 # Working with results
 
-This page explains what comes out of a run: the two DataFrames
-[`fit`](./reference#fit) returns, how their columns relate, and how to reach the
-fitted model object for a deeper look.
+The two DataFrames [`fit`](./reference#fit) returns, their columns, and the fitted
+model object behind them.
 
 ## Return values
 
@@ -110,9 +109,9 @@ dict(zip(row['neighbour_array'], row['neighbour_prob']))
 
 ## Inspecting the fitted model
 
-`cellData` and `geneData` are summaries. The full state of the run lives on the
-fitted `VarBayes` model. See [`VarBayes`](./reference#varbayes) for the list of
-attributes and methods; this section shows how to make sense of the main ones.
+`cellData` and `geneData` are summaries. The full state of the run is on the fitted
+`VarBayes` model. [`VarBayes`](./reference#varbayes) lists its attributes and methods;
+this section covers the main ones.
 
 [`cell_type`](./reference#cell-type) returns the model directly. `fit` does not,
 but with `save_data=True` (the default) it serialises the model to
@@ -134,8 +133,7 @@ obj.nC, obj.nS, obj.nG, obj.nK   # cells, spots, genes, classes
 
 `cells.classProb` is a `(nC, nK)` array: one **row per cell**, one **column per
 class**, and each row sums to 1. Row `0` is the background. The
-columns are labelled by `cells.class_names` (the last one is `Zero`). Wrapping it
-in a DataFrame makes it readable:
+columns are labelled by `cells.class_names`, the last one `Zero`. As a DataFrame:
 
 ```python
 probs = pd.DataFrame(obj.cells.classProb, columns=obj.cells.class_names)
@@ -161,7 +159,7 @@ the candidates in a fixed order.
 `genes.gene_panel` is the master list of genes, length `nG`. Every gene-indexed
 array below is in this order.
 
-Gene efficiency comes in two forms, which are easy to confuse:
+Gene efficiency is held in two forms:
 
 - `genes.eta_bar` is the raw posterior mean of the per-gene efficiency. It is
   **not** scaled by the `Inefficiency` config value.
@@ -192,9 +190,8 @@ The single-cell reference is held twice:
 
 ### Scale factors (`theta_bar`, `gamma_bar`)
 
-These are the fitted scale factors. They are advanced, and the maths behind them
-is in [the cell scale factor](/the-model/scale-factors#theta) and
-[the cell-gene scale factor](/the-model/scale-factors#gamma) pages.
+The fitted scale factors, derived in [the cell scale factor](/the-model/scale-factors#theta)
+and [the cell-gene scale factor](/the-model/scale-factors#gamma) sections.
 
 - `cells.theta_bar` is `(nC, nK)`, the posterior mean cell scale factor per cell
   and class.

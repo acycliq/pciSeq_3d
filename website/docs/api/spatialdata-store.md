@@ -5,15 +5,13 @@ description: The zarr store a run writes next to the tsv files, element by eleme
 
 # SpatialData store
 
-When `save_data` is on, a run writes its results twice: once as tsv files for the
-viewer, and once as a [SpatialData](https://scverse-spatialdata.readthedocs.io/)
-zarr store at `<output_path>/pciSeq/data/spatialdata.zarr`. The zarr store is the copy meant
-for the scverse tools: open it in napari via napari-spatialdata, or hand it to
-squidpy, scanpy or plain anndata.
+When `save_data` is on, a run writes its results twice: as tsv and feather files, and
+as a [SpatialData](https://scverse-spatialdata.readthedocs.io/) zarr store at
+`<output_path>/pciSeq/data/spatialdata.zarr`. The store is for the scverse tools: napari
+via napari-spatialdata, squidpy, scanpy, anndata.
 
-Everything on this page was written against spatialdata 0.5. The elements and
-their columns are produced by `pciSeq/src/core/utils/spatialdata_export.py`; if
-that file and this page ever disagree, believe the file.
+This page was written against spatialdata 0.5. The elements and their columns are
+produced by `pciSeq/src/core/utils/spatialdata_export.py`, which is authoritative.
 
 ## Scope
 
@@ -60,9 +58,8 @@ with coordinate systems:
         cell_labels (Labels), transcripts (Points)
 ```
 
-The objects describe themselves: `print(sdata)` lists every element,
-`print(sdata.tables['cells'])` lists every column and key the table carries. When
-in doubt, print the thing.
+`print(sdata)` lists the elements and `print(sdata.tables['cells'])` the columns and
+keys of the table.
 
 ## The elements
 
@@ -89,14 +86,14 @@ pandas DataFrame.
 | `omp_score`, `omp_intensity` | float32 | Per-spot OMP diagnostics. 1.0 when the input spots had no such columns. |
 | `is_hard_misread` | bool | The spot's most likely parent is the background class. |
 
-The ragged per-spot columns of `geneData` (`neighbour_array`, `neighbour_prob`
-lists) are dropped on purpose: parquet handles ragged lists badly, and the
-useful scalar, the probability of the assigned cell, is kept instead.
+The list columns of `geneData`, `neighbour_array` and `neighbour_prob`, are not stored,
+since parquet handles ragged lists badly. The probability of the assigned cell is kept
+as a scalar.
 
 ### `tables['cells']` (AnnData)
 
-The cell typing results, one row per cell. This is the zarr twin of
-`cellData.tsv`, reorganized into the anndata layout.
+The cell typing results, one row per cell: the content of `cellData.tsv` in the anndata
+layout.
 
 | Where | What |
 | --- | --- |
@@ -124,9 +121,8 @@ against the segmentation automatically.
 
 ### `tables['reference']` (AnnData)
 
-The scRNAseq reference the run was called against, transposed to classes as rows
-and genes as columns. It is there so the store says what produced the calls:
-`X[i, j]` is the reference expression of gene `j` in class `i`.
+The scRNAseq reference the run was called against, transposed to classes as rows and
+genes as columns: `X[i, j]` is the reference expression of gene `j` in class `i`.
 
 ## Provenance
 
@@ -181,7 +177,6 @@ int(sdata['cell_labels'][int(z), int(y), int(x)])   # == cid
 
 ::: warning Two ways to count a cell's spots
 `len(tr[tr.neighbour == cid])` (hard argmax assignment) and
-`adata.X[pos].sum()` (the model's soft counts) are close but not identical.
-Both are correct; they answer different questions. The tsv files and the store
-agree with each other on both quantities.
+`adata.X[pos].sum()` (the model's soft counts) are close but not identical. They
+answer different questions. The tsv files and the store agree on both.
 :::

@@ -34,14 +34,12 @@ The version string lives in `pciSeq/_version.py`. `__commit__` and `__branch__` 
 from git when the package is imported from a checkout, otherwise from the values baked in
 when it was built. On the command line, `pciseq --version` prints the version string.
 
-The model changes between commits. Two results are only directly comparable when the commit
-matches, or when you know what changed in between. That is why every run records it, see
-below.
+The model changes between commits. Two results are directly comparable only when the
+commit matches, or when the changes in between are known. Every run records it, see below.
 
 ## Run provenance
 
-Every run stamps itself with the code that produced it, so a result found months later can
-be traced back without relying on notes:
+Every run records the code that produced it, so a result can be traced back to it:
 
 ```python
 varBayes.metadata

@@ -7,11 +7,11 @@ description: Watch the cell typing in a browser while pciSeq.fit() runs, and wha
 
 The live viewer shows the cells in a browser while [`fit`](./reference#fit) is still
 running. Every cell is drawn at its position and coloured by the class it is currently
-assigned to, and the picture updates after each iteration. It is useful for seeing where
-the model is unsure, which cells keep changing class, and how quickly a run settles.
+assigned to, and the picture updates after each iteration. It shows which cells keep
+changing class and how quickly a run settles.
 
-It only reads the class probabilities after each iteration, it does not change them, so a
-run gives the same result with the viewer on or off.
+The viewer reads the class probabilities after each iteration and does not change them.
+A run gives the same result with the viewer on or off.
 
 ## Turning it on
 
@@ -23,28 +23,27 @@ opts = {
 cellData, geneData = pciSeq.fit(spots=spots, coo=coo, scRNAseq=scRNAseq, opts=opts)
 ```
 
-A browser tab opens by itself at `http://127.0.0.1:5001`. If it does not, open that
-address yourself. The page says *Waiting for algorithm to start...* until the first
-iteration is done, which can take a while on a large dataset since the data is prepared
-first.
+A browser tab opens at `http://127.0.0.1:5001`. If it does not, open that address.
+The page says *Waiting for algorithm to start...* until the first iteration is done;
+preprocessing runs first, and on a large dataset that takes minutes.
 
-Two more settings help on large sections:
+Two settings reduce the load on large sections:
 
-- `realtime_viewer_max_cells`: draw only this many cells, the ones the model is most sure
-  about. `None` (the default) draws all of them.
+- `realtime_viewer_max_cells`: draw only this many cells, those with the highest class
+  probability. `None`, the default, draws all of them.
 - `realtime_viewer_fixed_radius`: draw every cell at this radius. `None` draws each cell
-  at its own size, worked out from its area.
+  at the radius derived from its area.
 
-When `fit` returns the viewer shuts down and the page shows it is no longer connected. It
-keeps the last picture and you can still hover and hide classes, but anything that needs
-the running model, such as the cell diagnostics below, stops working.
+When `fit` returns the viewer shuts down and the page shows it is no longer connected. The
+last picture stays, hover and class hiding still work, and anything that needs the
+running model, such as the cell diagnostics below, stops.
 
 ::: tip Running on a remote machine
-The viewer only listens on `127.0.0.1`, so it cannot be opened from another computer
-directly. Forward the port over ssh and open the address on your own machine:
+The viewer listens on `127.0.0.1` only. To reach it from another machine, forward the
+port over ssh and open the address locally:
 
 ```bash
-ssh -L 5001:127.0.0.1:5001 you@server
+ssh -L 5001:127.0.0.1:5001 user@server
 ```
 :::
 
@@ -54,23 +53,21 @@ ssh -L 5001:127.0.0.1:5001 you@server
 convergence value (see below) and the number of cells. The small box on the picture shows
 the connection and the cell count too.
 
-**Hover** over a cell for its label, its class, its position and how sure the model is
-about that class.
+**Hover** over a cell for its label, class, position and the probability of that class.
 
 **Pan and zoom** with the mouse.
 
-**Cells that just changed class** swell up and shrink back over two seconds, so you
-can see where the assignments are still moving.
+**Cells that just changed class** swell up and shrink back over two seconds.
 
 ## Cell classes
 
 The legend lists every class with its colour and how many cells are assigned to it.
 
-- Click a class to hide it, click again to bring it back. **Show All** and **Hide All** do
-  every class at once.
-- Press `/` to jump to the filter box and type part of a class name to shorten the list.
+- Click a class to hide it, click again to show it. **Show All** and **Hide All** act on
+  every class.
+- `/` moves the focus to the filter box; typing part of a class name shortens the list.
   `Esc` clears it.
-- Drag the handle under the list to make it taller or shorter.
+- The handle under the list resizes it.
 
 ## Updates
 
@@ -92,22 +89,22 @@ Hover over a point to read its value.
 
 ## Cell diagnostics
 
-`Ctrl`+click a cell (`Cmd`+click on a Mac) to open the diagnostics drawer. It explains, gene
-by gene, why the model prefers the cell's class over another one. Pick that other class in
-**Compare against**, it starts on Zero.
+`Ctrl`+click a cell (`Cmd`+click on a Mac) opens the diagnostics drawer. It lists, gene by
+gene, the evidence for the cell's class against another class, chosen in **Compare
+against**. The default is Zero.
 
 - The two charts show the 10 genes that favour the assigned class the most and the 10
   that favour the compared class the most, measured as the difference in log-likelihood.
 - The table has the counts of those genes in this cell next to the mean counts in the
   cells typed as each of the two classes.
 
-Comparing a class against itself is not allowed and gives an error in the drawer. Drag
-the top edge of the drawer to resize it.
+Comparing a class against itself gives an error in the drawer. The top edge of the
+drawer resizes it.
 
 ## Custom colours
 
-By default the classes get evenly spread colours. To use your own, click **Import Color
-Scheme** and choose a JSON file that maps class names to colours:
+By default the classes get evenly spread colours. **Import Color Scheme** loads a JSON
+file mapping class names to colours:
 
 ```json
 {
@@ -117,20 +114,18 @@ Scheme** and choose a JSON file that maps class names to colours:
 }
 ```
 
-- The names must be spelled exactly like the columns of your scRNAseq data.
-- A colour can be a hex code or a CSS colour name.
-- Classes missing from the file keep their default colour. Names in the file that are not
-  in the data are ignored and listed in the browser console.
-- You can load the file before the first iteration arrives. It is then applied as soon as
-  the class names are known.
+- Names must match the columns of the scRNAseq reference exactly.
+- A colour is a hex code or a CSS colour name.
+- Classes missing from the file keep their default colour. Names not in the data are
+  ignored and listed in the browser console.
+- A file loaded before the first iteration is applied once the class names arrive.
 
 ::: tip Chrome and Opera on Linux
 In the file dialog, select the file and press **Open**. Double-clicking the file does not
-always pass it to the page in Chromium based browsers. Firefox is fine either way.
+always pass it to the page in Chromium based browsers.
 :::
 
 ## Opening it late
 
-The viewer remembers the cell positions and the latest iteration, so a tab opened or
-reloaded in the middle of a run catches up straight away. You can close the tab and
-come back to it without affecting the run.
+The server keeps the cell positions and the latest iteration, so a tab opened or reloaded
+during a run catches up at once. Closing the tab does not affect the run.

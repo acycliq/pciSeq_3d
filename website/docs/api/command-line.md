@@ -5,9 +5,8 @@ description: Run pciSeq from a config file with the pciseq command, override set
 
 # Command line
 
-`pciseq` runs a dataset described by a config file, so a run is a file you can
-keep and share rather than a script you edit. It does the same thing as calling
-[`fit`](./reference#fit) yourself, with the file loading built in.
+`pciseq` runs a dataset described by a config file. It loads the inputs and calls
+[`fit`](./reference#fit); a run is then a file rather than a script.
 
 ```bash
 pciseq run analysis.yaml
@@ -40,13 +39,13 @@ opts:
   output_path: /path/to/output
 ```
 
-Everything under `opts` goes straight to `fit`, so the keys are the ones on the
-[configuration page](./configuration). Anything you leave out keeps its default.
+Everything under `opts` goes to `fit`, so the keys are the ones on the
+[configuration page](./configuration). Keys left out keep their defaults.
 
 ### scrnaseq
 
-The single cell reference, as genes by cell types. Written to disk both ways
-round, hence `transpose`.
+The single cell reference, genes by cell types. `transpose` handles files stored
+the other way round.
 
 | key | meaning |
 |-----|---------|
@@ -64,12 +63,11 @@ round, hence `transpose`.
 | `rename` | old name to new name, for files whose columns are not what pciSeq expects |
 | `filter` | a pandas query string. Several conditions join with `and` |
 
-pciSeq needs `gene_name`, `x`, `y` and, for 3D, `z_plane`. `rename` is how you
-get there without editing the data.
+pciSeq needs `gene_name`, `x`, `y` and, for 3D, `z_plane`. `rename` maps the
+file's column names onto these.
 
-Keeping `filter` here rather than baking it into the file means the raw spots
-stay unfiltered on disk and the threshold is visible next to the run it belongs
-to.
+`filter` is applied on load, so the file on disk stays unfiltered and the
+threshold is recorded with the run.
 
 ### masks
 
@@ -89,7 +87,7 @@ plane.
 pciseq run analysis.yaml --set rTheta=5 --set mrf_beta=1.0
 ```
 
-Values are read as JSON, so types come out right:
+Values are parsed as JSON:
 
 ```bash
 --set rTheta=5                       # number
@@ -103,7 +101,7 @@ typo stops the run instead of quietly doing the wrong thing.
 
 ## Sweeps
 
-This is what `--set` is for. One config, a loop, one output directory per run:
+One config, a loop, one output directory per run:
 
 ```bash
 for t in 2 5 15 25; do
@@ -115,17 +113,14 @@ for t in 2 5 15 25; do
 done
 ```
 
-If you later fix a path in `analysis.yaml`, every run in the sweep inherits the
-fix. Twelve near-identical config files would not.
-
-Run them one at a time unless you know your memory budget: a large 3D dataset
-can hold well over 8 GB per run.
+A change to `analysis.yaml` applies to every run of the sweep. A large 3D dataset
+can take over 8 GB per run, so sweeps are best run sequentially.
 
 ## Validating a config
 
 `--dry-run` prints the settings that would be used and stops, without reading
-any data. Use it to eyeball a sweep before launching it. It does not check the
-key names, an unknown key is only caught once the run starts.
+any data. It does not check the key names; an unknown key is only caught once
+the run starts.
 
 ```bash
 pciseq run analysis.yaml --set rTheta=5 --dry-run
@@ -138,26 +133,19 @@ pciseq --version
 ```
 
 The model changes between versions, so the version is part of the description of any
-result. Each run also records its own provenance in the output; see
-[run provenance](./working-with-results#run-provenance).
+result. Each run also records its provenance in the output, see
+[run provenance](../installation#run-provenance).
 
 ## Numbers in YAML
 
-Large numbers may be written in exponent form, `1.0e6`, and are read as numbers. YAML's own rules say an exponent needs a sign, so plain
-PyYAML would give you the string `"1.0e6"`; pciSeq handles the unsigned form so
-`rTheta: 1.0e6` means what it looks like.
+Numbers may be written in exponent form, `1.0e6`. YAML requires a signed exponent,
+so plain PyYAML reads the unsigned form as the string `"1.0e6"`; pciSeq accepts it
+as a number.
 
 ## The Python API
 
-The CLI is a convenience, not a separate implementation. This:
-
-```bash
-pciseq run analysis.yaml
-```
-
-is the same as loading the inputs yourself and calling
-[`fit`](./reference#fit). If you want the config handling without the command
-line:
+The command is a wrapper over [`fit`](./reference#fit). The config handling is
+available without it:
 
 ```python
 from pciSeq.cli import load_config, build_run
@@ -170,9 +158,6 @@ cellData, geneData = fit(spots=spots, coo=coo, scRNAseq=scRNAseq, opts=opts)
 
 ## Beyond the config file
 
-The config covers renaming, filtering and picking an array out of an npz, which
-is most of what real datasets need. Anything stranger, a bespoke coordinate
-transform, merging several files, stitching tiles, belongs in a small script
-that writes out tidy inputs, which the config then points at. That keeps the
-odd, dataset-specific work visible in its own file instead of spreading through
-the config vocabulary.
+The config covers renaming, filtering and selecting an array from an npz. Other
+preprocessing, a coordinate transform, merging files, stitching tiles, belongs in a
+script that writes out clean inputs for the config to point at.
