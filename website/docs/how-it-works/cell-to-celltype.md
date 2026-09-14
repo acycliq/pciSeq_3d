@@ -1,64 +1,51 @@
 
 # 3. Assigning cells to cell types
 
-At this point in the loop two inputs are available: the gene counts within each cell, and
-the warped definitions, now on the correct scale for the experiment. The model can then
-evaluate the type of each cell.
-
-Score every cell against every known cell type according to how well its gene counts
-agree with the type's (warped) expected expression, and convert the scores into
-probabilities.
+Every cell is scored against every cell type by how well its gene counts agree with
+the type's warped expected expression, and the scores are converted to probabilities.
+The inputs are the gene counts per cell from the current spot assignment and the warped
+definitions from the previous step.
 
 ## The expression score
 
-For a given cell and a candidate type, the model evaluates how probable the observed
-counts are under that type. A type whose expected expression agrees with the cell's
-counts receives a high score; a type that predicts genes the cell lacks, or omits genes
-the cell expresses, receives a low one. Each gene contributes a term, and the terms
-combine across all genes. A small number of strong marker genes can dominate the result,
-which is appropriate: the presence or absence of a few characteristic transcripts is
-often what distinguishes closely related types.
+The score of a cell for a type is the log probability of the cell's counts under that
+type's expected expression, summed over genes. A type that predicts genes the cell lacks,
+or omits genes the cell has, scores low. A few strong marker genes can dominate the sum,
+which is what separates closely related types.
 
 ## The softmax
 
-The scores are passed through a **softmax**, which converts them into probabilities that
-sum to one. For each cell the result is a distribution over the types, for example 0.80
-on one type, 0.15 on a close relative, and 0.05 elsewhere. This distribution is itself
-informative: a confident assignment concentrates almost all of the probability on a
-single type, whereas an ambiguous one spreads it across several.
+A softmax over the scores gives each cell a distribution over the types, for example
+0.80 on one type, 0.15 on a close relative and 0.05 elsewhere. A confident assignment
+concentrates the mass on one type, an ambiguous one spreads it.
 
 ## The class prior and the spatial term
 
-Beyond the gene-expression match, two further terms enter the score:
+Two further terms are added to the score.
 
-- **A prior.** Cell types differ in overall abundance. The prior shifts the scores so
-  that, other things being equal, a cell is more readily assigned to a common type than
-  to a rare one.
+- **The class prior.** With `cell_type_prior` set to `uniform`, the default, every real
+  type has the same prior weight. With `weighted` the weights are estimated from the
+  data with a Dirichlet update, so common types are favoured over rare ones.
 
-- **A spatial term (the MRF).** Cells of the same type tend to be spatially clustered.
-  The model adds a bonus when a cell's neighbours share its type, which discourages
-  isolated, biologically implausible assignments. Nearby neighbours count for more than
-  distant ones, on a scale set per cell from its own neighbour distances, so "close" means
-  the same thing in dense and sparse tissue. The term is a soft preference rather than a
-  constraint: it is added to the score, so strong gene evidence can outweigh it. Its
-  strength is the `mrf_beta` setting, `0` switches it off. Its size
-  is bounded, and how it is built is set out in
-  [the model derivation](../the-model/cell-class.md#weighting-the-neighbours-by-distance).
-  Close sister classes can be grouped so the neighbours back them all equally and the
+- **The spatial term (the MRF).** Cells of the same type cluster in space. Each type
+  receives a bonus proportional to the weighted number of the cell's neighbours that
+  carry it, with closer neighbours weighted more, on a scale set per cell from its own
+  neighbour distances. The term is added to the score, so strong gene evidence can
+  outweigh it, and it is bounded. Its strength is `mrf_beta`; `0` switches it off. The
+  weights are derived in
+  [the model](../the-model/cell-class.md#weighting-the-neighbours-by-distance).
+  Sister types can be pooled so the neighbours support all of them equally and the
   expression alone decides between them, see
   [pooling sister classes](../the-model/cell-class.md#pooling-sister-classes).
 
 ## The Zero class
 
-One class, labelled **Zero**, expects no expression. It absorbs cells that are
-effectively empty: debris, poorly segmented fragments, or cells whose markers are absent
-from the gene panel. Providing this class prevents such cells from being forced onto a
-genuine type to which they do not belong. A near-empty cell has nothing to weigh against
-its neighbours, so the spatial term alone can pull it onto the type around it. The
-[Zero boost](../the-model/cell-class.md#the-zero-boost) (`zero_boost`, off by default)
-protects such cells.
+One class, Zero, expects no expression. It takes the cells that are effectively empty:
+debris, segmentation fragments, and cells whose markers are not in the gene panel.
+Without it such cells would be forced onto a real type. A near-empty cell has no counts
+to weigh against its neighbours, so the spatial term alone can pull it onto the type
+around it; the [Zero boost](../the-model/cell-class.md#the-zero-boost) (`zero_boost`,
+off by default) counters that.
 
-It reads the gene counts per cell, the warped definitions, the class prior and the
-neighbourhood structure, and produces a probability distribution over cell types for every
-cell. [Spot assignment](spots-to-cells.md) uses that distribution to assess which spots a cell is
-likely to emit.
+The output, a distribution over types for every cell, is the input to
+[spot assignment](spots-to-cells.md).

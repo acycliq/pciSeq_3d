@@ -1,32 +1,19 @@
-
 # How it works
 
-pciSeq does not compute its result in a single pass. It is an iterative procedure: a
-small set of steps is applied repeatedly, each step refining its own estimate from the
-current estimates of the others, until the estimates stabilise. The converged state is
-the output.
+pciSeq treats every unknown as a latent variable of one Bayesian model: the cell of
+origin of each spot, the type of each cell, the detection efficiency of each gene, and
+the per-cell and per-gene scale factors. Each has a prior. The target of inference is
+their joint posterior given the spots and the cell type definitions.
 
-pciSeq is a **fully Bayesian** model. Every unknown in the problem - the cell of origin
-of each spot, the type of each cell, the gene detection efficiencies, and the per-cell
-and per-gene scale factors - is treated as a latent variable with a prior distribution.
-The target of inference is their **joint posterior**: the distribution over all of these
-latent variables together, conditioned on the observed spots and the cell type
-definitions.
+The posterior has no closed form. It is approximated by variational inference: the
+approximating distribution is restricted to a mean-field family, one factor per group of
+latent variables, and the member of the family closest to the posterior in
+Kullback-Leibler divergence is selected. This is equivalent to maximising a lower bound
+on the model evidence.
 
-This posterior is analytically intractable and cannot be evaluated in closed form.
-**Variational inference** (variational Bayes) addresses this by approximation. We
-restrict attention to a tractable family of distributions, factorised into one factor
-per group of latent variables (a mean-field approximation), and select the member of
-that family closest to the true posterior, where closeness is measured by the
-Kullback-Leibler divergence. Equivalently, this maximises a lower bound on the model
-evidence.
-
-The optimal factors are coupled and cannot be obtained simultaneously, so the
-approximation is fitted by **coordinate ascent**: an iterative loop that updates one
-factor at a time, each to its optimal form given the current estimates of all the
-others. Each latent variable is therefore estimated **conditionally on the rest**. Every
-sweep tightens the approximation, and the loop runs until the estimates converge. The
-four sections below are exactly these conditional updates.
+The optimal factors depend on one another, so they are fitted by coordinate ascent. Each
+factor is updated to its optimum given the current values of the others, and the sweep
+repeats until the estimates stop changing. The four steps below are these updates.
 
 ## The variational loop
 
@@ -51,56 +38,32 @@ four sections below are exactly these conditional updates.
     <text class="vl-text-label"><textPath href="#vlTxtPath4" startOffset="50%" text-anchor="middle">Spot Assignment</textPath></text>
   </g>
 </svg>
-<figcaption>Each one feeds the next, and the last feeds back into the first. The loop
-runs until the spot assignments stop changing.</figcaption>
+<figcaption>The four updates, in order. The last feeds the first.</figcaption>
 </figure>
 
-1. **[Estimate the misread density per gene.](misread-density.md)**
-    Estimate how much background noise each gene produces, so genuine signal can be
-   separated from it.
+1. **[Misread density.](misread-density.md)** The rate of background reads per gene,
+   estimated from the spots currently assigned to the background.
 
-2. **[Warp the cell type definitions.](warping-the-reference.md)**
-   Rescale the cell type definitions so they match the scale and characteristics of
-   *this* experiment. This is the most subtle of the four, and the hardest to verify, because
-   it happens entirely behind the scenes.
+2. **[Warping the cell type definitions.](warping-the-reference.md)** Per-gene detection
+   efficiencies and per-cell and per-cell-gene scale factors that rescale the reference
+   expression to this experiment. These are latent, with no observed counterpart, and
+   are identified only through the fit between cells and types.
 
-3. **[Assign cells to cell types.](cell-to-celltype.md)**
-   With the warped definitions in hand, score every cell against every known type and
-   turn the scores into probabilities.
+3. **[Cell to cell type.](cell-to-celltype.md)** Every cell is scored against every type
+   with the warped definitions, and the scores are normalised to probabilities.
 
-4. **[Assign spots to cells.](spots-to-cells.md)**
-   With cell types in hand, decide which cell each spot most likely came from (or
-   whether it is background noise).
+4. **[Spots to cells.](spots-to-cells.md)** Every spot is assigned to one of its
+   neighbouring cells or to the background, as a probability, given the cell type
+   probabilities.
 
-Then the loop closes: new spot assignments change the gene counts per cell, which feeds
-straight back into [the misread density](misread-density.md), and the cycle repeats.
-
-## Why they form a loop
-
-Running the steps only once, in sequence, would leave each one based on crude initial
-estimates of the others: the misread density would rest on a provisional spot assignment,
-the cell types on uncalibrated definitions, and so on. Iterating allows each correction
-to propagate. An improved misread estimate refines the spot assignments, which refine the
-per-cell gene counts, which refine the cell-type estimates, which in turn refine the spot
-assignments. Successive passes continue until the estimates no longer change
-appreciably.
+The new spot assignments change the gene counts per cell, which enter step 1 of the next
+sweep. A single pass would leave each step conditioned on the initial values of the
+others; iterating propagates each update to the rest.
 
 ## Convergence
 
-After each iteration, pciSeq measures how much the **spot-to-cell probabilities** have
-changed. The measure is the **largest single change** across every spot and every
-candidate cell, not an average over them. When it falls below `CellCallTolerance` the
-estimates are taken to have converged and the loop terminates. A maximum number of
-iterations is also imposed as a safeguard.
-
-Taking the maximum is deliberate, and it is strict: one spot still moving between two
-cells holds the whole run open, even when every other spot has settled. A mean would
-have declared convergence long before.
-
-## Warping in more detail
-
-Three of the four produce quantities that can be inspected directly: background
-rates, cell-type scores, and spot assignments. The warping is different: the warped
-definitions it produces are fully latent, with no observed counterpart, and are
-identified only through their effect on the agreement between cells and types. It is where
-the [family of inefficiency factors](warping-the-reference.md) is estimated.
+After each sweep the change in the spot-to-cell probabilities is measured as the maximum
+absolute change over all spots and candidate cells. The loop stops when this falls below
+`CellCallTolerance`, or at `max_iter`. The maximum is a strict criterion: one spot still
+moving between two cells keeps the loop running after every other spot has settled,
+where a mean would have stopped earlier.

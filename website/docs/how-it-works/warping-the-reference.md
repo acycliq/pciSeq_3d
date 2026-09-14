@@ -1,66 +1,45 @@
 
 # 2. Warping the cell type definitions
 
-This is the most subtle of the four, and the hardest to verify.
+The cell type definitions give the mean expression of each gene in each type, measured
+by scRNA-seq. In situ counts are on a different scale: detection efficiency differs
+between genes, transcript yield differs between cells, and the two technologies differ
+in overall scale. pciSeq rescales the expected expression to the scale of the current
+experiment before comparing. The rescaling is the warp.
 
-The cell type definitions give the average expression of each gene in each known cell
-type, measured by scRNA-seq. That measurement comes from a different technology to the
-one that produced the spots. Detection efficiency varies between genes, transcript
-capture varies between cells, and the two experiments differ in overall scale, so
-observed counts and raw definitions are not on comparable footing. pciSeq therefore
-**warps** the definitions before comparing: it rescales the expected expression to the
-scale of the current experiment.
-
-The other three steps produce output that can be inspected: spot-to-cell assignments
-overlay on the image and can be judged for spatial plausibility, and an assigned cell
-type can be checked against established marker genes. The correction factors admit no
-such check. They are **nuisance parameters**, estimated only because the cell types and
-spot assignments depend on them, and absent from the output. Nothing observed corresponds to
-them, so they are identified indirectly, through the agreement they produce between
-cells and their assigned types.
+The correction factors are nuisance parameters. They are estimated because the cell
+types and spot assignments depend on them, they are not in the output, and nothing
+observed corresponds to them directly. They are identified through the agreement they
+produce between cells and their assigned types.
 
 ## The scaling factors
 
-The warp is not one number but a **family of correction factors**, each rescaling the
-expected expression at a different level of detail. pciSeq calls them *inefficiencies*,
-since they mostly describe signal lost relative to the single-cell data.
+The warp is a family of four factors, each rescaling the expected expression at a
+different level of detail. pciSeq calls them inefficiencies, since they mostly describe
+signal lost relative to the single-cell data. From the broadest to the most specific:
 
-From the broadest to the most specific:
+- **Inefficiency.** One constant for the whole reference, the `Inefficiency` setting.
+  In situ sequencing detects a fraction of what scRNA-seq reports, around a fifth, and
+  this factor rescales every gene in every cell by it.
 
-- **Inefficiency** - a single constant applied to the whole reference, encoding the fact
-  that in situ sequencing detects only a fraction (for example, around a fifth) of what
-  scRNA-seq reports. It rescales **every gene in every cell** by this one factor, and is
-  fully systemic: it does not distinguish between individual genes or cells.
+- **eta** ($\eta_g$). One factor per gene, shared by all cells: the gene's detection
+  efficiency relative to the constant above.
 
-- **eta** ($\eta_g$) - one factor **per gene**, shared across all cells. Some genes are
-  detected more efficiently than others; eta captures that. It is the same for every
-  cell, but different for every gene.
+- **theta** ($\theta_{c\mid k}$). One factor per cell and candidate type: the cell's
+  total yield relative to what the type predicts, applied to all its genes.
 
-- **theta** ($\theta_{c\mid k}$) - one factor **per cell, for each candidate cell type**.
-  Some cells simply yield more transcripts than the definitions predict, others fewer;
-  theta is a single whole-cell **scalar** that stretches or shrinks that cell's expected
-  counts across all its genes. It is worked out separately for every type the cell might be,
-  because what counts as "expected" depends on the type being tested.
+- **gamma** ($\gamma_{g,c\mid k}$). One factor per gene, cell and candidate type: the
+  residual mismatch of one gene in one cell that the broader factors leave.
 
-- **gamma** ($\gamma_{g,c\mid k}$) - one factor **per gene, per cell, per candidate type**.
-  This is the most fine-grained and idiosyncratic correction: it adjusts a single gene
-  in a single cell, and again it is computed separately for each type that cell might be.
-  It accounts for the residual mismatch that none of the broader factors can explain.
-
-The four divide into two groups. The two broad factors, **Inefficiency** and **eta**, are
-the same no matter what type a cell turns out to be. The two fine ones, **theta** and
-**gamma**, are
-**conditional on the class**: they are recomputed for each candidate type, because the
-expectation they correct against is itself class-specific. This is why
-[cell typing](cell-to-celltype.md) can use them while it scores a cell against every type at
-once.
+Inefficiency and eta do not depend on the cell's type. theta and gamma do, since the
+expectation they correct is class-specific, and they are computed for every candidate
+type. That is what lets [cell typing](cell-to-celltype.md) use them while scoring a cell
+against every type.
 
 ## Granularity of the factors
 
-These factors can be arranged as a stack, ordered by how much of the experiment each one
-covers. The broad, systemic factor sits at the base, affecting everything at once.
-Higher up, the corrections get narrower and more specific, up to gamma at the apex, which
-applies to just one gene, in one cell, under one candidate type.
+Ordered by how much of the experiment each covers: Inefficiency applies to everything,
+gamma to one gene in one cell under one type.
 
 <figure class="diagram">
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 460" role="img" aria-label="A pyramid of the four scaling factors">
@@ -87,28 +66,23 @@ applies to just one gene, in one cell, under one candidate type.
     <text x="550" y="373" class="ip-desc">scales the whole experiment at once</text>
   </g>
 </svg>
-<figcaption>The same idea, four levels of granularity. Wide and systemic at the bottom, narrow and idiosyncratic at the top.</figcaption>
+<figcaption>The four factors by granularity.</figcaption>
 </figure>
 
-Why have all four instead of one? Because mismatch occurs at all of these levels at once.
-There is a global scale difference between the two technologies (handled at the base),
-on top of that a per-gene detection pattern (eta), on top of that per-cell variation
-(theta), and on top of all that, irreducible gene-by-cell noise (gamma). Each factor
-absorbs the mismatch at its own scale, and the rest is left to the others.
+Four factors are needed because the mismatch occurs at all four levels at once: a
+global scale difference between the technologies, a per-gene detection pattern, per-cell
+variation in yield, and gene-by-cell noise. Each factor absorbs the mismatch at its own
+scale.
 
-The factors are described separately but applied together. For each (cell, gene, class)
-triplet, Inefficiency, eta, theta and gamma multiply into a single number, and that number
-rescales the reference expression for exactly that triplet. The four levels of granularity are
-just how that one combined adjustment is built up.
+The factors are applied together. For each (cell, gene, class) triplet the expected
+expression is the reference value times Inefficiency, eta, theta and gamma.
 
-The [demo](scale-factors-demo.md) puts three of them on sliders, over a field of five
-cells generated from known class definitions, so the effect of each factor on the call
-can be seen directly.
+The [demo](scale-factors-demo.md) puts three of them on sliders over five cells generated
+from known class definitions.
 
 ## Inefficiencies
 
-Although each acts at a different level of detail, **every inefficiency is the same
-statistic**: a ratio of observed over expected.
+Every inefficiency is the same statistic, a ratio of observed over expected:
 
 $$
 \text{factor} \;=\;
@@ -122,22 +96,16 @@ $$
 - **eta** compares the observed counts of *one gene across all cells* against the total
   predicted for that gene.
 
-In each case the factor is the observed quantity divided by the expected one, so it is
-**greater than 1 when more was observed than predicted** and **less than 1 when less was
-observed**. The only thing that differs between the factors is the level of aggregation
-before the ratio is formed: a single gene-cell pair under one type, a whole cell under
-one type, or a whole gene across all cells.
-
-It therefore reduces to a single principle applied at different scales: **observed
-over expected.**
+A factor is greater than 1 when more was observed than predicted and less than 1
+otherwise. The factors differ only in the level of aggregation before the ratio is
+formed.
 
 ## The priors
 
-Each factor has a prior centred on 1, meaning no rescaling, and is regulated by a hyperparameter
-that determines how firmly it is held there: `rGene` for eta, `rTheta` for theta, `rSpot` for
-gamma. Whether a factor actually moves depends on that hyperparameter against the number of
-counts available to estimate it, and those counts differ by orders of magnitude between the three
-levels.
+Each factor has a prior with mean 1, no rescaling, whose strength is a hyperparameter:
+`rGene` for eta, `rTheta` for theta, `rSpot` for gamma. How far a factor moves from 1
+depends on that hyperparameter against the number of counts available to estimate it,
+and those counts differ by orders of magnitude between the three levels.
 
 - **eta** is estimated from one gene's reads across the whole section, typically thousands. At
   the default `rGene` of 20 the prior is negligible and the data determine the final (that is,
@@ -152,27 +120,22 @@ levels.
   to estimate anything on its own. `rSpot` is also the dispersion of the negative binomial, since
   integrating gamma out is what produces it.
 
-Raise any of them and that factor stays near 1, so that level stops rescaling the definitions.
-Lower it and the data determine the posterior. As a rule of thumb for `rTheta`, start at roughly
-the typical number of counts a cell has.
+Raising a hyperparameter holds its factor near 1; lowering it lets the data set it. A
+starting value for `rTheta` is the typical number of counts in a cell.
 
 ## The spatial factor (the MRF)
 
-Cells of the same type are often strongly localised, arranged in layers or clear regions.
-The model uses this when it scores a cell against the candidate types: it adds a bonus to
-any type the cell's neighbours already belong to, so a cell surrounded by one type is more
-likely to be called that type itself.
+Cells of the same type cluster in space, in layers or regions. When a cell is scored
+against the types, each type receives a bonus proportional to the weighted number of
+the cell's neighbours that carry it, closer neighbours weighted more. This is the
+spatial term, a Markov random field (MRF), where a cell's label depends on its
+neighbours' labels. `mrf_beta` sets its strength; at `0` only the gene counts and the
+prior decide the type. It is described with the cell typing step in
+[cell to cell type](cell-to-celltype.md#the-class-prior-and-the-spatial-term).
 
-This is the spatial factor, or MRF (short for Markov random field, a model where each cell's
-label depends on its neighbours' labels). The `mrf_beta` hyperparameter sets how strong it
-is: the bonus for a type adds up the neighbours that favour it, with closer neighbours
-counting more. A large `mrf_beta` weighs the neighbours heavily; at `mrf_beta = 0` the factor
-is off and only the gene counts and the prior decide the type.
-
-A cell with almost no reads of its own has nothing to weigh against its neighbours, so the
-spatial factor alone can decide what it is. The
-[Zero boost](../the-model/cell-class.md#the-zero-boost), off by default, protects such cells
-from being taken over by the type around them.
+A cell with almost no reads has nothing to weigh against its neighbours, so the spatial
+term alone can decide its type. The
+[Zero boost](../the-model/cell-class.md#the-zero-boost), off by default, counters that.
 
 <details>
 <summary>Earlier working, retained for the record and due for removal</summary>

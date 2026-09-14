@@ -35,6 +35,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Docs', link: '/' },
+      { text: 'Running pciSeq', link: '/running-pciseq' },
       { text: 'How it works', link: '/how-it-works/overview' },
       { text: 'The model', link: '/the-model/overview' },
       { text: 'API', link: '/api/reference' },
@@ -43,6 +44,17 @@ export default defineConfig({
     sidebar: [
       { text: 'Introduction', link: '/' },
       { text: 'Installation', link: '/installation' },
+      {
+        text: 'Running pciSeq',
+        link: '/running-pciseq',
+        items: [
+          { text: 'From Python', link: '/running-pciseq' },
+          { text: 'Command line', link: '/api/command-line' },
+          { text: 'Live viewer', link: '/api/live-viewer' },
+          { text: 'Working with results', link: '/api/working-with-results' },
+          { text: 'SpatialData store', link: '/api/spatialdata-store' },
+        ],
+      },
       {
         text: 'How it works',
         link: '/how-it-works/overview',
@@ -84,11 +96,7 @@ export default defineConfig({
             collapsed: true,
             items: apiFunctions,
           },
-          { text: 'Working with results', link: '/api/working-with-results' },
-          { text: 'Live viewer', link: '/api/live-viewer' },
-          { text: 'SpatialData store', link: '/api/spatialdata-store' },
           { text: 'Configuration (opts)', link: '/api/configuration' },
-          { text: 'Command line', link: '/api/command-line' },
         ],
       },
     ],

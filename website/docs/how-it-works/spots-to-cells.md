@@ -1,17 +1,13 @@
-
 # 4. Assigning spots to cells
 
-The last of the four assigns each RNA spot to the cell most likely to have
-produced it, or to the background. It also closes the loop: once the spots are
-reassigned, the gene counts per cell change, and the next iteration begins.
-
-For each spot, evaluate the few nearest cells together with the background option, and
-assign the spot to whichever explains it best.
+Each spot is assigned to one of its nearest cells or to the background, as a
+probability. This is the last step of the sweep: the new assignments change the gene
+counts per cell, which are the input to the next sweep.
 
 ## The assignment score
 
-The score combines two quantities: how far the spot lies from the cell, and how likely a
-cell of that type is to produce that gene. The first is geometry, the second identity.
+For a spot and a candidate cell the score is a sum of five terms. One depends on the
+spot's position, four on its gene.
 
 <figure class="diagram">
 <svg class="sb-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 372" role="img" aria-label="The terms of the spot-to-cell score">
@@ -22,11 +18,11 @@ cell of that type is to produce that gene. The first is geometry, the second ide
 <path class="sb-link" d="M 122,92 L 122,110" />
 <path class="sb-link" d="M 586,92 L 586,110" />
 <rect class="sb-panel-where" x="24" y="110" width="196" height="250" rx="12" />
-<text class="sb-head-where" x="122" y="134" text-anchor="middle">WHERE ARE YOU?</text>
-<text class="sb-sub" x="122" y="150" text-anchor="middle">geometry &#183; 1 term</text>
+<text class="sb-head-where" x="122" y="134" text-anchor="middle">POSITION</text>
+<text class="sb-sub" x="122" y="150" text-anchor="middle">1 term</text>
 <rect class="sb-panel-what" x="256" y="110" width="660" height="250" rx="12" />
-<text class="sb-head-what" x="586" y="134" text-anchor="middle">WHAT ARE YOU?</text>
-<text class="sb-sub" x="586" y="150" text-anchor="middle">expression &#183; 4 facets</text>
+<text class="sb-head-what" x="586" y="134" text-anchor="middle">EXPRESSION</text>
+<text class="sb-sub" x="586" y="150" text-anchor="middle">4 terms</text>
 <text class="sb-plus" x="238" y="264" text-anchor="middle">+</text>
 <text class="sb-plus" x="426" y="264" text-anchor="middle">+</text>
 <text class="sb-plus" x="586" y="264" text-anchor="middle">+</text>
@@ -35,107 +31,85 @@ cell of that type is to produce that gene. The first is geometry, the second ide
 <circle class="sb-badge-where" cx="122" cy="208" r="21" />
 <text class="sb-badge-txt" x="122" y="214" text-anchor="middle" font-size="15">&#8722;D</text>
 <text class="sb-name" x="122" y="252" text-anchor="middle">Spatial fit</text>
-<text class="sb-q" x="122" y="275" text-anchor="middle">How close is</text>
-<text class="sb-q" x="122" y="292" text-anchor="middle">the spot?</text>
+<text class="sb-q" x="122" y="275" text-anchor="middle">distance to</text>
+<text class="sb-q" x="122" y="292" text-anchor="middle">the cell</text>
 <text class="sb-cap" x="122" y="326" text-anchor="middle">geometry</text>
 <rect class="sb-card sb-card-what" x="272" y="174" width="148" height="170" rx="10" />
 <circle class="sb-badge-what" cx="346" cy="208" r="21" />
 <text class="sb-badge-txt" x="346" y="216" text-anchor="middle" font-size="20">&#956;</text>
-<text class="sb-name" x="346" y="252" text-anchor="middle">Alignment</text>
-<text class="sb-q" x="346" y="275" text-anchor="middle">Does my type</text>
-<text class="sb-q" x="346" y="292" text-anchor="middle">make this gene?</text>
+<text class="sb-name" x="346" y="252" text-anchor="middle">Class expression</text>
+<text class="sb-q" x="346" y="275" text-anchor="middle">expected count</text>
+<text class="sb-q" x="346" y="292" text-anchor="middle">of the gene</text>
 <text class="sb-cap" x="346" y="326" text-anchor="middle">class &#8596; gene</text>
 <rect class="sb-card sb-card-what" x="432" y="174" width="148" height="170" rx="10" />
 <circle class="sb-badge-what" cx="506" cy="208" r="21" />
 <text class="sb-badge-txt" x="506" y="216" text-anchor="middle" font-size="20">&#952;</text>
-<text class="sb-name" x="506" y="252" text-anchor="middle">Gravity</text>
-<text class="sb-q" x="506" y="275" text-anchor="middle">Am I a big,</text>
-<text class="sb-q" x="506" y="292" text-anchor="middle">active cell?</text>
+<text class="sb-name" x="506" y="252" text-anchor="middle">Cell scale</text>
+<text class="sb-q" x="506" y="275" text-anchor="middle">total counts</text>
+<text class="sb-q" x="506" y="292" text-anchor="middle">of the cell</text>
 <text class="sb-cap" x="506" y="326" text-anchor="middle">cell size</text>
 <rect class="sb-card sb-card-what" x="592" y="174" width="148" height="170" rx="10" />
 <circle class="sb-badge-what" cx="666" cy="208" r="21" />
 <text class="sb-badge-txt" x="666" y="216" text-anchor="middle" font-size="20">&#947;</text>
-<text class="sb-name" x="666" y="252" text-anchor="middle">Enrichment</text>
-<text class="sb-q" x="666" y="275" text-anchor="middle">Have I got this</text>
-<text class="sb-q" x="666" y="292" text-anchor="middle">gene already?</text>
+<text class="sb-name" x="666" y="252" text-anchor="middle">Cell-gene scale</text>
+<text class="sb-q" x="666" y="275" text-anchor="middle">this gene in</text>
+<text class="sb-q" x="666" y="292" text-anchor="middle">this cell</text>
 <text class="sb-cap" x="666" y="326" text-anchor="middle">cell &#8596; gene</text>
 <rect class="sb-card sb-card-what" x="752" y="174" width="148" height="170" rx="10" />
 <circle class="sb-badge-what" cx="826" cy="208" r="21" />
 <text class="sb-badge-txt" x="826" y="216" text-anchor="middle" font-size="20">&#951;</text>
-<text class="sb-name" x="826" y="252" text-anchor="middle">Misread corr.</text>
-<text class="sb-q" x="826" y="275" text-anchor="middle">Is this gene</text>
-<text class="sb-q" x="826" y="292" text-anchor="middle">readable?</text>
+<text class="sb-name" x="826" y="252" text-anchor="middle">Gene efficiency</text>
+<text class="sb-q" x="826" y="275" text-anchor="middle">detection rate</text>
+<text class="sb-q" x="826" y="292" text-anchor="middle">of the gene</text>
 <text class="sb-cap" x="826" y="326" text-anchor="middle">vs background</text>
 </svg>
-<figcaption>The score, term by term. One term asks <em>where</em> the spot is; four ask <em>what</em> it is. The score simply adds them up.</figcaption>
+<figcaption>The terms of the score. One depends on the spot's position, four on its gene. They are added.</figcaption>
 </figure>
 
 ### Spatial fit
 
-A spot near a cell's centre scores higher than one several cell-widths away. Each cell has a
-Gaussian shape, and this term is simply how well the spot's position sits inside that shape.
-It is a hard geometric measurement, and it says nothing about which gene the spot carries.
+Each cell has a Gaussian footprint centred on its centroid, and the term is the log
+density of the spot's position under it. It does not depend on the gene.
 
 ### Expression fit
 
-The "what" splits into four, each a different way of asking *does this gene belong in this
-cell?* The first three are weighted by how **confident** we are about the cell's type (from
-[cell typing](cell-to-celltype.md)): the surer the cell is of what it is, the more decisively
-each one speaks. The fourth depends on the gene alone.
+The four expression terms are each a log expected count of the spot's gene in the
+candidate cell, taken from the [warped definitions](warping-the-reference.md). The
+first three are averaged over the cell's type probabilities from
+[cell typing](cell-to-celltype.md), so a confidently typed cell weighs them more. The
+fourth depends on the gene alone.
 
-**Alignment - does the cell's *type* express this gene?** If the cell is probably a type
-that makes the gene strongly, the spot fits; if its type rarely produces the gene, the spot
-is a poor match even when it sits right on the cell. Picture a spot midway between two cells,
-all else equal: it is drawn to the one whose likely type expresses the gene. That overlap -
-between what the cell probably is and what the gene marks - is its *alignment*.
+- **Class expression.** The expected count of the gene under the cell's type. A cell
+  whose likely type expresses the gene scores higher than one whose type does not, at
+  the same distance.
+- **Cell scale (theta).** The cell's total counts relative to what its type predicts. A
+  cell that already holds more transcripts than expected scores higher for every gene.
+- **Cell-gene scale (gamma).** This gene's count in this cell relative to what the type
+  predicts. Two cells of the same type have the same class expression; the one that
+  already holds the gene has the higher cell-gene scale.
+- **Gene efficiency (eta).** The gene's detection rate. It is the same for every
+  candidate cell, so it does not choose between cells. It enters the comparison with the
+  background, which has no efficiency term, and lowers the score of a poorly detected
+  gene against it.
 
-**Gravity - is this a big, active cell?** Some cells gather more transcripts than their type
-predicts (the per-cell scaling from
-[warping the cell type definitions](warping-the-reference.md)). Read that as the
-cell's **mass**: a heavier cell pulls harder, so with everything else equal a spot drifts
-toward whichever cell is already capturing the most. A "rich-get-richer" pull that lets a
-clearly active cell claim the ambiguous spots around it.
-
-**Enrichment - does *this* cell already carry this gene?** Easy to confuse with alignment,
-but they differ. Alignment is about the cell's **type**, and is the same for every cell of
-that type. Enrichment is about **this individual cell's own data** - whether it carries more
-of the gene than its type predicts. The clean test: two cells of the *same* type have
-identical alignment, so alignment cannot choose between them; but the cell already loaded
-with the gene has the higher enrichment, and it wins the spot. **Alignment tells different
-types apart; enrichment tells same-type cells apart.**
-
-**Misread correction - is the gene reliably detected?** Some genes are read out far more
-efficiently than others. This term does not choose between cells - it is the same for all of
-them - but it matters in the contest against the **background** below, attenuating a poorly
-detected gene's signal so its spots are more readily called misreads.
-
-An optional **inside-cell bonus** can be switched on to additionally favour a spot whose
-pixel falls within a cell's segmented boundary; it is off by default.
+An inside-cell bonus, `InsideCellBonus`, can be added for a spot whose pixel lies inside
+the candidate cell's segmentation. It is off by default.
 
 ## The background option
 
-Each spot also competes against the background option from
-[the misread density](misread-density.md). If no nearby cell explains the spot better than the
-background, the spot is attributed to the background. This is how genuine misreads are
-filtered out: they fail to exceed the background level for any cell.
+The background is scored with the gene's [misread density](misread-density.md), the
+same at every position. A spot that no candidate cell explains better than the
+background is assigned to the background. This is how misreads are removed.
 
 ## Soft assignments
 
-As with cell types, the scores are passed through a **softmax** and become probabilities.
-A spot may be assigned 0.9 to one cell and 0.1 to a neighbour rather than entirely to
-one. When the gene counts are accumulated for the next iteration, each spot contributes
-its probability to each cell, so an ambiguous spot is shared rather than committed to a
-single cell.
+A softmax over the candidates and the background gives the spot a probability for each,
+for example 0.9 on one cell and 0.1 on a neighbour. The gene counts for the next sweep
+are accumulated with these probabilities, so an ambiguous spot is shared between cells
+rather than committed to one.
 
-## Feedback into the next iteration
+## Feedback into the next sweep
 
-Reassigning the spots changes how many copies of each gene fall within each cell. These
-updated counts are the inputs that [the misread density](misread-density.md) and
-[the warping](warping-the-reference.md) require for the next iteration. The estimates are
-refined on each pass, and when the spot probabilities stop changing the algorithm has
-converged and returns its result.
-
-It reads spot locations, cell-type probabilities, the warped definitions with their
-scaling factors, and the per-gene background rates. It produces a probability distribution
-over the nearby cells and the background for every spot. Those probabilities become the
-updated gene counts that drive the next iteration.
+The updated counts per cell are the input to the [misread density](misread-density.md)
+and the [warping](warping-the-reference.md) of the next sweep. The loop stops when the
+spot probabilities stop changing, see [convergence](overview.md#convergence).

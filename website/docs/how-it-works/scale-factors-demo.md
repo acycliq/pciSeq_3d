@@ -8,7 +8,7 @@ pageClass: demo-wide
 <DemoFrame src="/cells-demo.html?narrow=1&amp;fold=1" wide
            title="Interactive demo of the scaling factors" />
 
-**Simplifications are worth stating.**
+**Simplifications.**
 
 **Eta** is held at 1 throughout, so the demo shows three factors rather than four. Eta is one
 factor per gene, shared by every cell, and it absorbs the difference in how well each

@@ -71,10 +71,10 @@ $$
 \begin{aligned}
 S_{s,c} = {}
 & -D_c(x_s) && \text{(spatial term)} \\
-& + \sum_k \bar\zeta_{c,k}\,\log\mu_{g_s,k} && \text{(alignment)} \\
-& + \sum_k \bar\zeta_{c,k}\,\log\bar\theta_{c\mid k} && \text{(gravity)} \\
-& + \sum_k \bar\zeta_{c,k}\,\overline{\log\gamma}_{g_s,c\mid k} && \text{(enrichment)} \\
-& + \overline{\log\eta}_{g_s} && \text{(misread correction)}
+& + \sum_k \bar\zeta_{c,k}\,\log\mu_{g_s,k} && \text{(class expression)} \\
+& + \sum_k \bar\zeta_{c,k}\,\log\bar\theta_{c\mid k} && \text{(cell scale)} \\
+& + \sum_k \bar\zeta_{c,k}\,\overline{\log\gamma}_{g_s,c\mid k} && \text{(cell-gene scale)} \\
+& + \overline{\log\eta}_{g_s} && \text{(gene efficiency)}
 \end{aligned}
 $$
 
@@ -126,43 +126,36 @@ $$
 
 ## Reading the terms
 
-The score for a cell $c > 0$ adds one **quantitative** term (geometry) to four
-**qualitative** terms (expression); the background option $c = 0$ scores
-$\exp(\overline{\log\rho_{g_s}})$. Each term is named and read below - just enough to see
-what the symbol *means*. The conceptual narrative, the diagram, and the worked two-cell
-examples live on the [how-it-works page](../how-it-works/spots-to-cells.md).
+The score for a cell $c > 0$ is one position term plus four expression terms. The
+background option $c = 0$ scores $\overline{\log\rho_{g_s}}$. The
+[how it works page](../how-it-works/spots-to-cells.md) gives the same terms without the
+symbols.
 
-**Spatial term** ($-D_c(x_s)$). The Gaussian log-likelihood of the spot's position under the
-cell: $D_c(x)$ is the (Mahalanobis) distance to the cell's centre under its Gaussian shape,
-so $e^{-D_c(x)}$ is the Gaussian weight and $-D_c(x_s)$ its logarithm. This is the only
-quantitative term - a hard geometric measure of how well the spot sits inside the cell's
-footprint, blind to which gene it carries. Nearer spots score higher.
+**Spatial term** ($-D_c(x_s)$). The log density of the spot's position under the cell's
+Gaussian, normalisation included: $D_c(x)$ is half the squared Mahalanobis distance to
+the centroid plus the log normaliser. The normaliser is what makes this term
+commensurate with the background density $\rho_g$. It does not depend on the gene.
 
-**Alignment** ($\sum_k \bar\zeta_{c,k}\log\mu_{g_s,k}$). An inner product between the cell's
-class posterior $\bar\zeta_c$ (how confident we are about its type) and the gene's expression
-profile $\log\mu_{g_s,\cdot}$ (which types express the gene). Since $\bar\zeta_c$ sums to $1$
-it equals $\mathbb{E}_{k\sim\bar\zeta_c}[\log\mu_{g_s,k}]$, the gene's expected log-expression
-under the cell's own belief about its class. It is large only when both line up: a confident
-type that also expresses the gene. *(class $\leftrightarrow$ gene)*
+**Class expression** ($\sum_k \bar\zeta_{c,k}\log\mu_{g_s,k}$). The gene's log
+expected expression averaged over the cell's class posterior $\bar\zeta_c$. It is large
+when the cell is confidently of a type that expresses the gene. It is the same for every
+cell of a given type.
 
-**Gravity** ($\sum_k \bar\zeta_{c,k}\log\bar\theta_{c\mid k}$). The same confidence-weighted
-average, now of $\bar\theta_{c\mid k}$, the cell's total observed count over what class $k$
-predicts. A cell capturing more transcripts than its type expects has $\bar\theta_{c\mid k} >
-1$, a sparse one below $1$. Read it as the cell's mass: a heavier cell pulls harder, so all
-else equal a spot drifts toward whichever cell is already capturing the most. *(cell size)*
+**Cell scale** ($\sum_k \bar\zeta_{c,k}\log\bar\theta_{c\mid k}$). The same average of
+$\bar\theta_{c\mid k}$, the cell's total observed count over what class $k$ predicts.
+Above 1 for a cell holding more transcripts than its type expects, below 1 for a sparse
+one. It does not depend on the gene.
 
-**Enrichment** ($\sum_k \bar\zeta_{c,k}\log\bar\gamma_{g_s,c\mid k}$). The same form again,
-now of $\bar\gamma_{g_s,c\mid k}$, *this cell's* observed-over-expected for the gene. Easily
-confused with the alignment but distinct: alignment is class $\leftrightarrow$ gene (the
-type's stereotype, shared by every cell of that type), enrichment is cell $\leftrightarrow$
-gene (this individual cell's departure from its type). Because the rate factorises as
-$\mu \times \gamma$, enrichment is exactly the residual the alignment leaves unexplained - it
-is what tells two same-type cells apart. *(cell $\leftrightarrow$ gene)*
+**Cell-gene scale** ($\sum_k \bar\zeta_{c,k}\overline{\log\gamma}_{g_s,c\mid k}$). The
+same average of the cell's observed-over-expected for this gene. Since the rate
+factorises as $\mu \times \gamma$, this is the residual the class expression leaves, and
+it is what separates two cells of the same type.
 
-**Misread correction** ($\overline{\log\eta}_{g_s}$). The gene's detection efficiency.
-Gene-only, so it is identical for every cell and cancels in any cell-versus-cell comparison;
-it bites only against the **background**, attenuating a poorly detected gene's signal so its
-spots are more readily called misreads (see the [note below](#the-efficiency-term-and-the-signal-to-noise-ratio)).
+**Gene efficiency** ($\overline{\log\eta}_{g_s}$). The gene's detection efficiency.
+It depends on the gene only, so it cancels between cells and acts only against the
+background, which has no efficiency term. A poorly detected gene scores lower against the
+background and its spots are more readily called misreads, see
+[below](#the-efficiency-term-and-the-signal-to-noise-ratio).
 
 ## The efficiency term and the signal-to-noise ratio
 
