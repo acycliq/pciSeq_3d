@@ -2,11 +2,9 @@
 # The scale factors
 
 Three corrections sit between the scRNA-seq reference and the in situ experiment, each
-rescaling the expected expression at a different level of detail. They are what let the
-model compare a cell's observed counts against the reference on a fair footing: the
-[warping the cell type definitions](../how-it-works/warping-the-reference.md) page gives the
-intuition,
-and the sections below give the derivations.
+rescaling the expected expression at a different level of detail. The
+[warping the cell type definitions](../how-it-works/warping-the-reference.md) page
+describes them; this page derives them.
 
 | Factor | Indexed by | Corrects |
 | --- | --- | --- |
@@ -14,42 +12,38 @@ and the sections below give the derivations.
 | **[$\gamma_{g,c\mid k}$](#gamma)** | gene, cell, class | one gene in one cell, given the class |
 | **[$\eta_g$](#eta)** | gene only (global) | one gene across the whole experiment |
 
-They stack from broad to fine. $\theta_c$ is a single number for an entire cell;
-$\gamma_{g,c}$ refines that down to each gene in that cell; $\eta_g$ runs the other way,
-sharing one detection rate for a gene across every cell. Each absorbs the mismatch at its
-own scale, and the rest is left to the others.
+$\theta_c$ is one number for a cell, $\gamma_{g,c}$ one per gene in that cell, and
+$\eta_g$ one per gene shared by every cell. Each absorbs the mismatch at its own scale.
 
-One of them is structurally special. The cell-gene factor $\gamma_{g,c}$ is kept as a full
-Gamma random variable so it can be **integrated out**, collapsing the Poisson count model
-into the Negative Binomial that the [cell-class assignment](cell-class.md) scores against.
-That is why $\theta_c$ is instead held as a point estimate: keeping more than
-one mixing distribution in the rate would destroy that clean collapse.
+$\gamma_{g,c}$ is kept as a full Gamma random variable so it can be **integrated out**,
+which collapses the Poisson count model into the Negative Binomial the
+[cell-class assignment](cell-class.md) scores against. $\theta_c$ is held as a point
+estimate for that reason: a second mixing distribution in the rate would not collapse.
 
 ## The derivations
 
 ### Derivation: the cell scale factor $\theta_c$ {#theta}
 
-The cell scale factor $\theta_c$ is an extension to the original model. It captures the
-fact that some cells simply yield more transcripts than the reference predicts and others
-fewer, applying a single whole-cell correction across all of a cell's genes. We give it a
-conjugate prior $\theta_c \sim \mathrm{Gamma}(r_\theta, r_\theta)$, which centres the
-correction at a baseline of $1.0$.
+The cell scale factor $\theta_c$ is an extension to the original model. Some cells yield
+more transcripts than the reference predicts and others fewer; $\theta_c$ is a single
+whole-cell correction across all of a cell's genes. Its prior is the conjugate
+$\theta_c \sim \mathrm{Gamma}(r_\theta, r_\theta)$, mean $1$.
 
 **Conditional on the class.** Both $\theta_c$ and the cell-gene factor
 [$\gamma_{g,c}$](#gamma) are computed **conditional on a candidate class $k$**. The
 predicted count a cell is compared against depends on which type the cell is assumed to be,
-so the correction is class-specific. We write the estimate $\hat\theta_{c\mid k}$, and the
+so the correction is class-specific. The estimate is written $\hat\theta_{c\mid k}$, and the
 [cell-class assignment](cell-class.md) recomputes it for every class $k$ it tests the cell
 against.
 
-#### Why a point estimate
+#### The point estimate
 
 $\theta_c$ enters the intensity multiplicatively with the per-gene-per-cell factor
 $\gamma_{g,c}$. If both were treated as full random variables, marginalising the
 fluctuations would require integrating over the product of two Gamma distributions, giving
 a Poisson-Gamma-Gamma mixture with no closed form, and the Negative Binomial likelihood
-that drives cell typing would break. We therefore restrict the variational distribution of
-$\theta_c$ to a point estimate (a Dirac delta centred at $\theta_c^*$):
+that drives cell typing would be lost. The variational distribution of $\theta_c$ is
+therefore restricted to a point estimate (a Dirac delta centred at $\theta_c^*$):
 
 $$
 q(\theta_c) = \delta(\theta_c - \theta_c^*) .
@@ -76,9 +70,8 @@ $$
 + \text{const}.
 $$
 
-Before differentiating we take the expectation over the other variational distributions
-$q(z)$, $q(\gamma)$, and $q(\eta)$, replacing the latent variables by their expected
-values:
+The expectation over the other variational distributions $q(z)$, $q(\gamma)$ and $q(\eta)$
+replaces the latent variables by their expected values:
 
 $$
 \mathbb{E}_{\gamma,\eta,z}[\mathcal{L}(\theta_c)]
@@ -120,36 +113,26 @@ $k$, so it needs no weighting by $\bar\zeta_{c,k}$ in its own update.
 
 #### The prior strength $r_\theta$
 
-$r_\theta$ sets how far the data are allowed to move $\theta_c$ from its baseline of $1$.
-Both extremes are legitimate; the choice depends on how far the counts are to be
-trusted:
+$r_\theta$ sets how far the data can move $\theta_c$ from $1$. The two limits:
 
-- **Weak prior ($r_\theta$ small).** The posterior is essentially data-driven:
-  $\hat\theta_{c\mid k} \approx \bar N_c / (\text{predicted total under } k)$, the cell's
-  observed count over what the class predicts. The correction follows the data freely.
-- **Strong prior ($r_\theta \to \infty$).** The posterior collapses onto the prior:
-  $\hat\theta_{c\mid k} \to 1$, and the whole-cell correction is effectively switched off.
+- **Weak prior ($r_\theta$ small).** $\hat\theta_{c\mid k} \approx \bar N_c / (\text{predicted
+  total under } k)$, the cell's observed count over what the class predicts.
+- **Strong prior ($r_\theta \to \infty$).** $\hat\theta_{c\mid k} \to 1$, and the
+  whole-cell correction is switched off.
 
-A weak prior is therefore reasonable where the data are to drive the correction. One
-consequence requires care, for **near-empty cells**.
+A weak prior has one consequence for **near-empty cells**. For a cell with few spots,
+small $\bar N_c$, $\hat\theta_{c\mid k}$ can collapse to a small value, and a small
+$\theta$ scales the predicted expression of any class $k$ down toward the cell's counts. A
+real type shrunk far enough predicts almost nothing, the same as an empty cell.
 
-Take a cell with very few spots (a small $\bar N_c$) under a weak prior. $\hat\theta_{c\mid k}$
-is then free to collapse to a very small value, and a small $\theta$ scales the predicted
-expression of **any** class $k$ down toward the cell's handful of counts. Shrink a real cell
-type far enough and it "predicts" almost nothing, which is exactly what an empty cell looks
-like.
+The **Zero class**, which expects no expression, is the class for such cells (see
+[assigning cells to cell types](../how-it-works/cell-to-celltype.md)). When the prior is
+weak and $\theta$ collapses, a real type shrunk to imitate Zero can win the cell instead,
+and the cell gets a spurious type.
 
-The model already has a class for empty cells: the **Zero class**, which expects no
-expression and absorbs debris and poorly segmented fragments (see
-[assigning cells to cell types](../how-it-works/cell-to-celltype.md)). A near-empty cell
-ought to land there. But when the prior is weak and $\theta$ collapses, a genuine type can be
-shrunk down to imitate the Zero class and win the cell instead: the Zero class is skipped and
-the cell gets a spurious type.
-
-This is the tension to weigh when setting $r_\theta$. A weaker prior lets the data speak but
-risks near-empty cells being explained away by a collapsed type; a stronger prior holds
-$\theta$ near $1$ so those cells fall to the Zero class. The default is $25$ (the `rTheta`
-setting), which leans toward the safe side - but it is a choice, not a rule.
+A weaker prior lets the data set $\theta$ at the risk of near-empty cells being explained
+by a collapsed type; a stronger prior holds $\theta$ near $1$ so those cells go to Zero.
+The default `rTheta` is $25$.
 
 ### Derivation: the cell-gene scale factor $\gamma_{g,c}$ {#gamma}
 
@@ -189,9 +172,9 @@ N_{c,g} \mid \gamma_{g,c} \;\sim\; \mathrm{Poisson}\big(\lambda_{g,c}\, \gamma_{
 $$
 
 The prior $\mathrm{Gamma}(r_\gamma, r_\gamma)$ has mean $1$, so a priori the count sits at
-$\lambda_{g,c}$; the gene is free to deviate cell by cell through $\gamma_{g,c}$. A Poisson
-whose own rate is a Gamma random variable is a **Poisson-Gamma mixture**, and this is the
-structure that makes the model robust to the overdispersion real transcript counts show.
+$\lambda_{g,c}$ and deviates cell by cell through $\gamma_{g,c}$. A Poisson whose rate is a
+Gamma random variable is a **Poisson-Gamma mixture**, which accommodates the overdispersion
+of transcript counts.
 
 #### Deriving the posterior $q(\gamma_{g,c})$
 
@@ -266,10 +249,10 @@ N_{c,g} \sim \mathrm{NB}(r_\gamma, \lambda_{g,c}),
 $$
 
 with mean $\lambda_{g,c}$ and variance $\lambda_{g,c} + \lambda_{g,c}^2/r_\gamma$. The
-variance exceeds the mean, which a plain Poisson could never produce: the Gamma mixing is
-exactly what lets the model accommodate the **overdispersion** of real counts. The shape
-$r_\gamma$ controls how much: small $r_\gamma$ allows large deviations, large $r_\gamma$
-pulls the count back toward a pure Poisson at $\lambda_{g,c}$.
+variance exceeds the mean, which a Poisson cannot produce; the Gamma mixing is what
+accommodates the **overdispersion** of real counts. The shape $r_\gamma$ sets how much:
+small $r_\gamma$ allows large deviations, large $r_\gamma$ approaches a Poisson at
+$\lambda_{g,c}$.
 
 This Negative Binomial is the per-gene likelihood that the
 [cell-class assignment](cell-class.md) multiplies across genes to score a cell against each
@@ -291,15 +274,13 @@ $$
 \lambda_{g,c}(x) = \eta_0\,\mu_{g,k(c)}\, e^{-D_c(x)}\, \gamma_{g,c}\, \eta_g' .
 $$
 
-#### Why per-gene, and why global
+#### Per gene, shared across cells
 
-Detection efficiency is not uniform across genes: probe chemistry, sequence, and length
-make some transcripts far easier to read out than others. A single global efficiency would
-force the noisy and the clean genes to share one number, so $\eta_g$ is estimated **per
-gene**. But it is shared across **all** cells, because the detection rate of a gene is a
-property of the assay, not of any one cell. That is what separates it from $\gamma_{g,c}$,
-which varies cell by cell: $\eta_g$ asks "how well is this gene read out anywhere?", while
-$\gamma_{g,c}$ asks "how far does this gene in this cell deviate from its class?".
+Detection efficiency differs between genes: probe chemistry, sequence and length make some
+transcripts easier to read out than others, so $\eta_g$ is estimated **per gene**. It is
+shared across **all** cells because the detection rate of a gene is a property of the
+assay, not of a cell. $\gamma_{g,c}$ varies cell by cell: $\eta_g$ is how well the gene is
+detected anywhere, $\gamma_{g,c}$ how far this gene in this cell deviates from its class.
 
 #### Deriving the posterior $q(\eta_g')$
 
@@ -374,22 +355,15 @@ $\eta_g' > 1$ means gene $g$ is detected better than the baseline, $\eta_g' < 1$
 equivalent absolute form $\eta_g = \eta_0\,\eta_g'$, and the prior/posterior summary, are in
 [errata item 5](errata.md).
 
-#### What $\eta_g$ decides: cell versus background
+#### The efficiency term against the background
 
-Because $\eta_g$ depends only on the gene, it takes the same value for every candidate cell
-in a [spot-to-cell assignment](spot-assignment.md). When two genuine cells compete for a
-spot, $\eta_g$ is a common offset on both sides and cancels: it has no say in which cell
-wins. Its influence shows up in exactly one place - the contest between a cell and the
-**background**.
-
-The background claims a spot through a single quantity: the
-[misread density](misread-density.md) $\rho_g$, a score that carries no efficiency term at
-all. So $\eta_g$ is the one factor on the cell's side with no counterpart on the
-background's side, and that is precisely why it survives the comparison. It sets, gene by
-gene, how strong a cell's signal must be to win a spot rather than have it written off as
-noise. A low-efficiency gene has a small $\eta_g$, so its signal is attenuated against the
-background and its spots are more readily called misreads - as they should be, since that
-gene really is detected poorly.
+$\eta_g$ depends only on the gene, so it takes the same value for every candidate cell in
+a [spot-to-cell assignment](spot-assignment.md) and cancels between cells. It acts in one
+place: the comparison between a cell and the **background**. The background scores a spot
+with the [misread density](misread-density.md) $\rho_g$ alone, which carries no efficiency
+term, so $\eta_g$ is the one factor on the cell's side without a counterpart. A gene with a
+small $\eta_g$ has its signal attenuated against the background and its spots are more
+readily called misreads.
 
 The original paper dropped this term, which inflated the signal-to-noise ratio for poorly
 detected genes; the correction is [errata item 1](errata.md).

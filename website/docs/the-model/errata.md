@@ -31,7 +31,7 @@ q(c(s)=c) \propto \exp\Big[
 \Big].
 $$
 
-The key point is **where** this term actually changes anything. The efficiency
+The term changes the result in one place only. The efficiency
 $\overline{\log\eta}_{g_s}$ depends only on the spot's gene, not on the cell, so it takes
 the **same value for every candidate cell** $c > 0$. In a comparison between two genuine
 neighbouring cells it is a common offset that cancels: it never affects which cell wins.
@@ -39,8 +39,7 @@ It matters only in the **spot-versus-background** decision. The background optio
 carries no efficiency term at all, so $\overline{\log\eta}_{g_s}$ is exactly the asymmetry
 between "assign to some cell" and "assign to the background". Dropping it, as the original
 expression does, removes that asymmetry and lets a low-efficiency gene compete against the
-background as if it were perfectly detected, which is precisely the signal-to-noise
-distortion above.
+background as if it were perfectly detected, the distortion above.
 
 This is the form used on the [spot-to-cell assignment](spot-assignment.md) page.
 
@@ -77,7 +76,7 @@ mean $\eta_0$, is $\eta_g \sim \mathrm{Gamma}(r_\eta, r_\eta/\eta_0)$.
 
 ### The reparameterisation
 
-The whole construction rests on the **scale property of the Gamma distribution**:
+The construction uses the **scale property of the Gamma distribution**:
 
 $$
 X \sim \mathrm{Gamma}(a, \beta)
@@ -97,7 +96,7 @@ $$
 S_g = \sum_{c,\,k\neq\text{zero}} \bar\zeta_{c,k}\, \eta_0\mu_{g,k}\, A_c\, \bar\gamma_{g,c}\, \bar\theta_c .
 $$
 
-The relative factor reads off cleanly against the baseline: $\eta_g' = 1$ is a gene detected
+The relative factor is read against the baseline: $\eta_g' = 1$ is a gene detected
 at exactly the assumed rate, $\eta_g' > 1$ better than the baseline, $\eta_g' < 1$ worse.
 Pulling $\eta_0$ out of the prior also avoids the typo above: the prior on $\eta_g'$ is
 simply $\mathrm{Gamma}(r_\eta, r_\eta)$, whose mean is $1$ by construction, so there is no
@@ -106,7 +105,7 @@ baseline constant left in the prior to get wrong.
 The scale property links the two parameterisations: with $c = \eta_0$, the absolute variable
 $\eta_g = \eta_0\,\eta_g'$ recovers the prior $\mathrm{Gamma}(r_\eta, r_\eta/\eta_0)$ and
 divides the posterior rate by $\eta_0$. The two are the same model written two ways; the
-relative one is just better conditioned for the optimiser.
+relative one is better conditioned.
 
 ### Summary
 

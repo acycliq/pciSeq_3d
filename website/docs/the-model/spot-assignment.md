@@ -1,13 +1,13 @@
 
 # Derivation: the spot-to-cell assignment $q(z)$
 
-The last part of the loop assigns each spot to the cell most likely to have produced it,
-or to the background. The latent variable is the indicator $z_{s,c}$, which is $1$ when spot
-$s$ belongs to cell $c$. We derive its variational posterior $q(z_{s,c})$ the same way as
-the other factors: keep the terms of the log-joint that involve $z_{s,c}$, take expectations
-over everything else, and read off the result.
+The last step of the sweep assigns each spot to a cell or to the background. The latent
+variable is the indicator $z_{s,c}$, which is $1$ when spot $s$ belongs to cell $c$. Its
+variational posterior $q(z_{s,c})$ is derived as for the other factors: the terms of the
+log-joint that involve $z_{s,c}$ are kept, the expectation over the rest is taken, and the
+result is read off.
 
-## Which terms involve z<sub>s,c</sub>
+## The terms in $z_{s,c}$
 
 Spots are modelled as a spatial Poisson process with intensity
 
@@ -37,9 +37,9 @@ where the last sum is the background option ($c = 0$), whose intensity is the pe
 
 The first Poisson part, $-\!\int\!\lambda\,dx$ (the expected total count, and the equivalent
 $\rho_g A_{\text{total}}$ for the background), contains **no** $z_{s,c}$. It is the same
-whichever cell the spot is handed to, so it is constant across the assignment and drops out
-under the normalisation below. This is why the area of the tissue never enters the
-competition.
+whichever cell the spot is assigned to, so it is constant across the assignment and drops
+out under the normalisation below. The extent of the tissue therefore does not enter the
+assignment.
 
 ## The update for a cell ($c > 0$)
 
@@ -55,7 +55,7 @@ $$
 \end{aligned}
 $$
 
-Now carry the expectations inside, and mind the **class conditioning**. The cell scale
+Carrying the expectations inside, with the **class conditioning**: the cell scale
 $\theta_c$ and the gene-cell factor $\gamma_{g_s,c}$ are both estimated *conditional on the
 class* (see [scale-theta](scale-factors.md#theta) and [scale-gamma](scale-factors.md#gamma)), so inside the
 $k$-th term they take their class-$k$ values:
@@ -159,7 +159,7 @@ background and its spots are more readily called misreads, see
 
 ## The efficiency term and the signal-to-noise ratio
 
-A subtle point, and the subject of [errata item 1](errata.md): although the efficiency
+The subject of [errata item 1](errata.md): although the efficiency
 term $\overline{\log\eta}_{g_s}$ is the same for every cell $c > 0$, it does **not** cancel
 during normalisation, because the assignment is also compared against the background
 $\rho_{g_s}$, which carries no efficiency term. A low-efficiency gene therefore has its

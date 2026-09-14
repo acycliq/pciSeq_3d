@@ -72,16 +72,15 @@ $$
 
 Here $\mathcal{N}_c$ is the set of nearest neighbours of cell $c$ (there are
 `nNeighbors` of them, 9 by default) and $\beta \geq 0$ controls the strength of the
-coupling. The result is a soft preference: a cell is more readily assigned to a class when
-its neighbours already share that class, which discourages isolated, biologically
-implausible assignments. Because it enters the score additively in log space it competes
-with the expression evidence rather than replacing it.
+coupling. A cell is more readily assigned to a class its neighbours share. The term is
+additive in log space, so it competes with the expression evidence rather than replacing
+it.
 
 ### Weighting the neighbours by distance
 
-The sum above treats all nine neighbours alike, but a cell touching the one being typed
-should count for more than one sitting several diameters away. Each neighbour therefore
-carries a weight, and the support that multiplies $\beta$ is
+The sum above weights all neighbours equally. With a weight per neighbour, so that a
+touching cell counts more than one several diameters away, the support that multiplies
+$\beta$ is
 
 $$
 S_{c,k} = \sum_{c' \in \mathcal{N}_c} w_{c,c'}\, \bar\zeta_{c',k} .
@@ -104,11 +103,9 @@ S_{c,k} \;\le\; |\mathcal{N}_c| \qquad\text{and so}\qquad
 \beta\, S_{c,k} \;\le\; \beta \cdot \texttt{nNeighbors} .
 $$
 
-$\sigma_c$ is a scale, not a location: the distance is divided by it, and it is not a
-measure of how far a neighbour sits from some reference point. Taking it from the cell's own
-neighbour distances means "close" is judged relative to how crowded that piece of tissue is,
-so a single $\beta$ applies to dense and sparse regions alike. This is the
-`scaled_gaussian` weighting used by BANKSY.
+$\sigma_c$ is taken from the cell's own neighbour distances, so closeness is relative to
+the local cell density and one $\beta$ applies to dense and sparse regions alike. This is
+the `scaled_gaussian` weighting used by BANKSY.
 
 **Example.** Cell $A$ has two neighbours, $B$ at distance 30 and $C$ at 60. The
 implementation uses `nNeighbors` of them; two are shown here:
@@ -126,7 +123,7 @@ score with 3.8 times the weight of $C$.
 
 Some classes in the reference are close relatives. `037 DG Glut` and `038 DG-PIR Ex IMN` are
 an example: they share most of their markers, `037` is common in the dentate gyrus and `038`
-is rare. A `038` cell usually sits inside a patch of `037` cells, and the MRF works against it.
+is rare. A `038` cell usually sits inside a patch of `037` cells, so the MRF works against it.
 
 **Example.** Take a cell whose 9 neighbours are 8 confident `037` cells and 1 confident `038`
 cell. To keep the numbers simple, say all 9 are equally close (weight 1 each) and
@@ -143,12 +140,12 @@ $-103$ under `037`. Adding the bonus:
 | `037` | $-103$ | $8$ | $-95$ |
 | `038` | $-100$ | $1$ | $-99$ |
 
-`037` wins by 4, and after the softmax the cell is `037` with probability 0.98. The reads said
-`038`, but the neighbours outvoted them. The neighbours are not really evidence here, though.
-Both classes live in the same place, so being surrounded by `037` cells says very little about
-whether this cell is `037` or `038`.
+`037` wins by 4, and after the softmax the cell is `037` with probability 0.98. The
+neighbours overrode the reads, and they carry no information here: both classes occupy the
+same place, so a surround of `037` cells says nothing about whether this cell is `037` or
+`038`.
 
-The `mrf_pooled_classes` setting fixes this. Put the two classes in a group,
+`mrf_pooled_classes` addresses this. With the two classes in a group,
 
 ```python
 opts = {
@@ -167,9 +164,9 @@ The bonus is the same for both so it cancels out, and the reads decide: `038` wi
 probability 0.95. The neighbours still count against every class outside the group, so a
 patch of DG cells still pulls the cell away from, say, an interneuron class.
 
-A group can hold more than two classes, but keep groups small. Pooling does more than stop the
-neighbours choosing inside the group: the votes spread across the group add up, and that
-total goes up against every class outside it. Take a cell whose 9 neighbours are 4 cells of a
+A group can hold more than two classes. Pooling does more than stop the neighbours choosing
+inside the group: the votes across the group add up, and the total competes against every
+class outside it. Take a cell whose 9 neighbours are 4 cells of a
 pyramidal class `P` and 5 interneurons, each from a different interneuron class:
 
 | | bonus for `P` | bonus for each interneuron class |
@@ -178,9 +175,9 @@ pyramidal class `P` and 5 interneurons, each from a different interneuron class:
 | all interneurons in one group | $4$ | $5$ |
 
 Without pooling the neighbours favour `P`. With the interneurons pooled they favour
-"interneuron", even though no single interneuron class has more than one neighbour. With a
-pair like `037` and `038`, which sit in the same place anyway, this hardly matters. With a big
-group it can pull in cells the group would not have won before.
+"interneuron", although no single interneuron class has more than one neighbour. For a
+pair like `037` and `038`, which occupy the same place, this does not matter. A large group
+can win cells that none of its classes would have won alone, so groups should be kept small.
 
 **In the maths.** The MRF prior rewards two neighbours for having the same class. Pooling
 changes that to "the same class, or two classes in the same group". The support that
@@ -201,11 +198,10 @@ group as well as over one class, so the term still never exceeds $\beta \cdot \t
 
 ## Protecting the Zero class
 
-The MRF term brings neighbourhood information into the cell typing, which helps wherever cells
-of the same class sit together. However, it could have a side effect on cells with few reads.
-Such a cell has little expression of its own, so the neighbour term could become the deciding
-factor in which class the cell is assigned, and a cell that should be typed Zero is given
-whatever class dominates around it.
+The MRF term brings neighbourhood information into the cell typing. It has a side effect on
+cells with few reads: such a cell has little expression of its own, so the neighbour term
+can decide its class, and a cell that should be typed Zero is given whatever class
+dominates around it.
 
 The effect propagates. A relabelled cell becomes evidence for its own neighbours, so across a
 patch of near-empty cells one real class spreads from cell to cell.

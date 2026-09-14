@@ -6,11 +6,11 @@ assigned to the background. A cell claims a spot through its spatial term combin
 how well the spot fits the cell's likely class; the background claims it through the mean
 of the misread density. Here the misread density varies **per gene**: each gene $g$ has
 its own background rate $\rho_g$. The [how it works page](../how-it-works/misread-density.md)
-gives the intuition; this page derives the variational posterior.
+describes the step; this page derives the variational posterior.
 
 ## Prior
 
-We place a conjugate Gamma prior on each $\rho_g$:
+Each $\rho_g$ has a conjugate Gamma prior:
 
 $$
 p(\rho_g) = \mathrm{Gamma}(\rho_g;\, r_\rho, \beta_\rho)
@@ -36,12 +36,9 @@ $$
 \mathbb{E}[\rho_g] = \frac{r_\rho}{\beta_\rho} = \rho_0 \quad\text{for any } r_\rho .
 $$
 
-Because $r_\rho$ appears in both the shape and the rate, it cancels in the prior mean:
-changing $r_\rho$ moves no probability mass off $\rho_0$, it only changes the
-**concentration** of the prior around it. This is what makes $r_\rho$ a clean "prior
-strength" dial, as the posterior below makes explicit. (The simpler choice
-$r_\rho = 1,\ \beta_\rho = 1/\rho_0$ in the source derivation is the special case of this at
-unit strength.)
+$r_\rho$ appears in both the shape and the rate and cancels in the prior mean, so it
+changes only the concentration of the prior around $\rho_0$. The choice
+$r_\rho = 1,\ \beta_\rho = 1/\rho_0$ of the source derivation is the unit-strength case.
 
 ## Likelihood
 
@@ -147,10 +144,9 @@ $$
 = \frac{r_\rho + \bar{N}_{0,g}}{\dfrac{r_\rho}{\rho_0} + A_{\text{total}}} .
 $$
 
-Notice that the rate $\hat{\beta}_g = r_\rho/\rho_0 + A_{\text{total}}$ is the **same for
-every gene** - it depends only on the prior and the tissue area, not on $g$. All the
-gene-to-gene variation lives in the shape $\hat{r}_g = r_\rho + \bar{N}_{0,g}$, through the
-background count $\bar{N}_{0,g}$.
+The rate $\hat{\beta}_g = r_\rho/\rho_0 + A_{\text{total}}$ is the same for every gene: it
+depends only on the prior and the extent. The gene-to-gene variation is in the shape
+$\hat{r}_g = r_\rho + \bar{N}_{0,g}$, through the background count $\bar{N}_{0,g}$.
 
 ### The role of $r_\rho$ (the prior strength)
 
@@ -173,18 +169,12 @@ data move $\rho_g$ away from the prior mean $\rho_0$ (the `MisreadDensity` setti
   \frac{\text{background spots of gene } g}{\text{tissue area}} ,
   $$
 
-  each gene's noise floor is just its background spot count divided by the tissue area.
+  each gene's rate is its background spot count divided by the extent.
 
 So $r_\rho$ interpolates between a shared constant ($r_\rho \to \infty$) and a per-gene
 empirical estimate ($r_\rho \to 0$), with $\rho_0$ as the anchor in both limits.
 
-The misread density is the background's means of claiming a spot. Every spot is contested
-in the [spot-to-cell assignment](../how-it-works/spots-to-cells.md): it is weighed against
-each neighbouring cell and against the background, and assigned to whichever makes the
-strongest case. A cell makes its case with several quantitative and qualitative factors -
-how close the spot is, and how well its gene fits the cell's likely type. The background
-has only one: the misread density $\rho_g$. A noisy gene has a high $\rho_g$, so the
-background presses a stronger claim, and a genuine spot of that gene must beat that higher
-bar to be won by a cell. This is the value that enters the assignment as the background
-score, through $\mathbb{E}[\log\rho_g] = \psi(\hat{r}_g) - \log\hat{\beta}_g$ (with $\psi$
-the digamma function).
+In the [spot-to-cell assignment](spot-assignment.md) the background scores a spot with
+$\rho_g$ alone, through $\mathbb{E}[\log\rho_g] = \psi(\hat{r}_g) - \log\hat{\beta}_g$,
+with $\psi$ the digamma function. A gene with a high $\rho_g$ sets a higher bar for its
+spots to be assigned to a cell.

@@ -8,7 +8,7 @@ being optimised. Nothing here changes the model or the algorithm.
 ## The optimum under a Dirac variational family
 
 Mean-field variational inference approximates the intractable posterior by the member of a
-tractable family closest in Kullback-Leibler divergence. Our family is **structured**: the
+tractable family closest in Kullback-Leibler divergence. The family is **structured**: the
 scale factors $\gamma_{g,c}$ and $\eta_g$ and the class assignments $\zeta_{c,k}$ keep full
 conjugate forms (Gamma, Gamma, and Categorical), while the per-cell scale $\theta_c$ is
 restricted to a Dirac point estimate:

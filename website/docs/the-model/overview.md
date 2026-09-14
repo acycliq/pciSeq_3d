@@ -5,7 +5,7 @@ The [how it works](../how-it-works/overview.md) section explains the algorithm o
 at a time, in words. This section states the same model formally and derives every update
 equation. It follows *The extended pciSeq model* (v0.3), which is the version the
 `dev_3d` code implements. The model builds on the original construction of Qian et al.
-(2020); the corrections we apply to that paper are listed in the [errata](errata.md).
+(2020); the corrections applied to that paper are listed in the [errata](errata.md).
 
 ## Notation
 
@@ -71,17 +71,16 @@ $$
 
 The final term is the MRF: since $\zeta_{c,k}\in\{0,1\}$, the indicator
 $\mathbf{1}(\zeta_{c,k}=\zeta_{c',k}=1)$ is simply the product $\zeta_{c,k}\zeta_{c',k}$,
-and we use that product form in all derivations. The background (misread) density is also
+and the product form is used in all derivations. The background (misread) density is also
 promoted from a single global constant to a per-gene quantity $\rho_g$, derived
 [on its own page](misread-density.md).
 
 ## The variational approximation
 
-The posterior is intractable, so we approximate it by **variational inference**: we pick
-the member of a tractable, factorised family that is closest to the true posterior in
-Kullback-Leibler divergence, and fit it by **coordinate ascent** (CAVI), updating one
-factor at a time. Because $\gamma$ is meant to depend on $\theta$ and on the cell's class,
-those three are bundled into one structured factor:
+The posterior is intractable and is approximated by **variational inference**: the member
+of a tractable, factorised family closest to the true posterior in Kullback-Leibler
+divergence, fitted by **coordinate ascent** (CAVI), one factor at a time. $\gamma$ depends
+on $\theta$ and on the cell's class, so the three form one structured factor:
 
 $$
 p(z, \zeta, \gamma, \eta, \theta \mid x, g)
@@ -95,20 +94,19 @@ $$
 \log q^*(x_j) = \mathbb{E}_{q(\text{rest})}\big[\log p(x, g, z, \zeta, \gamma, \eta, \theta)\big] + \text{const} .
 $$
 
-Every derivation that follows is one application of this single equation: take the
-[log-joint](#the-generative-model) above, fold everything that does not involve the factor
-$x_j$ into the constant, take the expectation over the other factors, and read off the
-posterior. (The one exception is $\theta_c$: as a point estimate it is **maximised** rather
-than integrated, but it maximises the same expected log-joint.)
+Each derivation that follows applies this equation: the terms of the
+[log-joint](#the-generative-model) that involve the factor $x_j$ are kept, the expectation
+over the other factors is taken, and the posterior is read off. $\theta_c$ is the
+exception: as a point estimate it is **maximised** rather than integrated, against the same
+expected log-joint.
 
-One factor needs special handling. The per-cell scale $\theta_c$ enters the intensity
-multiplicatively with $\gamma_{g,c}$; treating both as full random variables would make
-the marginalisation intractable and destroy the Negative Binomial likelihood that drives
-cell typing. We therefore restrict $q(\theta_c)$ to a **point estimate** (a Dirac delta),
-which keeps $\theta_c$ constant during the update for $\gamma_{g,c}$. Mixing a Dirac factor
-with full variational factors makes the scheme **Variational EM** rather than pure
-variational Bayes; the [self-consistency appendix](appendix-self-consistency.md) records
-why this is sound.
+The per-cell scale $\theta_c$ enters the intensity multiplicatively with $\gamma_{g,c}$.
+With both as full random variables the marginalisation has no closed form and the Negative
+Binomial likelihood of the cell typing is lost. $q(\theta_c)$ is therefore restricted to a
+**point estimate** (a Dirac delta), which keeps $\theta_c$ constant during the update for
+$\gamma_{g,c}$. A Dirac factor among full variational factors makes the scheme
+**Variational EM** rather than pure variational Bayes; the
+[self-consistency appendix](appendix-self-consistency.md) records why this is sound.
 
 ## What these pages derive
 
