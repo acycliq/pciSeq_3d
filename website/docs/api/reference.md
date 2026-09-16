@@ -393,7 +393,7 @@ Probabilities are the softmax of the scores.
 #### `check_cell`
 
 ```python
-check_cell(my_label, user_class, top_n=10, show_plot=True)
+check_cell(my_label, user_class, top_n=10, show_plot=True, top_classes=5)
 ```
 
 Compare the assigned cell type of a cell with another cell type.
@@ -401,9 +401,8 @@ Compare the assigned cell type of a cell with another cell type.
 The assigned type is the type with the highest probability in classProb. The
 per-gene log-likelihoods, log prior and spatial (MRF) term are those used in
 the last cell type update. The figure shows the genes that most favour each
-type, the three score components for both types, and the probabilities of
-the two types renormalised against each other, with the model posterior over
-all types in the title.
+type, the three score components for both types, and the posterior over all
+types for the most likely ones.
 
 **Parameters**
 
@@ -415,6 +414,8 @@ all types in the title.
   Number of genes shown on each side: the top_n genes that most favour the assigned type and the top_n that most favour user_class.
 - **`show_plot`** *(bool, default True)*
   Draw the figure.
+- **`top_classes`** *(int, default 5)*
+  Number of types shown in the posterior chart, ordered by probability. user_class is added if it is not among them.
 
 **Returns**
 

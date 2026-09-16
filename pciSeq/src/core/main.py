@@ -842,16 +842,15 @@ class VarBayes:
     def calculate_genes_log_likelihood_contr(self, label):
         return likelihood.calculate_genes_log_likelihood_contr(self, label)
 
-    def check_cell(self, my_label, user_class, top_n=10, show_plot=True):
+    def check_cell(self, my_label, user_class, top_n=10, show_plot=True, top_classes=5):
         """
         Compare the assigned cell type of a cell with another cell type.
 
         The assigned type is the type with the highest probability in classProb. The
         per-gene log-likelihoods, log prior and spatial (MRF) term are those used in
         the last cell type update. The figure shows the genes that most favour each
-        type, the three score components for both types, and the probabilities of
-        the two types renormalised against each other, with the model posterior over
-        all types in the title.
+        type, the three score components for both types, and the posterior over all
+        types for the most likely ones.
 
         Parameters
         ----------
@@ -864,6 +863,9 @@ class VarBayes:
             assigned type and the top_n that most favour user_class.
         show_plot : bool, default True
             Draw the figure.
+        top_classes : int, default 5
+            Number of types shown in the posterior chart, ordered by probability.
+            user_class is added if it is not among them.
 
         Returns
         -------
@@ -882,7 +884,7 @@ class VarBayes:
         ValueError
             If user_class is not a cell type, or is the assigned type of the cell.
         """
-        return inspection.check_cell(self, my_label, user_class, top_n, show_plot)
+        return inspection.check_cell(self, my_label, user_class, top_n, show_plot, top_classes)
 
     def check_spot(self, spot_id, show_plot=True):
         """

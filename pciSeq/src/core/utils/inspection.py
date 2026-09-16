@@ -14,7 +14,7 @@ from .visualisation import spot_to_cell_prob_plot, spot_to_cell_score_plot
 logger = logging.getLogger(__name__)
 
 
-def check_cell(obj, label, user_class, top_n=10, show_plot=True):
+def check_cell(obj, label, user_class, top_n=10, show_plot=True, top_classes=5):
     """Implementation of VarBayes.check_cell. See that method for the full description."""
 
     # If original labels have been renumbered find the label it's been mapped to.
@@ -47,6 +47,10 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     my_contr_df = contr_df[[pciSeq_class, user_class]].copy()
     my_contr_df['diff'] = my_contr_df[pciSeq_class] - my_contr_df[user_class]
 
+    # TODO: nlargest/nsmallest always return top_n genes, even when fewer than top_n
+    # actually favour that class. Then the top plots fill up with genes whose diff is 0
+    # (or even the wrong sign), eg a near empty cell checked against Zero. Could keep
+    # only diff > 0 for top_genes and diff < 0 for bottom_genes, maybe another day.
     top_genes = my_contr_df.nlargest(top_n, 'diff').index.values
     bottom_genes = my_contr_df.nsmallest(top_n, 'diff').index.values
 
@@ -118,17 +122,11 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     mrf_pciSeq = mrf[pciSeq_label, pciSeq_idx]
     mrf_user = mrf[pciSeq_label, user_idx]
 
-    # Log-posterior for the two classes
-    log_post_pciSeq = gene_loglik_pciSeq + log_prior_pciSeq + mrf_pciSeq
-    log_post_user = gene_loglik_user + log_prior_user + mrf_user
-
-    # Posterior probabilities (softmax over just these two classes)
-    log_posts = np.array([log_post_pciSeq, log_post_user])
-    posterior_probs = softmax(log_posts)
-
     fig = None
     if show_plot:
-        fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+        # constrained layout keeps the panels in a row the same size and lined up, even
+        # when one has much longer tick labels than the other
+        fig, axes = plt.subplots(2, 2, figsize=(14, 12), layout='constrained')
 
         # --- Top row: gene-level log-likelihood differences (unchanged) ---
         top_contribution_sum = my_contr_df.loc[top_genes, 'diff'].sum()
@@ -159,19 +157,33 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
         axes[1, 0].legend()
         axes[1, 0].axhline(y=0, color='grey', linestyle='--', linewidth=0.5)
 
-        # --- Bottom-right: the two classes renormalised against each other ---
-        # this is a softmax over just these two, not the model's posterior over all
-        # classes, so put the real classProb values in the title as well.
-        real_pciSeq = obj.cells.classProb[pciSeq_label, pciSeq_idx]
-        real_user = obj.cells.classProb[pciSeq_label, user_idx]
-        axes[1, 1].bar([pciSeq_class, user_class],
-                       [posterior_probs[0] * 100, posterior_probs[1] * 100],
-                       color=['skyblue', 'lightcoral'])
-        axes[1, 1].set_ylabel('Probability, these two classes only (%)')
-        axes[1, 1].set_title(f'Cell: {label} - {pciSeq_class} vs {user_class}\n'
-                             f'model posterior over all classes: {real_pciSeq * 100:.1f}% vs {real_user * 100:.1f}%')
+        # --- Bottom-right: the model posterior over all classes, top ones only ---
+        # show the top_classes most likely classes, plus user_class if it didnt make
+        # the cut, so you can always see both classes being compared.
+        probs = obj.cells.classProb[pciSeq_label] * 100
+        shown = list(np.argsort(probs)[::-1][:top_classes])
+        if user_idx not in shown:
+            shown.append(user_idx)
+        n_hidden = len(class_names) - len(shown)
+        hidden_sum = probs.sum() - probs[shown].sum()
 
-        plt.tight_layout()
+        bar_names = [class_names[i] for i in shown]
+        bar_probs = [probs[i] for i in shown]
+        colors = ['skyblue' if n == pciSeq_class else 'lightcoral' if n == user_class else 'lightgrey'
+                  for n in bar_names]
+        xpos = np.arange(len(shown))
+        axes[1, 1].bar(xpos, bar_probs, color=colors)
+        for xi, p in zip(xpos, bar_probs):
+            axes[1, 1].text(xi, p, f'{p:.1f}', ha='center', va='bottom', fontsize=9)
+        # 45 degrees, anchored at the right end so each name finishes under its bar
+        axes[1, 1].set_xticks(xpos)
+        axes[1, 1].set_xticklabels(bar_names, rotation=45, ha='right', rotation_mode='anchor')
+        axes[1, 1].set_ylabel('Posterior probability (%)')
+        axes[1, 1].set_ylim(0, 100)
+        axes[1, 1].set_title(f'Cell: {label} - Posterior over all {len(class_names)} classes')
+        axes[1, 1].text(0.98, 0.97, f'{n_hidden} classes not shown, summing to {hidden_sum:.1f}%',
+                        transform=axes[1, 1].transAxes, ha='right', va='top', fontsize=9, color='grey')
+
         plt.show()
 
     return gene_expression_data, my_contr_df, (fig if show_plot else None)
