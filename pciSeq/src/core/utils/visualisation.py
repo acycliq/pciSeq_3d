@@ -262,6 +262,17 @@ def spot_to_cell_score_plot(my_dict):
         width=0.7
     ))
 
+    # Total score per bar. Some terms (eg attention) can be positive, so the segments do
+    # not add up to where the bar ends. Mark the actual sum with a black tick instead.
+    fig.add_trace(go.Scatter(
+        x=labels,
+        y=my_dict['score'],
+        mode='markers',
+        name='Total score',
+        marker=dict(symbol='line-ew', size=34, color='black', line=dict(width=3, color='black')),
+        hovertemplate="<b>%{x}</b><br>Total: %{y:.2f}<extra></extra>",
+    ))
+
     # Update layout to mimic Matplotlib
     fig.update_layout(
         title={
@@ -273,7 +284,9 @@ def spot_to_cell_score_plot(my_dict):
             'pad': {'b': 30}  # Add padding below the title (adjust as needed)
         },
         yaxis_title='Log-Likelihood Score',
-        barmode='stack',
+        # relative: positive terms stack up from 0, negative ones down, so every
+        # segment shows. With plain stack a positive term draws back over the others.
+        barmode='relative',
         hovermode='closest',  # Tooltip shows only the hovered segment
         plot_bgcolor='white',
         font=dict(size=12),

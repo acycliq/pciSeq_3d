@@ -132,7 +132,8 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True, top_classes=5):
         for ax, genes, cls, color in [(axes[0, 0], top_genes, pciSeq_class, 'skyblue'),
                                       (axes[0, 1], bottom_genes, user_class, 'lightcoral')]:
             vals = my_contr_df.loc[genes, 'diff']
-            ax.set_title(f'Cell: {label} - Top {len(genes)} contr for class: {cls} (Sum: {vals.sum():.2f})')
+            # two lines, one line is wider than the panel once the class names get long
+            ax.set_title(f'Cell: {label} - Top {len(genes)} contr for class:\n{cls} (Sum: {vals.sum():.2f})')
             if len(genes):
                 vals.plot.bar(ax=ax, color=color)
             else:
@@ -175,15 +176,19 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True, top_classes=5):
         xpos = np.arange(len(shown))
         axes[1, 1].bar(xpos, bar_probs, color=colors)
         for xi, p in zip(xpos, bar_probs):
-            axes[1, 1].text(xi, p, f'{p:.1f}', ha='center', va='bottom', fontsize=9)
+            axes[1, 1].text(xi, p, f'{p:.1f}', ha='center', va='bottom', fontsize='small')
         # 45 degrees, anchored at the right end so each name finishes under its bar
         axes[1, 1].set_xticks(xpos)
         axes[1, 1].set_xticklabels(bar_names, rotation=45, ha='right', rotation_mode='anchor')
         axes[1, 1].set_ylabel('Posterior probability (%)')
-        axes[1, 1].set_ylim(0, 100)
-        axes[1, 1].set_title(f'Cell: {label} - Posterior over all {len(class_names)} classes')
+        # a bit of headroom above 100 so a 100% bar and its label dont touch the top,
+        # the ticks still stop at 100
+        axes[1, 1].set_ylim(0, 110)
+        axes[1, 1].set_yticks(range(0, 101, 20))
+        # extra pad so a 100% bar label does not run into the title
+        axes[1, 1].set_title(f'Cell: {label} - Posterior over all {len(class_names)} classes', pad=14)
         axes[1, 1].text(0.98, 0.97, f'{n_hidden} classes not shown, summing to {hidden_sum:.1f}%',
-                        transform=axes[1, 1].transAxes, ha='right', va='top', fontsize=9, color='grey')
+                        transform=axes[1, 1].transAxes, ha='right', va='top', fontsize='small', color='grey')
 
         plt.show()
 
