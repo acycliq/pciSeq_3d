@@ -411,7 +411,7 @@ types for the most likely ones.
 - **`user_class`** *(str)*
   Cell type to compare against. Must differ from the assigned type.
 - **`top_n`** *(int, default 10)*
-  Number of genes shown on each side: the top_n genes that most favour the assigned type and the top_n that most favour user_class.
+  Maximum number of genes shown on each side: the genes that most favour the assigned type and those that most favour user_class. Only genes with a nonzero difference in that direction are shown, so a side can have fewer.
 - **`show_plot`** *(bool, default True)*
   Draw the figure.
 - **`top_classes`** *(int, default 5)*

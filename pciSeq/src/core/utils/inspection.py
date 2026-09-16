@@ -47,12 +47,12 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True, top_classes=5):
     my_contr_df = contr_df[[pciSeq_class, user_class]].copy()
     my_contr_df['diff'] = my_contr_df[pciSeq_class] - my_contr_df[user_class]
 
-    # TODO: nlargest/nsmallest always return top_n genes, even when fewer than top_n
-    # actually favour that class. Then the top plots fill up with genes whose diff is 0
-    # (or even the wrong sign), eg a near empty cell checked against Zero. Could keep
-    # only diff > 0 for top_genes and diff < 0 for bottom_genes, maybe another day.
-    top_genes = my_contr_df.nlargest(top_n, 'diff').index.values
-    bottom_genes = my_contr_df.nsmallest(top_n, 'diff').index.values
+    # only genes that actually favour a class. nlargest/nsmallest on their own always
+    # return top_n genes, so on a near empty cell the plots filled up with genes whose
+    # diff is 0. Now a side can have fewer than top_n genes, or none at all.
+    diff = my_contr_df['diff']
+    top_genes = diff[diff > 0].nlargest(top_n).index.values
+    bottom_genes = diff[diff < 0].nsmallest(top_n).index.values
 
     # Step 5: Combine top and bottom genes. On a small panel the two lists can overlap,
     # so drop repeats, otherwise the merges below duplicate rows.
@@ -128,19 +128,19 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True, top_classes=5):
         # when one has much longer tick labels than the other
         fig, axes = plt.subplots(2, 2, figsize=(14, 12), layout='constrained')
 
-        # --- Top row: gene-level log-likelihood differences (unchanged) ---
-        top_contribution_sum = my_contr_df.loc[top_genes, 'diff'].sum()
-        bottom_contribution_sum = my_contr_df.loc[bottom_genes, 'diff'].sum()
-
-        my_contr_df.loc[top_genes, 'diff'].plot.bar(ax=axes[0, 0], color='skyblue',
-                                                    title=f'Cell: {label} - Top {top_n} contr for class: {pciSeq_class} (Sum: {top_contribution_sum:.2f})')
-        axes[0, 0].set_ylabel('Log-Likelihood Difference')
-        axes[0, 0].set_xlabel('Genes')
-
-        my_contr_df.loc[bottom_genes, 'diff'].plot.bar(ax=axes[0, 1], color='lightcoral',
-                                                       title=f'Cell: {label} - Top {top_n} contr for class: {user_class} (Sum: {bottom_contribution_sum:.2f})')
-        axes[0, 1].set_ylabel('Log-Likelihood Difference')
-        axes[0, 1].set_xlabel('Genes')
+        # --- Top row: gene-level log-likelihood differences ---
+        for ax, genes, cls, color in [(axes[0, 0], top_genes, pciSeq_class, 'skyblue'),
+                                      (axes[0, 1], bottom_genes, user_class, 'lightcoral')]:
+            vals = my_contr_df.loc[genes, 'diff']
+            ax.set_title(f'Cell: {label} - Top {len(genes)} contr for class: {cls} (Sum: {vals.sum():.2f})')
+            if len(genes):
+                vals.plot.bar(ax=ax, color=color)
+            else:
+                # pandas cant bar plot an empty series, so just say it
+                ax.text(0.5, 0.5, f'No gene favours {cls}', transform=ax.transAxes,
+                        ha='center', va='center', color='grey')
+            ax.set_ylabel('Log-Likelihood Difference')
+            ax.set_xlabel('Genes')
 
         # --- Bottom-left: grouped bar chart of log-posterior components ---
         x = np.arange(3)
@@ -165,7 +165,8 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True, top_classes=5):
         if user_idx not in shown:
             shown.append(user_idx)
         n_hidden = len(class_names) - len(shown)
-        hidden_sum = probs.sum() - probs[shown].sum()
+        # clipped at 0, otherwise float rounding can print -0.0%
+        hidden_sum = max(0.0, probs.sum() - probs[shown].sum())
 
         bar_names = [class_names[i] for i in shown]
         bar_probs = [probs[i] for i in shown]
