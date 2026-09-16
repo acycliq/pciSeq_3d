@@ -162,7 +162,8 @@ class Cells(object):
             r = self._mcr
         return r
 
-    # Property useful only for debugging. Safe to remove
+    # per cell, gene and class contributions to the NB loglik from the last class update.
+    # check_cell reads it, so dont remove it.
     @property
     def nb_contr(self) -> np.ndarray:
         return self._nb_contr

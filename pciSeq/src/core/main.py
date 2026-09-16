@@ -462,8 +462,8 @@ class VarBayes:
         # Get the full log-likelihood matrix using shared computation
         contr = likelihood.compute_gene_loglikelihood_matrix(self)
 
-        # populate the genes' contributions to the negative loglik. Property 'nb_contr' is only useful
-        # for debugging, safe to remove in the future
+        # per cell, gene and class contributions to the NB loglik from this class update.
+        # check_cell reads it, so dont remove it.
         self.cells.nb_contr = contr
         contr = np.sum(contr, axis=1)
         mrf = self.cells.calc_mrf()
@@ -843,10 +843,74 @@ class VarBayes:
         return likelihood.calculate_genes_log_likelihood_contr(self, label)
 
     def check_cell(self, my_label, user_class, top_n=10, show_plot=True):
+        """
+        Compare the assigned cell type of a cell with another cell type.
+
+        The assigned type is the type with the highest probability in classProb. The
+        per-gene log-likelihoods, log prior and spatial (MRF) term are those used in
+        the last cell type update. The figure shows the genes that most favour each
+        type, the three score components for both types, and the probabilities of
+        the two types renormalised against each other, with the model posterior over
+        all types in the title.
+
+        Parameters
+        ----------
+        my_label : int
+            Cell label, as in the input segmentation.
+        user_class : str
+            Cell type to compare against. Must differ from the assigned type.
+        top_n : int, default 10
+            Number of genes shown on each side: the top_n genes that most favour the
+            assigned type and the top_n that most favour user_class.
+        show_plot : bool, default True
+            Draw the figure.
+
+        Returns
+        -------
+        gene_expression_data : pd.DataFrame
+            One row per selected gene. Columns are the mean count of the gene in cells
+            of each type, the expected count of the gene in this cell under each type,
+            and the observed count in this cell.
+        contr : pd.DataFrame
+            Log-likelihood of each gene in this cell under the two types, and their
+            difference, 'diff'.
+        fig : matplotlib.figure.Figure or None
+            The figure, or None if show_plot is False.
+
+        Raises
+        ------
+        ValueError
+            If user_class is not a cell type, or is the assigned type of the cell.
+        """
         return inspection.check_cell(self, my_label, user_class, top_n, show_plot)
 
-    def check_spot(self, spot_id):
-        return inspection.check_spot(self, spot_id)
+    def check_spot(self, spot_id, show_plot=True):
+        """
+        Break down the assignment of a spot to its candidate cells.
+
+        The score of each candidate cell is the sum of the terms from the last
+        spot-to-cell update: the spatial log-likelihood (mvn_loglik), the expected log
+        mean expression under the cell's type probabilities (attention), the expected
+        log gamma (expr_fluct), the expected log theta (cell_inefficiency), the log
+        eta of the spot's gene (gene_inefficiency) and the inside-cell bonus (bonus).
+        The score of the background is the log misread density of the gene.
+        Probabilities are the softmax of the scores.
+
+        Parameters
+        ----------
+        spot_id : int
+            Spot id, the index of the spots table.
+        show_plot : bool, default True
+            Draw the score and probability charts.
+
+        Returns
+        -------
+        pd.DataFrame
+            One row per candidate cell, labelled 'Cell' followed by the cell label,
+            and a final 'background' row. Columns are the score terms above,
+            'misread', 'sum' and 'prob'.
+        """
+        return inspection.check_spot(self, spot_id, show_plot)
 
     def read_tsv(self, filepath):
         return read_tsv(filepath)

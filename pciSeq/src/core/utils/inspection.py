@@ -15,26 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def check_cell(obj, label, user_class, top_n=10, show_plot=True):
-    """
-    Compare gene expression likelihoods between two classes for a specific cell.
-
-    Parameters:
-        label (int): The cell number to analyze.
-        user_class (str): The user-specified class to compare against.
-        top_n (int): Number of top and bottom genes to retrieve (default: 10).
-
-    Returns:
-        gene_expression_data (pd.DataFrame): A DataFrame with columns:
-            - (Cells typed as X, mean counts): Population-level. Average gene counts across ALL cells
-              currently assigned to class X.
-            - (Cells typed as X, NB expected): Cell-specific. What the NB model predicts THIS particular
-              cell should have for each gene if it belonged to class X, accounting for this cell's theta
-              (cell efficiency) and each gene's eta (gene efficiency). This is what actually drives the
-              log-likelihood, not the population mean.
-            - (This cell, counts): The actual observed gene counts for this cell.
-        my_contr_df (pd.DataFrame): Per-gene log-likelihood contributions for the two classes.
-        fig: The matplotlib figure (or None if show_plot=False).
-    """
+    """Implementation of VarBayes.check_cell. See that method for the full description."""
 
     # If original labels have been renumbered find the label it's been mapped to.
     if obj.config['label_map']:
@@ -42,8 +23,14 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     else:
         pciSeq_label = label
 
-    # Step 1: Calculate gene log-likelihood contributions
-    contr_df, gene_counts, scaled_means_df = obj.calculate_genes_log_likelihood_contr(label)
+    # Step 1: per-gene log-likelihood contributions for this cell. Read the ones the model
+    # kept from its last class update (cells.nb_contr), so the numbers match classProb and
+    # we dont rebuild the whole nC x nG x nK matrix just to look at one row.
+    gene_panel = obj.genes.gene_panel
+    class_names = obj.cells.class_names
+    contr_df = pd.DataFrame(obj.cells.nb_contr[pciSeq_label], columns=class_names, index=gene_panel)
+    gene_counts = pd.Series(obj.cells.geneCount[pciSeq_label], index=gene_panel)
+    scaled_means_df = pd.DataFrame(obj.scaled_exp[pciSeq_label], columns=class_names, index=gene_panel)
 
     # Step 2: Get the cell's class from cellData
     pciSeq_class = obj.cells.class_names[obj.cells.classProb[pciSeq_label].argmax()]
@@ -63,8 +50,9 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     top_genes = my_contr_df.nlargest(top_n, 'diff').index.values
     bottom_genes = my_contr_df.nsmallest(top_n, 'diff').index.values
 
-    # Step 5: Combine top and bottom genes
-    selected_genes = np.append(top_genes, bottom_genes)
+    # Step 5: Combine top and bottom genes. On a small panel the two lists can overlap,
+    # so drop repeats, otherwise the merges below duplicate rows.
+    selected_genes = pd.unique(np.append(top_genes, bottom_genes))
 
     # Step 6: Retrieve mean expression and gene counts
     # gene_expression_data = obj.single_cell.mean_expression.loc[selected_genes, [pciSeq_class, user_class]]
@@ -171,12 +159,17 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
         axes[1, 0].legend()
         axes[1, 0].axhline(y=0, color='grey', linestyle='--', linewidth=0.5)
 
-        # --- Bottom-right: posterior probabilities ---
+        # --- Bottom-right: the two classes renormalised against each other ---
+        # this is a softmax over just these two, not the model's posterior over all
+        # classes, so put the real classProb values in the title as well.
+        real_pciSeq = obj.cells.classProb[pciSeq_label, pciSeq_idx]
+        real_user = obj.cells.classProb[pciSeq_label, user_idx]
         axes[1, 1].bar([pciSeq_class, user_class],
                        [posterior_probs[0] * 100, posterior_probs[1] * 100],
                        color=['skyblue', 'lightcoral'])
-        axes[1, 1].set_ylabel('Posterior Probability (%)')
-        axes[1, 1].set_title(f'Cell: {label} - Posterior probabilities')
+        axes[1, 1].set_ylabel('Probability, these two classes only (%)')
+        axes[1, 1].set_title(f'Cell: {label} - {pciSeq_class} vs {user_class}\n'
+                             f'model posterior over all classes: {real_pciSeq * 100:.1f}% vs {real_user * 100:.1f}%')
 
         plt.tight_layout()
         plt.show()
@@ -184,24 +177,16 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     return gene_expression_data, my_contr_df, (fig if show_plot else None)
 
 
-def check_spot(self, spot_id):
-    """
-    Analyze a spot by creating visualization charts and returning score/probability arrays.
-
-    Parameters:
-    spot_id (int): The ID of the spot to analyze
-
-    Returns:
-    tuple: (scores_array, probabilities_array)s
-    """
+def check_spot(self, spot_id, show_plot=True):
+    """Implementation of VarBayes.check_spot. See that method for the full description."""
     # Get data for the specified spot
     # First find the row position of the spot_id
     row_pos = self.spots.data.index.get_loc(spot_id)
 
     gene_name = self.spots.data.iloc[row_pos].gene_name # I could have used loc[spot_id] here too
-    x = self.spots.data.iloc[row_pos].x.astype(np.int32).tolist()
-    y = self.spots.data.iloc[row_pos].y.astype(np.int32).tolist()
-    z = self.spots.data.iloc[row_pos].z.astype(np.int32).tolist()
+    x = round(float(self.spots.data.iloc[row_pos].x), 2)
+    y = round(float(self.spots.data.iloc[row_pos].y), 2)
+    z = round(float(self.spots.data.iloc[row_pos].z), 2)
     n_cells = len(self.spots.parent_cell_id[row_pos]) - 1  # Exclude background
     cell_ids = self.spots.parent_cell_id[row_pos][:-1]
     mvn_loglik = self.spots.mvn_loglik_arr[row_pos][:-1]
@@ -230,9 +215,9 @@ def check_spot(self, spot_id):
     datadict = {
         'spot_id': spot_id,
         'gene_name': gene_name,
-        'x': x,  # Already converted to list of int32
-        'y': y,  # (same as above)
-        'z': z,  # (same as above)
+        'x': x,
+        'y': y,
+        'z': z,
         'n_cells': n_cells,
         'cell_ids': cell_ids,
         'mvn_loglik': mvn_loglik,
@@ -259,9 +244,12 @@ def check_spot(self, spot_id):
     df['misread'] = np.nan
     df['sum'] = df[['mvn_loglik', 'attention', 'expr_fluct', 'cell_inefficiency', 'gene_inefficiency', 'bonus']].sum(axis=1)
     df.loc['background'] = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, misread, misread]
+    # softmax of the sums, same order as the rows (cells first, background last)
+    df['prob'] = probabilities
 
-    spot_to_cell_score_plot(datadict)
-    spot_to_cell_prob_plot(datadict)
+    if show_plot:
+        spot_to_cell_score_plot(datadict)
+        spot_to_cell_prob_plot(datadict)
     return df
 
 
