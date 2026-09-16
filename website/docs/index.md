@@ -40,3 +40,5 @@ with probability 1 and one with probability 0.3 give a count of 4.3.
 
 [Install](installation.md), then see [Running pciSeq](running-pciseq.md). The
 algorithm is described in [How it works](how-it-works/overview.md).
+[Explaining the calls](explaining-the-calls/overview.md) shows how to find out why the
+model assigned a cell to its type and a spot to its cell.

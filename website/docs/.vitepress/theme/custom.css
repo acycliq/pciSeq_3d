@@ -135,6 +135,7 @@
    currentColor for their ink, so they follow the page text colour and read in
    both light and dark mode without any backdrop. */
 .vp-doc img[src*='/img/'],
+.vp-doc img[src*='/explaining-the-calls/'],
 .vp-doc figure.diagram {
   display: block;
   margin: 2rem auto;

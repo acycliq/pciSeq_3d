@@ -18,6 +18,9 @@ export default defineConfig({
   // don't die on a bad link while the docs are still being written
   ignoreDeadLinks: true,
 
+  // generated table snippets that pages pull in with @include, not pages themselves
+  srcExclude: ['**/_tables/**'],
+
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/pciSeq_3d/favicon.svg' }],
     ['meta', { name: 'theme-color', content: '#10b981' }],
@@ -37,6 +40,7 @@ export default defineConfig({
       { text: 'Docs', link: '/' },
       { text: 'Running pciSeq', link: '/running-pciseq' },
       { text: 'How it works', link: '/how-it-works/overview' },
+      { text: 'Explaining the calls', link: '/explaining-the-calls/overview' },
       { text: 'The model', link: '/the-model/overview' },
       { text: 'API', link: '/api/reference' },
     ],
@@ -71,6 +75,14 @@ export default defineConfig({
           },
           { text: '3. Cell to cell type', link: '/how-it-works/cell-to-celltype' },
           { text: '4. Spots to cells', link: '/how-it-works/spots-to-cells' },
+        ],
+      },
+      {
+        text: 'Explaining the calls',
+        link: '/explaining-the-calls/overview',
+        items: [
+          { text: 'Overview', link: '/explaining-the-calls/overview' },
+          { text: 'Why a cell got its type', link: '/explaining-the-calls/why-a-cell-got-its-type' },
         ],
       },
       {
