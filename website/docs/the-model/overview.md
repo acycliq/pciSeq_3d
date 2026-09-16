@@ -14,7 +14,7 @@ equation. It follows *The extended pciSeq model* (v0.3), which is the version th
 | $x_s,\ g_s$ | location and decoded gene label of RNA spot $s$ |
 | $z_{s,c}$ | indicator assigning spot $s$ to cell $c$ |
 | $\zeta_{c,k}$ | indicator assigning cell $c$ to class $k$ |
-| $\mu_{g,k}$ | mean expression of gene $g$ in class $k$ (from scRNA-seq) |
+| $\mu_{g,k}$ | mean expression of gene $g$ in class $k$ (from the cell type definitions) |
 | $\gamma_{g,c}$ | per-gene, per-cell scale factor |
 | $\eta_g$ | in situ detection efficiency of gene $g$ |
 | $\eta_0$ | global prior mean of detection efficiency (typically 0.2) |

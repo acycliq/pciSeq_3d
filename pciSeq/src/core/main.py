@@ -92,7 +92,7 @@ class VarBayes:
     Args:
         cells_df: DataFrame containing cell information
         spots_df: DataFrame containing spot information
-        scRNAseq: Single-cell RNA sequencing reference data
+        scRNAseq: Cell type definitions, mean expression per gene and cell type
         config: Configuration dictionary containing algorithm parameters
     """
 

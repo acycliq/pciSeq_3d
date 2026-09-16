@@ -57,7 +57,7 @@ the connection and the cell count too.
 
 **Pan and zoom** with the mouse.
 
-**Cells that just changed class** swell up and shrink back over two seconds.
+**Cells that changed class** in the last iteration are enlarged briefly, for two seconds.
 
 ## Cell classes
 
@@ -71,7 +71,7 @@ The legend lists every class with its colour and how many cells are assigned to 
 
 ## Updates
 
-**All Cells** draws every cell. **Updated Only** draws just the cells whose probability for
+**All Cells** draws every cell. **Updated Only** draws only the cells whose probability for
 their top class moved by at least the threshold since the previous iteration. The slider
 sets the threshold, 1% by default. Two counts show how many cells were updated and how many
 changed class. On the first iteration every cell counts as updated.
@@ -114,7 +114,7 @@ file mapping class names to colours:
 }
 ```
 
-- Names must match the columns of the scRNAseq reference exactly.
+- Names must match the columns of the `scRNAseq` DataFrame exactly.
 - A colour is a hex code or a CSS colour name.
 - Classes missing from the file keep their default colour. Names not in the data are
   ignored and listed in the browser console.

@@ -1,18 +1,19 @@
 # pciSeq
 
-pciSeq (probabilistic cell typing by in situ sequencing) assigns each RNA spot of an in
-situ sequencing experiment to a cell, and each cell to a cell type. The two assignments
-are estimated jointly: the type of a cell depends on the spots inside it, and the cell of
-a spot depends on the types of the cells around it. Both are returned as probabilities.
+pciSeq (probabilistic cell typing by in situ sequencing) assigns each RNA spot of an
+imaging-based spatial transcriptomics experiment to a cell, and each cell to a cell type.
+The two assignments are estimated jointly: the type of a cell depends on the spots inside
+it, and the cell of a spot depends on the types of the cells around it. Both are returned
+as probabilities.
 
 ## Inputs
 
-- **Spots.** A table of detected RNA reads with gene identity and position (`x`, `y`, and
+- **Spots.** A table of detected RNA spots with gene identity and position (`x`, `y`, and
   `z_plane` for 3D data).
 - **Segmentation.** A label image giving the cell each pixel belongs to, typically from a
   DAPI nuclear stain.
-- **Cell type definitions.** Mean expression per gene for each cell type, from a separate
-  scRNA-seq experiment. These are the reference profiles the cells are scored against.
+- **Cell type definitions.** Mean expression per gene for each cell type, for example
+  from a scRNA-seq experiment. These are the reference profiles the cells are scored against.
 
 ## Outputs
 
@@ -27,7 +28,7 @@ model is pickled. See [Working with results](api/working-with-results.md).
 ## Probabilistic output
 
 Assignments are probabilities rather than labels, because segmentation boundaries are
-imprecise, detection is imperfect and a fraction of the reads are noise. A spot on the
+imprecise, detection is imperfect and a fraction of the spots are noise. A spot on the
 boundary of two cells receives probability on both; a spot that no cell explains is
 assigned to the background. Cell type assignments are probabilities in the same way.
 

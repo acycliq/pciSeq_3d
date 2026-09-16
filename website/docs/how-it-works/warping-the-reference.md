@@ -1,11 +1,15 @@
 
 # 2. Warping the cell type definitions
 
-The cell type definitions give the mean expression of each gene in each type, measured
-by scRNA-seq. In situ counts are on a different scale: detection efficiency differs
-between genes, transcript yield differs between cells, and the two technologies differ
-in overall scale. pciSeq rescales the expected expression to the scale of the current
-experiment before comparing. The rescaling is the warp.
+The cell type definitions give the mean expression of each gene in each type. The
+observed counts are on a different scale: detection efficiency differs between genes,
+transcript yield differs between cells, and the two datasets differ in overall scale.
+pciSeq rescales the expected expression to the scale of the current experiment before
+comparing. The rescaling is the warp.
+
+The step reads the current gene counts per cell, the current cell type estimates and the
+raw cell type definitions, and produces a warped expected expression rescaled at every
+level. [Cell typing](cell-to-celltype.md) scores cells against types using it.
 
 The correction factors are nuisance parameters. They are estimated because the cell
 types and spot assignments depend on them, they are not in the output, and nothing
@@ -15,12 +19,12 @@ produce between cells and their assigned types.
 ## The scaling factors
 
 The warp is a family of four factors, each rescaling the expected expression at a
-different level of detail. pciSeq calls them inefficiencies, since they mostly describe
-signal lost relative to the single-cell data. From the broadest to the most specific:
+different level of detail. pciSeq calls them inefficiencies. From the broadest to the
+most specific:
 
 - **Inefficiency.** One constant for the whole reference, the `Inefficiency` setting.
-  In situ sequencing detects a fraction of what scRNA-seq reports, around a fifth, and
-  this factor rescales every gene in every cell by it.
+  It rescales every gene in every cell type definition to the overall scale of the
+  observed counts. It can be below or above 1.
 
 - **eta** ($\eta_g$). One factor per gene, shared by all cells: the gene's detection
   efficiency relative to the constant above.
@@ -70,7 +74,7 @@ gamma to one gene in one cell under one type.
 </figure>
 
 Four factors are needed because the mismatch occurs at all four levels at once: a
-global scale difference between the technologies, a per-gene detection pattern, per-cell
+global scale difference between the two datasets, a per-gene detection pattern, per-cell
 variation in yield, and gene-by-cell noise. Each factor absorbs the mismatch at its own
 scale.
 
@@ -86,19 +90,19 @@ Every inefficiency is the same statistic, a ratio of observed over expected:
 
 $$
 \text{factor} \;=\;
-\frac{\text{what was actually observed}}{\text{what the model expected}}
+\frac{\text{observed}}{\text{expected}}
 $$
 
-- **gamma** compares the observed counts of *one gene in one cell* against what the
-  definitions predict for that same gene and cell, *assuming a given type*.
-- **theta** compares the observed total counts of *one cell* against the total the
-  definitions predict for it, *assuming a given type*.
-- **eta** compares the observed counts of *one gene across all cells* against the total
-  predicted for that gene.
+- **gamma** compares the observed count of a *given gene in a given cell* with its
+  expected count, under a candidate type.
+- **theta** compares the observed total count of a *given cell* with its expected
+  total, under a candidate type.
+- **eta** compares the observed count of a *given gene across all cells* with its
+  expected total.
 
-A factor is greater than 1 when more was observed than predicted and less than 1
-otherwise. The factors differ only in the level of aggregation before the ratio is
-formed.
+A factor is greater than 1 when the observed count exceeds the expected count and less
+than 1 otherwise. The factors differ only in the level of aggregation before the ratio
+is formed.
 
 ## The priors
 
@@ -107,15 +111,15 @@ Each factor has a prior with mean 1, no rescaling, whose strength is a hyperpara
 depends on that hyperparameter against the number of counts available to estimate it,
 and those counts differ by orders of magnitude between the three levels.
 
-- **eta** is estimated from one gene's reads across the whole section, typically thousands. At
+- **eta** is estimated from one gene's spots across the whole section, typically thousands. At
   the default `rGene` of 20 the prior is negligible and the data determine the final (that is,
   posterior) eta.
-- **theta** is estimated from one cell's reads, typically tens. At the default `rTheta` of 25 the
+- **theta** is estimated from one cell's spots, typically tens. At the default `rTheta` of 25 the
   prior is comparable to the data. Lower it to around 2 and the data determine the posterior
   theta. It has to stay above 1: theta is
-  $(\text{reads} + r_\theta - 1) / (r_\theta + \text{expected})$, so at 1 or below a cell with no
-  reads gives a theta of zero or less.
-- **gamma** is estimated from one gene in one cell, usually a fraction of a read. The default
+  $(\text{spots} + r_\theta - 1) / (r_\theta + \text{expected})$, so at 1 or below a cell with no
+  spots gives a theta of zero or less.
+- **gamma** is estimated from one gene in one cell, usually a fraction of a spot. The default
   `rSpot` of 2 therefore dominates, which is the intent: there is too little data at that level
   to estimate anything on its own. `rSpot` is also the dispersion of the negative binomial, since
   integrating gamma out is what produces it.
@@ -133,7 +137,7 @@ neighbours' labels. `mrf_beta` sets its strength; at `0` only the gene counts an
 prior decide the type. It is described with the cell typing step in
 [cell to cell type](cell-to-celltype.md#the-class-prior-and-the-spatial-term).
 
-A cell with almost no reads has nothing to weigh against its neighbours, so the spatial
+A cell with almost no spots has nothing to weigh against its neighbours, so the spatial
 term alone can decide its type. The
 [Zero boost](../the-model/cell-class.md#the-zero-boost), off by default, counters that.
 
@@ -293,7 +297,3 @@ their reference expression is tiny; they stay beside Zero at 28%, and the strong
 cannot separate them.
 
 </details>
-
-It reads the current gene counts per cell, the current cell-type estimates and the
-raw cell type definitions, and produces a warped expected expression rescaled at every
-level. [Cell typing](cell-to-celltype.md) scores cells against types using it.

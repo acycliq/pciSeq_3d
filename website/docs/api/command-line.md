@@ -44,7 +44,7 @@ Everything under `opts` goes to `fit`, so the keys are the ones on the
 
 ### scrnaseq
 
-The single cell reference, genes by cell types. `transpose` handles files stored
+The cell type definitions, genes by cell types. `transpose` handles files stored
 the other way round.
 
 | key | meaning |

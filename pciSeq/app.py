@@ -32,8 +32,8 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         plane is treated as 3D.
 
     scRNAseq : pd.DataFrame
-        Single-cell reference data used to annotate the cell types, genes by cell
-        classes. Required.
+        Cell type definitions: mean expression per gene and cell type, genes as
+        rows and cell types as columns. Required.
 
     opts : dict, optional
         Any config values you want to override, e.g. {'max_iter': 500}. See the
@@ -121,7 +121,8 @@ def cell_type(
     spots : pd.DataFrame
         Preprocessed spot data containing gene expressions and coordinates
     scRNAseq : pd.DataFrame
-        Single-cell RNA sequencing reference data, genes by cell classes. Required.
+        Cell type definitions: mean expression per gene and cell type, genes as
+        rows and cell types as columns. Required.
     config : Dict[str, Any]
         Configuration dictionary containing algorithm parameters
 

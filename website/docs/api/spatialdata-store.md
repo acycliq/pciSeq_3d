@@ -121,7 +121,7 @@ against the segmentation automatically.
 
 ### `tables['reference']` (AnnData)
 
-The scRNAseq reference the run was called against, transposed to classes as rows and
+The cell type definitions the run was scored against, transposed to classes as rows and
 genes as columns: `X[i, j]` is the reference expression of gene `j` in class `i`.
 
 ## Provenance

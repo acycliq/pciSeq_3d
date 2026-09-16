@@ -41,7 +41,7 @@ repeats until the estimates stop changing. The four steps below are these update
 <figcaption>The four updates, in order. The last feeds the first.</figcaption>
 </figure>
 
-1. **[Misread density.](misread-density.md)** The rate of background reads per gene,
+1. **[Misread density.](misread-density.md)** The rate of background spots per gene,
    estimated from the spots currently assigned to the background.
 
 2. **[Warping the cell type definitions.](warping-the-reference.md)** Per-gene detection

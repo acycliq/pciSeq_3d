@@ -31,7 +31,7 @@ keywords. Keyword form is preferred.
 - **`coo`** *(list of scipy.sparse.coo_matrix)*
   The label image, one sparse matrix per z-plane. A list with more than one plane is treated as 3D.
 - **`scRNAseq`** *(pd.DataFrame)*
-  Single-cell reference data used to annotate the cell types, genes by cell classes. Required.
+  Cell type definitions: mean expression per gene and cell type, genes as rows and cell types as columns. Required.
 - **`opts`** *(dict, optional)*
   Any config values you want to override, e.g. {'max_iter': 500}. See the configuration page for the full list of keys and their defaults.
 
@@ -71,7 +71,7 @@ Perform cell typing using Variational Bayes algorithm.
 - **`spots`** *(pd.DataFrame)*
   Preprocessed spot data containing gene expressions and coordinates
 - **`scRNAseq`** *(pd.DataFrame)*
-  Single-cell RNA sequencing reference data, genes by cell classes. Required.
+  Cell type definitions: mean expression per gene and cell type, genes as rows and cell types as columns. Required.
 - **`config`** *(Dict[str, Any])*
   Configuration dictionary containing algorithm parameters
 
@@ -334,7 +334,7 @@ probabilistic model with variational inference.
 Args:
     cells_df: DataFrame containing cell information
     spots_df: DataFrame containing spot information
-    scRNAseq: Single-cell RNA sequencing reference data
+    scRNAseq: Cell type definitions, mean expression per gene and cell type
     config: Configuration dictionary containing algorithm parameters
 
 ::: tip Obtaining a fitted instance

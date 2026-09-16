@@ -89,13 +89,13 @@ One row per spot, recording where each spot was assigned.
 | `neighbour_array` | list of int | The candidate parent cells, sorted by descending probability. The background cell `0` means a misread. |
 | `neighbour_prob` | list of float | Probability of each candidate, lined up with `neighbour_array`. |
 | `omp_score`, `omp_intensity` | float | Spot detection score and intensity. 1.0 when the input spots had no such columns. |
-| `is_hard_misread` | uint8 | 1 when the argmax over the candidate probabilities is the background, ie most likely neighbour is 0. Only in the tsv and feather files. |
+| `is_hard_misread` | uint8 | 1 when the argmax over the candidate probabilities is the background (`neighbour` is 0). Only in the tsv and feather files. |
 
 ### geneData column relationships
 
 `neighbour_array` and `neighbour_prob` are a parallel pair: `neighbour_array[i]`
 is a candidate cell and `neighbour_prob[i]` is the probability the spot belongs
-to it. `neighbour` is just `neighbour_array[0]`, the winner.
+to it. `neighbour` is `neighbour_array[0]`, the most probable candidate.
 
 The background cell, label `0`, is always one of the candidates. Its probability
 is the chance the spot is a misread, so a spot with a high probability on `0` was
@@ -176,7 +176,7 @@ obj.genes.get_inefficiency().sort_values('inefficiency').head()
 
 ### Reference expression (`single_cell`)
 
-The single-cell reference is held twice:
+The cell type definitions are held twice:
 
 - `single_cell.mean_expression` is the raw reference, mean expression per gene
   (rows) per class (columns).

@@ -1,7 +1,7 @@
 
 # The scale factors
 
-Three corrections sit between the scRNA-seq reference and the in situ experiment, each
+Three corrections sit between the cell type definitions and the observed counts, each
 rescaling the expected expression at a different level of detail. The
 [warping the cell type definitions](../how-it-works/warping-the-reference.md) page
 describes them; this page derives them.

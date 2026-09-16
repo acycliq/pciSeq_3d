@@ -539,7 +539,7 @@ def gen_configuration():
 
 
 def _runtime_keys_section(src_lines, tree):
-    """The 'worked out for you' section, built from RUNTIME_KEYS in config.py."""
+    """The 'Runtime keys' section, built from RUNTIME_KEYS in config.py."""
     node = None
     for n in ast.walk(tree):
         if isinstance(n, ast.Assign) and any(
@@ -551,7 +551,7 @@ def _runtime_keys_section(src_lines, tree):
     comments = _comment_block_above(src_lines, node.lineno)
     if not comments:
         return []
-    return ["## Worked out for you", "", "\n".join(comments), ""]
+    return ["## Runtime keys", "", "\n".join(comments), ""]
 
 
 def main():
