@@ -52,6 +52,10 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     if pciSeq_class not in contr_df.columns or user_class not in contr_df.columns:
         raise ValueError(f"One or both classes ({pciSeq_class}, {user_class}) not found in contr_df.")
 
+    if user_class == pciSeq_class:
+        raise ValueError(f"Cell {label} is already typed as {user_class}, pick a different "
+                         f"class to compare it against.")
+
     # Step 4: Calculate differences and get top/bottom genes
     my_contr_df = contr_df[[pciSeq_class, user_class]].copy()
     my_contr_df['diff'] = my_contr_df[pciSeq_class] - my_contr_df[user_class]
@@ -115,7 +119,9 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True):
     user_idx = class_names.index(user_class)
 
     log_prior = obj.cellTypes.log_prior
-    mrf = obj.cells.calc_mrf()
+    # the mrf the model actually used in its last class update. it already has the
+    # zero_boost value in the Zero column, calc_mrf() does not.
+    mrf = obj.cells.mrf
 
     gene_loglik_pciSeq = my_contr_df[pciSeq_class].sum()
     gene_loglik_user = my_contr_df[user_class].sum()
