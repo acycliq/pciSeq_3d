@@ -135,7 +135,10 @@ def euler_angles(r: NDArray[np.float32]) -> List[float]:
     # if np.isclose(abs(theta), np.pi / 2, atol=1e-6):
     #     logger.warning("Warning: Gimbal lock detected (pitch = ±90°)")
 
-    return [phi, theta, psi]
+    # plain python floats, not np.float32. On numpy 2 a float32 prints as
+    # np.float32(...) and that text ends up in cellData.tsv, which read_tsv cant eval.
+    # rounded to 7 digits, that is all the precision a float32 has anyway.
+    return [round(float(phi), 7), round(float(theta), 7), round(float(psi), 7)]
 
 
 def adjust_for_anisotropy(
