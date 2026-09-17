@@ -642,17 +642,16 @@ class RealtimeViewerServer:
             # Prepare gene expression data table (MultiIndex columns)
             gene_table_data = []
             if gene_data is not None and not gene_data.empty:
-                # Build MultiIndex keys as created by inspection.check_cell
-                pc_col = (f"Cells typed as {pciseq_class}", "mean counts")
-                user_col = (f"Cells typed as {comparison_class}", "mean counts")
-                count_col = (f"This cell: ({original_label})", "counts")
-
+                # read the columns by position, not by name. The names carry the class
+                # names and the cell label, and looking them up by name silently gave 0
+                # for the cell's counts ("counts" vs "observed"). Order as in
+                # inspection.check_cell: observed mean for the pciSeq class, observed mean
+                # for the user class, the two model predictions, the cell's own counts.
                 for gene_name, row in gene_data.iterrows():
-                    # row is a Series with MultiIndex; use tuple keys
-                    mean_pciseq = float(row[pc_col]) if pc_col in row.index else 0.0
-                    mean_user = float(row[user_col]) if user_col in row.index else 0.0
+                    mean_pciseq = float(row.iloc[0])
+                    mean_user = float(row.iloc[1])
                     # Preserve decimals for this cell's counts
-                    gene_count = float(row[count_col]) if count_col in row.index else 0.0
+                    gene_count = float(row.iloc[4])
 
                     gene_table_data.append({
                         "gene": str(gene_name),

@@ -97,11 +97,13 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True, top_classes=5):
 
     # Add the MultiIndex header
     new_columns = pd.MultiIndex.from_tuples([
-        (f'Cells typed as {pciSeq_class}', 'mean counts'),
-        (f'Cells typed as {user_class}', 'mean counts'),
-        (f'Cell {label} NB prediction', f'as {pciSeq_class}'),
-        (f'Cell {label} NB prediction', f'as {user_class}'),
-        (f'This cell: ({label})', 'observed')
+        # observed data first, then what the model predicts for this cell. The viewer
+        # server reads these columns by position, so keep the order if you rename them
+        (f'Cells typed as {pciSeq_class}', 'observed mean'),
+        (f'Cells typed as {user_class}', 'observed mean'),
+        (f'Model prediction for cell {label}', f'as {pciSeq_class}'),
+        (f'Model prediction for cell {label}', f'as {user_class}'),
+        (f'Cell {label}', 'observed')
     ])
     gene_expression_data.columns = new_columns
 
@@ -154,7 +156,7 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True, top_classes=5):
         axes[1, 0].set_xticks(x)
         axes[1, 0].set_xticklabels(['Gene LogLik', 'Log Prior', 'MRF'])
         axes[1, 0].set_ylabel('Log-scale value')
-        axes[1, 0].set_title(f'Cell: {label} - Log-posterior components')
+        axes[1, 0].set_title(f'Cell: {label} - Log-posterior components\n(higher is better)')
         axes[1, 0].legend()
         axes[1, 0].axhline(y=0, color='grey', linestyle='--', linewidth=0.5)
 
