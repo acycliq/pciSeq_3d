@@ -22,7 +22,7 @@ fit without the spatial term, `mrf_beta = 0`.
 
 ## The figure
 
-Cell 7768 has 45 spots and is assigned `037 DG Glut` with probability 1.00. The following
+Cell 18223 has 39 spots and is assigned `037 DG Glut` with probability 1.00. The following
 compares it with `030 L6 CT CTX Glut`, a cortical type:
 
 ```python
@@ -30,14 +30,14 @@ import pandas as pd
 
 # the fitted model, saved by pciSeq.fit at <output_path>/pciSeq/data/debug/pciSeq.pickle
 obj = pd.read_pickle('pciSeq.pickle')
-obj.check_cell(7768, '030 L6 CT CTX Glut')
+obj.check_cell(18223, '030 L6 CT CTX Glut')
 ```
 
 `fit` saves the fitted model when `save_data` is `True`, the default, see
 [the fitted model](overview.md#the-fitted-model).
 The cell is given by its label in the segmentation passed to `fit`.
 
-![check_cell output for cell 7768](/explaining-the-calls/cell-7768-mrf.png)
+![check_cell output for cell 18223](/explaining-the-calls/cell-18223-mrf.png)
 
 The figure has four panels.
 
@@ -59,15 +59,15 @@ The top panels explain the gene log-likelihood in panel 3. Panel 3 shows whether
 genes, the prior or the neighbours decide the call. Panel 4 shows how confident the call
 is, and which other types remain plausible.
 
-For cell 7768:
+For cell 18223:
 
-- **Top panels.** Sema5a, Gad1 and Cdh9 favour `037 DG Glut`, by 3.08, 1.78 and 1.59;
-  the ten genes on that side sum to 10.65. Rprm and Glul favour `030 L6 CT CTX Glut`, by
-  2.26 and 1.25; the ten genes on that side sum to -5.90.
-- **Bottom left.** The gene log-likelihood is -110.4 for `037 DG Glut` against -116.5 for
-  `030 L6 CT CTX Glut`, so the genes alone favour DG by 6.1. The priors are equal. The MRF
-  term is 7.2 for `037 DG Glut` and 0 for `030 L6 CT CTX Glut`: four of the cell's nine
-  neighbours are DG cells and none is L6 CT.
+- **Top panels.** Synpr, Sema5a and Pde1a favour `037 DG Glut`, by 2.38, 1.47 and 0.94;
+  the ten genes on that side sum to 8.26. Neurod6 and Rgs4 favour `030 L6 CT CTX Glut`, by
+  1.75 and 1.38; the ten genes on that side sum to -4.99.
+- **Bottom left.** The gene log-likelihood is -99.7 for `037 DG Glut` against -104.4 for
+  `030 L6 CT CTX Glut`, so the genes alone favour DG by 4.6. The priors are equal. The MRF
+  term is 13.5 for `037 DG Glut` and 0 for `030 L6 CT CTX Glut`: all nine neighbours of the
+  cell are DG cells, and 13.5 is the largest value the term takes with nine neighbours.
 - **Bottom right.** The posterior is 100% on `037 DG Glut`.
 
 Genes and neighbours agree, and the call is certain.
@@ -77,13 +77,13 @@ Genes and neighbours agree, and the call is certain.
 `check_cell` also returns a table with one row for each gene in the two gene charts of the
 figure (top left and top right):
 
-<!--@include: ./_tables/cell-7768-mrf.md-->
+<!--@include: ./_tables/cell-18223-mrf.md-->
 
 The table has the same columns as the DataFrame `check_cell` returns:
 
-- **Cell 7768, observed.** The count of the gene in this cell, the sum of the assignment
+- **Cell 18223, observed.** The count of the gene in this cell, the sum of the assignment
   probabilities of its spots.
-- **Model prediction for cell 7768.** The number of spots of the gene the model expects in
+- **Model prediction for cell 18223.** The number of spots of the gene the model expects in
   this cell if the cell were of that type: the cell type definition rescaled by the
   [scaling factors](../how-it-works/warping-the-reference.md), see the
   [example below](#the-prediction-is-not-the-observed-mean). A gene favours the type whose
@@ -92,14 +92,14 @@ The table has the same columns as the DataFrame `check_cell` returns:
   currently assigned to that type, weighted by their probability of the type. It is
   measured, not predicted, and it does not enter the score.
 
-Sema5a is the strongest gene. The cell has 11.9 Sema5a spots. `037 DG Glut` predicts 4.4
-and `030 L6 CT CTX Glut` predicts 1.9. Both predict too few, but `037 DG Glut` predicts
-more, and the evidence from a gene grows with the number of its spots. With 11.9 spots
-Sema5a contributes 3.08, the largest bar in the top-left panel. The cells assigned to
-`037 DG Glut` have 6.9 Sema5a spots on average, those assigned to `030 L6 CT CTX Glut`
-2.7.
+Synpr is the strongest gene. The cell has 1.7 Synpr spots. `037 DG Glut` predicts 0.76 and
+`030 L6 CT CTX Glut` predicts 0.10. The count is small, but `030 L6 CT CTX Glut` predicts
+almost no Synpr, so each Synpr spot is strong evidence against it. With 1.7 spots Synpr
+contributes 2.38, the largest bar in the top-left panel. The cells assigned to
+`037 DG Glut` have 0.61 Synpr spots on average, those assigned to `030 L6 CT CTX Glut`
+0.05.
 
-::: details How the 3.08 is computed
+::: details How the 2.38 is computed
 The gene log-likelihood is a negative binomial with mean $\mu$, the expected count, and
 dispersion $r$, the `rSpot` setting, here 2. For a count $x$:
 
@@ -114,84 +114,125 @@ $$
 \Delta = x \left[\log\frac{\mu_A}{r+\mu_A} - \log\frac{\mu_B}{r+\mu_B}\right] + r \log\frac{r+\mu_B}{r+\mu_A}
 $$
 
-The first term grows with the count, the second does not. For Sema5a, with the expected
+The first term grows with the count, the second does not. For Synpr, with the expected
 counts from the table:
 
 | type | $\mu$ | $\mu/(r+\mu)$ | $\log$ |
 | --- | --- | --- | --- |
-| `037 DG Glut` | 4.438 | 0.6893 | -0.3720 |
-| `030 L6 CT CTX Glut` | 1.913 | 0.4889 | -0.7156 |
+| `037 DG Glut` | 0.765 | 0.2767 | -1.2850 |
+| `030 L6 CT CTX Glut` | 0.102 | 0.0487 | -3.0212 |
 
-Each spot adds $-0.3720 - (-0.7156) = 0.3436$ in favour of `037 DG Glut`. The second term
-is $2 \log(3.913/6.438) = -0.996$ and favours `030 L6 CT CTX Glut`, which predicts fewer
-spots overall. With $x = 11.851$:
+Each spot adds $-1.2850 - (-3.0212) = 1.7362$ in favour of `037 DG Glut`. The second term
+is $2 \log(2.102/2.765) = -0.548$ and favours `030 L6 CT CTX Glut`, which predicts fewer
+spots overall. With $x = 1.689$:
 
 $$
-\Delta = 11.851 \times 0.3436 - 0.996 = 3.08
+\Delta = 1.689 \times 1.7362 - 0.548 = 2.38
 $$
 
-With a single Sema5a spot, $\Delta = -0.65$: one spot of a gene that both types predict
-would favour the type that predicts fewer.
+With no Synpr spots, $\Delta = -0.55$: the absence of a gene favours the type that
+predicts fewer.
 :::
 
 ### The prediction is not the observed mean
 
-For Sema5a the model predicts 4.44 spots in cell 7768 as `037 DG Glut`, while the cells
-typed as `037 DG Glut` have 6.94 on average. The two numbers are different quantities.
+For Synpr the model predicts 0.76 spots in cell 18223 as `037 DG Glut`, while the cells
+typed as `037 DG Glut` have 0.61 on average. The two numbers are different quantities.
 
 The prediction is built from the single-cell reference:
 
 | factor | value |
 | --- | --- |
-| reference mean of Sema5a in `037 DG Glut` | 18.49 |
+| reference mean of Synpr in `037 DG Glut` | 24.68 |
 | × `Inefficiency` | 0.1 |
-| × eta of Sema5a | 4.04 |
-| × theta of cell 7768 as `037 DG Glut` | 0.58 |
+| × eta of Synpr | 0.52 |
+| × theta of cell 18223 as `037 DG Glut` | 0.52 |
 | + `SpotReg` | 0.1 |
-| **prediction** | **4.44** |
+| **prediction** | **0.76** |
 
 gamma, the factor for one gene in one cell, is not part of the product. It expresses the
 discrepancy between the observed count in the cell and the prediction, regularised by
 `rSpot`.
 
-The prediction is lower than the observed mean of the cells typed as `037 DG Glut`, 6.94,
-and this is expected. eta is one number per gene, shared by all cell types, so it cannot
-correct the reference for each type separately, and the reference does not match the in
-situ data exactly. What decides the call is the comparison within the cell: the observed
-count of 11.85 is closer to the prediction under `037 DG Glut`, 4.44, than under
-`030 L6 CT CTX Glut`, 1.91.
+The prediction and the observed mean need not agree. eta is one number per gene, shared by
+all cell types, so it cannot correct the reference for each type separately, and the
+reference does not match the in situ data exactly. For Sema5a in the same table the
+prediction as `037 DG Glut` is 3.96 against an observed mean of 6.94. What decides the
+call is the comparison within the cell: the observed Synpr count of 1.69 is closer to the
+prediction under `037 DG Glut`, 0.76, than under `030 L6 CT CTX Glut`, 0.10.
 
 ## The same cell without the spatial term
 
-Fitted with `mrf_beta = 0`, and otherwise identical settings, cell 7768 is assigned
+Fitted with `mrf_beta = 0`, and otherwise identical settings, cell 18223 is assigned
 `030 L6 CT CTX Glut`:
 
 ```python
 # the fitted model of the run with mrf_beta = 0
 obj_nomrf = pd.read_pickle('pciSeq_nomrf.pickle')
-obj_nomrf.check_cell(7768, '037 DG Glut')
+obj_nomrf.check_cell(18223, '037 DG Glut')
 ```
 
-![check_cell output for cell 7768 without the MRF](/explaining-the-calls/cell-7768-nomrf.png)
+![check_cell output for cell 18223 without the MRF](/explaining-the-calls/cell-18223-nomrf.png)
 
-- **Top panels.** The order of the genes is reversed. Rprm and Glul now favour
-  `030 L6 CT CTX Glut` by 3.57 and 2.78, Sema5a, Gad1 and Cdh9 favour `037 DG Glut` by
-  2.43, 1.40 and 1.04.
-- **Bottom left.** The gene log-likelihood is -111.0 for `030 L6 CT CTX Glut` against
-  -113.4 for `037 DG Glut`: the genes favour L6 CT by 2.4. There is no MRF term.
-- **Bottom right.** The posterior is 90.9% `030 L6 CT CTX Glut` and 8.2% `037 DG Glut`.
+- **Top panels.** Neurod6, Rgs4 and Rprm favour `030 L6 CT CTX Glut` by 5.27, 3.54 and
+  1.24. Pde1a, Trp53i11 and Sema5a favour `037 DG Glut` by 0.74, 0.66 and 0.48.
+- **Bottom left.** The gene log-likelihood is -95.2 for `030 L6 CT CTX Glut` against
+  -107.6 for `037 DG Glut`: the genes favour L6 CT by 12.4. There is no MRF term. Seven of
+  the nine neighbours are DG cells in this fit, but they do not enter the score.
+- **Bottom right.** The posterior is 98.7% `030 L6 CT CTX Glut`; `037 DG Glut` is below
+  0.1%.
 
 In both fits the cell's own genes support its call. What differs is not how the evidence
 is weighed but the evidence itself: the two fits give the cell different spots.
 
-| gene | favours | spots, without MRF | spots, with MRF |
+| gene | favours | gene counts, without MRF | gene counts, with MRF |
 | --- | --- | --- | --- |
-| Glul | L6 CT | 3.66 | 1.82 |
-| Rprm | L6 CT | 3.27 | 2.35 |
-| Sema5a | DG | 10.01 | 11.85 |
-| Tafa1 | DG | 0.04 | 0.43 |
+| Neurod6 | L6 CT | 3.49 | 1.41 |
+| Rgs4 | L6 CT | 4.13 | 1.92 |
+| Rprm | L6 CT | 1.53 | 0.82 |
+| Synpr | DG | 0.11 | 1.69 |
+| Sema5a | DG | 3.91 | 6.51 |
 
-The total number of spots is almost the same, 44 against 45. Scoring the spots the cell
+The total number of spots is almost the same, 38 against 39. Scoring the spots the cell
 holds in the fit with the MRF under the parameters of the fit without it turns the
-preference of the genes from 2.4 for L6 CT to 5.5 for DG, so the difference in the call
-comes from which spots the cell holds.
+preference of the genes from 12.4 for L6 CT to 4.4 for DG. The spots the cell holds
+account for almost all of the difference.
+
+### How the two fits diverge
+
+`check_cell` reads the last iteration only. The table below follows cell 18223 through
+the iterations of both fits. Class is the most likely class of the cell at that iteration
+and Prob its posterior probability.
+
+<table>
+<thead>
+<tr><th rowspan="2">iteration</th><th colspan="3" style="text-align: center">without MRF</th><th colspan="4" style="text-align: center">with MRF</th></tr>
+<tr><th>class</th><th>Prob</th><th>Δ log-lik¹</th><th>class</th><th>Prob</th><th>Δ log-lik¹</th><th>neighbours²</th></tr>
+</thead>
+<tbody>
+<tr><td>0</td><td>DG</td><td>0.77</td><td>+1.2</td><td>DG</td><td>0.77</td><td>+1.2</td><td>8 DG, 1 L6 CT</td></tr>
+<tr><td>1</td><td>L6 CT</td><td>0.62</td><td>-0.5</td><td>DG</td><td>1.00</td><td>-0.5</td><td>9 DG</td></tr>
+<tr><td>2</td><td>L6 CT</td><td>0.98</td><td>-6.2</td><td>DG</td><td>1.00</td><td>+1.8</td><td>9 DG</td></tr>
+<tr><td>10</td><td>L6 CT</td><td>0.97</td><td>-10.6</td><td>DG</td><td>1.00</td><td>+4.4</td><td>9 DG</td></tr>
+<tr><td>last</td><td>L6 CT</td><td>0.99</td><td>-12.4</td><td>DG</td><td>1.00</td><td>+4.6</td><td>9 DG</td></tr>
+</tbody>
+<tfoot>
+<tr><td colspan="8"><div style="width: 0; min-width: 100%">¹ Gene log-likelihood of <code>037 DG Glut</code> minus that of <code>030 L6 CT CTX Glut</code>: positive values favour DG, negative values favour L6 CT.<br>² Most likely class of the nine nearest neighbours of the cell at the end of the iteration.</div></td></tr>
+</tfoot>
+</table>
+
+At the start of iteration 0 each spot is split equally between its nine nearest cells and
+the background, regardless of distance or gene. The call in iteration 0 is made from these
+counts and is the same in both fits. At the end of iteration 0 the spots are reassigned,
+this time using distance and expression. The cell gains Neurod6 spots, from 0.6 to
+1.9, and Rgs4 spots, from 1.7 to 2.6, two genes that favour L6 CT. At iteration 1 the genes
+therefore favour L6 CT by 0.5, in both fits.
+
+Without the MRF term the log-likelihood of the gene counts decides, and the cell becomes
+L6 CT. With it, the
+neighbours, eight of nine DG at the end of iteration 0, keep the cell DG. From then on
+each fit assigns the cell spots that fit its class: as L6 CT the cell gains Neurod6 and
+Rgs4 spots and loses Synpr and Sema5a spots, as DG the reverse. At the last iteration the
+genes favour L6 CT by 12.4 in the fit without the MRF and DG by 4.6 in the fit with it.
+In the fit with the MRF the neighbours decide the call at iteration 1 only; from
+iteration 2 the genes favour DG as well.

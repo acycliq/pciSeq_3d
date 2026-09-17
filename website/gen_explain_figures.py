@@ -50,10 +50,11 @@ CA1 = "016 CA1-ProS Glut"
 
 # (run, cell label, class to compare against, file name)
 CELLS = [
-    ("mrf", 7768, L6CT, "cell-7768-mrf"),      # the walkthrough: DG with the spatial prior
-    ("nomrf", 7768, DG, "cell-7768-nomrf"),    # the same cell called L6 CT without it
+    ("mrf", 18223, L6CT, "cell-18223-mrf"),    # the walkthrough: DG with the spatial prior
+    ("nomrf", 18223, DG, "cell-18223-nomrf"),  # the same cell called L6 CT without it
 ]
-# (run, spot id, file name): spots of cell 7768 that change hands between the runs
+# (run, spot id, file name): spots of cell 7768 that change hands between the runs, for the
+# spot page (not written yet, might switch to spots of 18223 then)
 SPOTS = [
     ("nomrf", 2452812, "spot-2452812-nomrf"),  # Rprm, border with DG neighbours
     ("mrf", 2452812, "spot-2452812-mrf"),
@@ -190,9 +191,11 @@ def main():
                 fig.savefig(FIG_DIR / f"{name}.png", dpi=90)
             plt.close(fig)
             numbers["cells"][name] = cell_numbers(obj, label, user_class, contr, ged)
-            if name == "cell-7768-mrf":
-                numbers["sema5a_breakdown"] = gene_breakdown(
-                    obj, label, "Sema5a", [DG, L6CT, "017 CA3 Glut", CA1])
+            if run == "mrf":
+                # the page walks through the prediction of the strongest gene
+                top_gene = contr["diff"].idxmax()
+                numbers["top_gene_breakdown"] = gene_breakdown(
+                    obj, label, top_gene, [DG, L6CT, "017 CA3 Glut", CA1])
             (TABLE_DIR / f"{name}.md").write_text(cell_table_html(ged, label))
             print(f"wrote {name}.png and {name}.md")
 
