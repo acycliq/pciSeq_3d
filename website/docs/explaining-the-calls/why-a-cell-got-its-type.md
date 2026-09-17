@@ -50,14 +50,11 @@ The figure has four panels.
    more likely under the second type, so the gene favours the second type. The panel
    shows up to `top_n` genes with the most negative differences.
 3. **Bottom left.** The three terms of the score for both types: the gene log-likelihood
-   summed over all genes, the log prior and the MRF term. Higher is better: the type with
+   summed over all genes (the top panels break this term down by gene), the log prior and
+   the MRF term. Higher is better: the type with
    the larger total wins.
 4. **Bottom right.** The posterior over all types, for the `top_classes` most likely
    types and the second type. The note gives the probability of the types not shown.
-
-The top panels explain the gene log-likelihood in panel 3. Panel 3 shows whether the
-genes, the prior or the neighbours decide the call. Panel 4 shows how confident the call
-is, and which other types remain plausible.
 
 For cell 18223:
 
@@ -70,7 +67,7 @@ For cell 18223:
   cell are DG cells, and 13.5 is the largest value the term takes with nine neighbours.
 - **Bottom right.** The posterior is 100% on `037 DG Glut`.
 
-Genes and neighbours agree, and the call is certain.
+Both terms favour `037 DG Glut`, and the posterior is 1.00.
 
 ## The table
 
@@ -93,9 +90,10 @@ The table has the same columns as the DataFrame `check_cell` returns:
   measured, not predicted, and it does not enter the score.
 
 Synpr is the strongest gene. The cell has 1.7 Synpr spots. `037 DG Glut` predicts 0.76 and
-`030 L6 CT CTX Glut` predicts 0.10. The count is small, but `030 L6 CT CTX Glut` predicts
-almost no Synpr, so each Synpr spot is strong evidence against it. With 1.7 spots Synpr
-contributes 2.38, the largest bar in the top-left panel. The cells assigned to
+`030 L6 CT CTX Glut` predicts 0.10. The count is small, but the prediction under
+`030 L6 CT CTX Glut` is near zero, so each Synpr spot adds 1.74 in favour of
+`037 DG Glut`. With 1.7 spots Synpr contributes 2.38, the largest bar in the top-left
+panel. The cells assigned to
 `037 DG Glut` have 0.61 Synpr spots on average, those assigned to `030 L6 CT CTX Glut`
 0.05.
 
@@ -182,7 +180,7 @@ obj_nomrf.check_cell(18223, '037 DG Glut')
 - **Bottom right.** The posterior is 98.7% `030 L6 CT CTX Glut`; `037 DG Glut` is below
   0.1%.
 
-In both fits the cell's own genes support its call. What differs is not how the evidence
+In both fits the gene log-likelihood is larger for the assigned class. What differs is not how the evidence
 is weighed but the evidence itself: the two fits give the cell different spots.
 
 | gene | favours | gene counts, without MRF | gene counts, with MRF |
@@ -224,15 +222,14 @@ and Prob its posterior probability.
 At the start of iteration 0 each spot is split equally between its nine nearest cells and
 the background, regardless of distance or gene. The call in iteration 0 is made from these
 counts and is the same in both fits. At the end of iteration 0 the spots are reassigned,
-this time using distance and expression. The cell gains Neurod6 spots, from 0.6 to
-1.9, and Rgs4 spots, from 1.7 to 2.6, two genes that favour L6 CT. At iteration 1 the genes
+this time using distance and expression. The Neurod6 count of the cell goes from 0.6 to
+1.9 and the Rgs4 count from 1.7 to 2.6, two genes that favour L6 CT. At iteration 1 the genes
 therefore favour L6 CT by 0.5, in both fits.
 
-Without the MRF term the log-likelihood of the gene counts decides, and the cell becomes
-L6 CT. With it, the
-neighbours, eight of nine DG at the end of iteration 0, keep the cell DG. From then on
-each fit assigns the cell spots that fit its class: as L6 CT the cell gains Neurod6 and
-Rgs4 spots and loses Synpr and Sema5a spots, as DG the reverse. At the last iteration the
-genes favour L6 CT by 12.4 in the fit without the MRF and DG by 4.6 in the fit with it.
-In the fit with the MRF the neighbours decide the call at iteration 1 only; from
-iteration 2 the genes favour DG as well.
+Without the MRF term the gene log-likelihood is the only term that differs, and the cell
+is assigned L6 CT. With it, the MRF term, from eight DG neighbours out of nine, outweighs
+the difference of 0.5 and the cell stays DG. From then on the
+counts of each fit follow its class: as L6 CT the Neurod6 and Rgs4 counts rise and the
+Synpr and Sema5a counts fall, as DG the reverse. In the fit with the
+MRF the MRF term changes the class at iteration 1 only; from iteration 2 the gene
+log-likelihood favours DG on its own.
