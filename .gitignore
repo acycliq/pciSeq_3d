@@ -14,3 +14,16 @@ __pycache__/
 /pciSeq/static/2D/data/
 /pciSeq/static/PotreeConverter_linux_x64/resources/
 /pciSeq_experiments
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
+*.gate.lock*
+.beads/
+.agents/
+.codex/
+.cursor/
+CLAUDE.md
+AGENTS.md
