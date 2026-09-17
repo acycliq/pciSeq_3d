@@ -47,14 +47,11 @@ RUNS = {
 DG = "037 DG Glut"
 L6CT = "030 L6 CT CTX Glut"
 CA1 = "016 CA1-ProS Glut"
-CA2 = "025 CA2-FC-IG Glut"
 
 # (run, cell label, class to compare against, file name)
 CELLS = [
     ("mrf", 7768, L6CT, "cell-7768-mrf"),      # the walkthrough: DG with the spatial prior
     ("nomrf", 7768, DG, "cell-7768-nomrf"),    # the same cell called L6 CT without it
-    ("mrf", 16166, CA2, "cell-16166-mrf"),
-    ("nomrf", 16166, CA1, "cell-16166-nomrf"),
 ]
 # (run, spot id, file name): spots of cell 7768 that change hands between the runs
 SPOTS = [

@@ -35,6 +35,7 @@ obj.check_cell(7768, '030 L6 CT CTX Glut')
 
 `fit` saves the fitted model when `save_data` is `True`, the default, see
 [the fitted model](overview.md#the-fitted-model).
+The cell is given by its label in the segmentation passed to `fit`.
 
 ![check_cell output for cell 7768](/explaining-the-calls/cell-7768-mrf.png)
 
@@ -194,103 +195,3 @@ The total number of spots is almost the same, 44 against 45. Scoring the spots t
 holds in the fit with the MRF under the parameters of the fit without it turns the
 preference of the genes from 2.4 for L6 CT to 5.5 for DG, so the difference in the call
 comes from which spots the cell holds.
-
-## How the call goes wrong
-
-Cell typing and spot assignment depend on each other. A spot's score for a cell includes
-the expected log expression of the spot's gene under the cell's current type
-probabilities, the `attention` term of [`check_spot`](../api/reference.md#check-spot). A
-cell that leans towards a type therefore attracts spots of that type's genes, and those
-spots make the type more likely. Once a cell leans the wrong way, this loop can lock in
-the wrong type.
-
-The two fits were repeated with the cell's type probabilities and spot assignments
-recorded at every iteration.
-
-![Probability of the two types per iteration](/explaining-the-calls/iter-7768-type-trajectory.png)
-
-**Iteration 0.** At the start every spot is shared equally among its nearest cells and
-the background, so the first type update sees an average of the neighbourhood rather than
-the cell's own spots. Both fits call the cell `017 CA3 Glut`.
-
-**Iteration 1.** The cell scores its own spots for the first time. It holds about 10 of
-the 18 Glul spots of a dense cluster next to it, most likely an unsegmented glial cell,
-because the background density of Glul has not yet been learned and is still low. Glul is more
-highly expressed in `030 L6 CT CTX Glut` than in `037 DG Glut`, and alone it is worth
-7.7 against DG. The genes now favour L6 CT slightly.
-
-**Without the spatial term**, the cell follows its genes: the probability of
-`030 L6 CT CTX Glut` rises to 0.38 at iteration 1 and 0.97 at iteration 3. Expecting L6 CT
-genes, the cell takes Rprm spots it shares with its DG neighbours, and loses Tafa1, a DG
-gene, to a neighbour. The Glul cluster drains to the background over the following
-iterations as its density is learned, but the extra Rprm keeps the call at 91%.
-
-**With the spatial term**, the neighbours decide the early iterations. At iteration 1 they
-are still CA3, so the cell stays CA3 instead of following its contaminated counts. By
-iteration 2 the neighbours are DG, and the MRF term moves the cell to `037 DG Glut` while
-its genes still slightly favour L6 CT. The cell then collects DG spots, and from
-iteration 3 its genes favour DG on their own.
-
-![Score of DG minus L6 CT per iteration](/explaining-the-calls/iter-7768-score-terms.png)
-
-The figure shows the difference between the two types. The gene log-likelihood of both
-fits starts at the same value. Without the MRF it turns towards L6 CT by iteration 3.
-With the MRF, the MRF term carries the cell over iterations 1 and 2, after which the gene
-log-likelihood alone favours DG, by 6.1 at the end.
-
-![Spots of the key genes per iteration](/explaining-the-calls/iter-7768-culprit-counts.png)
-
-Rprm spot 2452812 shows the loop directly. It lies at a distance of 18.8 from cell 7768
-and at a similar distance from the DG cells 3546 and 2287, so the distance term hardly separates
-the three. `check_spot` on the two fits:
-
-| | cell 7768, without MRF | cell 7768, with MRF | cell 3546, with MRF | cell 2287, with MRF |
-| --- | --- | --- | --- | --- |
-| distance term (`mvn_loglik`) | -11.41 | -11.41 | -11.08 | -11.53 |
-| `attention` | -0.23 | -1.75 | -1.75 | -1.75 |
-| probability | 0.63 | 0.31 | 0.30 | 0.36 |
-
-Without the MRF, cell 7768 is L6 CT, Rprm is expected in it, and its `attention` for the
-spot is -0.23, higher than the neighbours'. It takes the spot with probability 0.63. With
-the MRF all three cells are DG, their `attention` is equal, and the spot is split between
-them. Over the first iterations of the fit without the MRF, the probability of this spot
-belonging to the cell rises from 0.21 to 0.63 as the probability of L6 CT rises.
-
-## A slower case
-
-Cell 16166 lies in the CA1 pyramidal layer, and eight of its nine neighbours are CA1
-cells. With the spatial term it is `016 CA1-ProS Glut` at every iteration. Without it, it
-starts as CA1 and ends as `025 CA2-FC-IG Glut` with probability 0.99.
-
-![Probability of CA1 and CA2 per iteration for cell 16166](/explaining-the-calls/iter-16166-type-trajectory.png)
-
-Here there is no early contamination. The cell's own Prkca and Rgs4 spots lean towards
-CA2 and leave a probability of CA2 of a few percent. Without the MRF, that is enough to
-tilt which shared spots the cell takes: Prkca spots on the border with CA1 neighbours
-come in, Lypd1 spots go out. The loop builds over ten iterations, and between iterations
-11 and 14 the probability of CA2 rises from 0.37 to 0.95. With the MRF, the support of
-the neighbours, 12.4 for CA1, keeps the probability of CA2 at zero, and the loop never
-starts.
-
-## What to look for
-
-- **A call that the neighbours do not support.** If the genes give the call but the MRF
-  term of the assigned type in panel 3 is small, the cell's neighbours are of other
-  types. Inspect the spots of the top genes with
-  [`check_spot`](../api/reference.md#check-spot), and compare with a fit that uses a
-  larger `mrf_beta`.
-- **Culprit genes.** Genes of another cell type or of glia, such as Glul here, that are
-  concentrated at the edge of the cell often come from an adjacent, unsegmented cell.
-- **Border spots.** Spots of the top genes that lie between two cells go to the cell
-  whose type expects them. Their assignment follows the type, not only the distance.
-
-## Notes
-
-- `my_label` is the cell label in the input segmentation. If pciSeq renumbered the labels
-  internally, `check_cell` maps them back.
-- The second type must differ from the assigned type.
-- The figure is drawn when `show_plot` is `True`. The function also returns the table,
-  the per-gene log-likelihoods of both types and the figure, see the
-  [API reference](../api/reference.md#check-cell).
-- `check_cell` reads `cells.nb_contr` and `cells.mrf` from the fitted model. A model
-  saved by an earlier version of pciSeq may not contain them.
