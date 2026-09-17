@@ -33,36 +33,18 @@ an earlier version of pciSeq may lack the values these methods read.
 
 ## The example data
 
-The examples in this section use the CA1 dataset of
-[Qian et al. (2020)](https://doi.org/10.1038/s41592-019-0631-4), which is in the pciSeq
-repository: a 2D section of mouse hippocampus with 72,336 spots of 92 genes, a
-segmentation of 3,481 cells, and a single-cell reference with 71 cell types. The
-following downloads the data, runs pciSeq and loads the fitted model:
+The examples in this section use a 3D coppaFISH dataset of mouse hippocampus: 25,254
+segmented cells, 3,277,991 spots of the 205 genes shared with the single-cell reference,
+and 38 cell types. The data were fitted twice with identical settings except `mrf_beta`,
+the strength of the spatial term: 1.5 and 0. The model from the fit with the spatial
+term is `obj`, the model from the fit without it is `obj_nomrf`:
 
 ```python
-import io
-import urllib.request
-
-import numpy as np
 import pandas as pd
-from scipy.sparse import load_npz
-import pciSeq
 
-url = 'https://raw.githubusercontent.com/acycliq/pciSeq_3d/dev_3d/pciSeq/data/mouse/ca1'
-
-spots = pd.read_csv(f'{url}/iss/spots.csv')
-with urllib.request.urlopen(f'{url}/segmentation/label_image.coo.npz') as r:
-    coo = load_npz(io.BytesIO(r.read()))
-
-# one column per single cell, the first row holds its cell type
-sc = pd.read_csv(f'{url}/scRNA/scRNAseq.csv.gz', header=None, index_col=0, dtype=object)
-sc = sc.rename(columns=sc.iloc[0]).iloc[1:].astype(np.uint32)
-
-cellData, geneData = pciSeq.fit(spots=spots, coo=coo, scRNAseq=sc,
-                                opts={'output_path': 'ca1_run'})
-obj = pd.read_pickle('ca1_run/pciSeq/data/debug/pciSeq.pickle')
+obj = pd.read_pickle('espio/pciSeq/data/debug/pciSeq.pickle')              # mrf_beta = 1.5
+obj_nomrf = pd.read_pickle('espio_noMRF/pciSeq/data/debug/pciSeq.pickle')  # mrf_beta = 0
 ```
 
-The run takes under a minute. The reference holds one column per single cell, and
-pciSeq averages the columns of each type into the cell type definitions. With the
-default settings the figures on the following pages are reproduced exactly.
+A fitted model of this size takes several gigabytes of memory, so load one at a time if
+memory is limited.

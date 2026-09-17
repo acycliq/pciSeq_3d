@@ -2,62 +2,72 @@
 """
 Makes the figures and tables for the "Explaining the calls" pages.
 
-Runs pciSeq on the CA1 demo data that ships with the package, then calls check_cell
-and check_spot on a few hand picked cells and spots. The check_cell figures go to
-docs/public/explaining-the-calls/, the check_spot charts go there too (needs kaleido for
-the plotly export), and the tables go to docs/explaining-the-calls/_tables/, where the
-pages pull them in with an @include.
+Loads two fitted Espio models, the same data and settings, one with the spatial prior
+(mrf_beta=1.5) and one without (mrf_beta=0.0), and calls check_cell and check_spot on a
+few hand picked cells and spots. The check_cell figures and the check_spot charts go to
+docs/public/explaining-the-calls/ (the charts need kaleido for the plotly export), the
+tables go to docs/explaining-the-calls/_tables/, where the pages pull them in with an
+@include. The numbers the page text quotes are dumped to explain_numbers.json next to
+this script, so the prose can be checked against them.
 
 Run it from anywhere:  python website/gen_explain_figures.py
 Rerun it whenever check_cell, check_spot or the model changes, otherwise the pages go
-stale. The prose on the pages quotes a few of the numbers too, so reread it after.
+stale. The prose quotes numbers too, so reread it after (compare with the json).
 """
 
+import gc
+import json
 import pathlib
 import sys
-import tempfile
 
 import matplotlib
 matplotlib.use("Agg")  # no window, we only save the figures
+import matplotlib.pyplot as plt
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from scipy.sparse import load_npz
 
 HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parent
 # use the pciSeq in this repo, not whatever copy is installed in site-packages
 sys.path.insert(0, str(REPO))
-import pciSeq  # noqa: E402
+import pciSeq  # noqa: E402,F401
 
-DATA = REPO / "pciSeq" / "data" / "mouse" / "ca1"
 FIG_DIR = HERE / "docs" / "public" / "explaining-the-calls"
 TABLE_DIR = HERE / "docs" / "explaining-the-calls" / "_tables"
+NUMBERS = HERE / "explain_numbers.json"
 
-# the examples on the pages. Picked from the CA1 run so that each one shows a different
-# reason for a call. If a rerun changes the calls, pick new ones and fix the prose.
+# the two fitted models, made by pciSeq_experiments/run_espio.py with only mrf_beta changed
+RUNS = {
+    "mrf": pathlib.Path.home() / "pciseq_runs/zero_boost/espio/pciSeq/data/debug/pciSeq.pickle",
+    "nomrf": pathlib.Path.home() / "pciseq_runs/zero_boost/espio_noMRF/pciSeq/data/debug/pciSeq.pickle",
+}
+
+DG = "037 DG Glut"
+L6CT = "030 L6 CT CTX Glut"
+CA1 = "016 CA1-ProS Glut"
+CA2 = "025 CA2-FC-IG Glut"
+
+# (run, cell label, class to compare against, file name)
 CELLS = [
-    # (cell label, class to compare against, file name)
-    (1023, "Sst.Erbb4.Rgs10", "cell-1023"),  # clear call, the genes decide
-    (430, "PC.Other2", "cell-430"),          # the neighbours decide
-    (2979, "Zero", "cell-2979"),             # near empty cell, Zero competes
+    ("mrf", 7768, L6CT, "cell-7768-mrf"),      # the walkthrough: DG with the spatial prior
+    ("nomrf", 7768, DG, "cell-7768-nomrf"),    # the same cell called L6 CT without it
+    ("mrf", 16166, CA2, "cell-16166-mrf"),
+    ("nomrf", 16166, CA1, "cell-16166-nomrf"),
 ]
+# (run, spot id, file name): spots of cell 7768 that change hands between the runs
 SPOTS = [
-    (1, "spot-1"),    # goes to a cell
-    (55, "spot-55"),  # goes to the background
-    (70, "spot-70"),  # split between two cells
+    ("nomrf", 2452812, "spot-2452812-nomrf"),  # Rprm, border with DG neighbours
+    ("mrf", 2452812, "spot-2452812-mrf"),
+    ("nomrf", 2665680, "spot-2665680-nomrf"),  # Glul, goes to background with the mrf
+    ("mrf", 2665680, "spot-2665680-mrf"),
 ]
 
-
-def load_ca1():
-    coo = load_npz(DATA / "segmentation" / "label_image.coo.npz")
-    spots = pd.read_csv(DATA / "iss" / "spots.csv")
-    sc = pd.read_csv(DATA / "scRNA" / "scRNAseq.csv.gz", header=None, index_col=0,
-                     compression="gzip", dtype=object)
-    # first row holds the class of each single cell, use it as the column names
-    sc = sc.rename(columns=sc.iloc[0]).iloc[1:].astype(float).astype(np.uint32)
-    return spots, coo, sc
+# the check_cell figure is 14 inches wide and gets shrunk to fit the page column, so
+# bump the font sizes for the docs copy only
+DOC_FONTS = {"font.size": 17, "axes.titlesize": 17, "axes.labelsize": 16,
+             "xtick.labelsize": 15, "ytick.labelsize": 15, "legend.fontsize": 15}
 
 
 def to_markdown(df, floatfmt="{:.3f}"):
@@ -75,63 +85,136 @@ def to_markdown(df, floatfmt="{:.3f}"):
     return "\n".join(lines) + "\n"
 
 
-def cell_table_html(ged, assigned, user_class):
-    """The check_cell table with a grouped header: each class name once on top, spanning
-    its mean and expected columns. The real headers repeat the full class names in every
-    column and the table gets too wide for the page. Markdown tables cant span columns,
-    so this one is plain html."""
-    # check_cell order is mean A, mean B, expected A, expected B, observed.
-    # regroup it per class: mean A, expected A, mean B, expected B, observed
-    vals = ged.values[:, [0, 2, 1, 3, 4]]
-    lines = [
-        "<table>",
-        "<thead>",
-        f'<tr><th></th><th colspan="2"><code>{assigned}</code></th>'
-        f'<th colspan="2"><code>{user_class}</code></th><th>this cell</th></tr>',
-        "<tr><th>gene</th><th>mean</th><th>expected</th><th>mean</th><th>expected</th><th>observed</th></tr>",
-        "</thead>",
-        "<tbody>",
-    ]
-    for gene, row in zip(ged.index, vals):
+def cell_table_html(ged, label):
+    """The check_cell table as html, with the same two level header and column order as the
+    DataFrame check_cell returns. Markdown tables cant do a two level header."""
+    top = [a for a, _ in ged.columns]
+    sub = [b for _, b in ged.columns]
+    # merge neighbouring columns that share the same top header into one spanning cell
+    groups = []
+    for t in top:
+        if groups and groups[-1][0] == t:
+            groups[-1][1] += 1
+        else:
+            groups.append([t, 1])
+    head_top = "".join(f'<th colspan="{n}">{t}</th>' if n > 1 else f"<th>{t}</th>" for t, n in groups)
+    head_sub = "".join(f"<th>{b}</th>" for b in sub)
+    lines = ["<table>", "<thead>",
+             f"<tr><th></th>{head_top}</tr>",
+             f"<tr><th>gene</th>{head_sub}</tr>",
+             "</thead>", "<tbody>"]
+    for gene, row in zip(ged.index, ged.values):
         cells = "".join(f"<td>{v:.2f}</td>" for v in row)
         lines.append(f"<tr><td>{gene}</td>{cells}</tr>")
     lines += ["</tbody>", "</table>"]
     return "\n".join(lines) + "\n"
 
 
+def cell_numbers(obj, label, user_class, contr, ged):
+    """The numbers the page quotes for one check_cell call."""
+    lm = obj.config["label_map"]
+    row = lm[label] if lm else label
+    names = list(obj.cells.class_names)
+    assigned = names[int(obj.cells.classProb[row].argmax())]
+    a, u = names.index(assigned), names.index(user_class)
+    p = obj.cells.classProb[row]
+    top = np.argsort(p)[::-1][:5]
+    diff = contr["diff"]
+    nbr_rows = obj.cells.nbrs["indices"][row]
+    return {
+        "assigned": assigned, "user_class": user_class, "mrf_beta": float(obj.config["mrf_beta"]),
+        "n_spots": float(obj.cells.geneCount[row].sum()),
+        "p_assigned": float(p[a]), "p_user": float(p[u]),
+        "top5": [[names[k], float(p[k])] for k in top],
+        "gene_ll": [float(contr[assigned].sum()), float(contr[user_class].sum())],
+        "log_prior": [float(obj.cellTypes.log_prior[a]), float(obj.cellTypes.log_prior[u])],
+        "mrf": [float(obj.cells.mrf[row, a]), float(obj.cells.mrf[row, u])],
+        "top_genes_assigned": [[g, float(v)] for g, v in diff[diff > 0].nlargest(10).items()],
+        "top_genes_user": [[g, float(v)] for g, v in diff[diff < 0].nsmallest(10).items()],
+        "table": {g: [float(x) for x in r] for g, r in zip(ged.index, ged.values)},
+        "rSpot": float(obj.config["rSpot"]),
+        "neighbour_types": [names[int(obj.cells.classProb[n].argmax())] for n in nbr_rows],
+    }
+
+
+def gene_breakdown(obj, label, gene, type_names):
+    """For one gene: how the model prediction for this cell is built, and, per type, the
+    observed mean in cells of that type against the mean model prediction for them. The
+    page uses it to show why the prediction and the observed mean differ."""
+    cfg = obj.config
+    lm = cfg["label_map"]
+    row = lm[label] if lm else label
+    names = list(obj.cells.class_names)
+    g = list(obj.genes.gene_panel).index(gene)
+    eta = float(obj.genes.eta_bar[g])
+    out = {"gene": gene, "eta": eta, "Inefficiency": float(cfg["Inefficiency"]),
+           "SpotReg": float(cfg["SpotReg"]), "types": {}}
+    counts = obj.cells.geneCount[:, g]
+    for t in type_names:
+        k = names.index(t)
+        p = obj.cells.classProb[:, k]
+        pred = obj.scaled_exp[:, g, k] * eta * obj.cells.theta_bar[:, k] + cfg["SpotReg"]
+        out["types"][t] = {
+            "reference_mean": float(obj.single_cell.mean_expression.values[g, k]),
+            "theta_this_cell": float(obj.cells.theta_bar[row, k]),
+            "area_factor_this_cell": float(obj.cells.ini_cell_props["area_factor"][row]),
+            "prediction_this_cell": float(pred[row]),
+            # gamma as the model estimates it for this cell and gene (main.py gamma_upd):
+            # (rSpot + observed) / (rSpot + prediction without SpotReg)
+            "prediction_no_spotreg": float(pred[row] - cfg["SpotReg"]),
+            "gamma_this_cell": float((cfg["rSpot"] + counts[row]) / (cfg["rSpot"] + pred[row] - cfg["SpotReg"])),
+            "observed_mean": float((p * counts).sum() / p.sum()),
+            "mean_prediction": float((p * pred).sum() / p.sum()),
+            "mean_theta": float((p * obj.cells.theta_bar[:, k]).sum() / p.sum()),
+        }
+    out["this_cell_total"] = float(obj.cells.geneCount[row].sum())
+    out["this_cell_observed"] = float(counts[row])
+    out["rSpot"] = float(cfg["rSpot"])
+    return out
+
+
 def main():
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     TABLE_DIR.mkdir(parents=True, exist_ok=True)
-
-    spots, coo, sc = load_ca1()
-    with tempfile.TemporaryDirectory() as tmp:
-        pciSeq.fit(spots=spots, coo=coo, scRNAseq=sc, opts={"output_path": tmp})
-        obj = pd.read_pickle(pathlib.Path(tmp) / "pciSeq" / "data" / "debug" / "pciSeq.pickle")
-
-    for label, user_class, name in CELLS:
-        # the figure is 14 inches wide and gets shrunk to fit the page column, which
-        # makes the default text tiny. Bump the font sizes for the docs copy only.
-        with matplotlib.rc_context({"font.size": 17, "axes.titlesize": 17,
-                                    "axes.labelsize": 16, "xtick.labelsize": 15,
-                                    "ytick.labelsize": 15, "legend.fontsize": 15}):
-            ged, _, fig = obj.check_cell(label, user_class)
-            fig.savefig(FIG_DIR / f"{name}.png", dpi=90)
-        assigned = ged.columns[0][0].replace("Cells typed as ", "")
-        (TABLE_DIR / f"{name}.md").write_text(cell_table_html(ged, assigned, user_class))
-        print(f"wrote {name}.png and {name}.md")
+    numbers = {"cells": {}, "spots": {}}
 
     # check_spot draws its two plotly charts with fig.show() and does not hand the
     # figures back. So swap show() for something that just keeps them, then save them.
     shown = []
     go.Figure.show = lambda self, *args, **kwargs: shown.append(self)
-    for spot_id, name in SPOTS:
-        shown.clear()
-        df = obj.check_spot(spot_id, show_plot=True)
-        score_fig, prob_fig = shown  # same order as check_spot draws them
-        score_fig.write_image(FIG_DIR / f"{name}-scores.png", width=1000, height=550, scale=1)
-        prob_fig.write_image(FIG_DIR / f"{name}-probs.png", width=1000, height=450, scale=1)
-        (TABLE_DIR / f"{name}.md").write_text(to_markdown(df))
-        print(f"wrote {name}-scores.png, {name}-probs.png and {name}.md")
+
+    for run, path in RUNS.items():
+        # one 5 GB model at a time
+        obj = pd.read_pickle(path)
+
+        for _, label, user_class, name in [c for c in CELLS if c[0] == run]:
+            with matplotlib.rc_context(DOC_FONTS):
+                ged, contr, fig = obj.check_cell(label, user_class)
+                fig.savefig(FIG_DIR / f"{name}.png", dpi=90)
+            plt.close(fig)
+            numbers["cells"][name] = cell_numbers(obj, label, user_class, contr, ged)
+            if name == "cell-7768-mrf":
+                numbers["sema5a_breakdown"] = gene_breakdown(
+                    obj, label, "Sema5a", [DG, L6CT, "017 CA3 Glut", CA1])
+            (TABLE_DIR / f"{name}.md").write_text(cell_table_html(ged, label))
+            print(f"wrote {name}.png and {name}.md")
+
+        for _, spot_id, name in [s for s in SPOTS if s[0] == run]:
+            shown.clear()
+            df = obj.check_spot(spot_id, show_plot=True)
+            score_fig, prob_fig = shown  # same order as check_spot draws them
+            score_fig.write_image(FIG_DIR / f"{name}-scores.png", width=1000, height=550, scale=1)
+            prob_fig.write_image(FIG_DIR / f"{name}-probs.png", width=1000, height=450, scale=1)
+            (TABLE_DIR / f"{name}.md").write_text(to_markdown(df))
+            numbers["spots"][name] = {"gene": str(obj.spots.data.loc[spot_id].gene_name),
+                                      "table": json.loads(df.to_json(orient="index"))}
+            print(f"wrote {name}-scores.png, {name}-probs.png and {name}.md")
+
+        del obj
+        gc.collect()
+
+    NUMBERS.write_text(json.dumps(numbers, indent=1))
+    print(f"wrote {NUMBERS}")
 
 
 if __name__ == "__main__":

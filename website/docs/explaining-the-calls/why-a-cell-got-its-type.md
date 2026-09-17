@@ -16,26 +16,41 @@ a second type of your choice and shows how each of these terms contributes. It r
 values the model used in its last cell type update, so the figure agrees with the
 probabilities in `cellData`.
 
-The examples below use the CA1 example data, see the [overview](overview.md) for how to
-run it and load the fitted model.
+The examples on this page use the 3D dataset described in the [overview](overview.md),
+fitted with `mrf_beta = 1.5`. The second half of the page compares the same cell in a
+fit without the spatial term, `mrf_beta = 0`.
 
 ## The figure
 
+Cell 7768 has 45 spots and is assigned `037 DG Glut` with probability 1.00. The following
+compares it with `030 L6 CT CTX Glut`, a cortical type:
+
 ```python
-obj.check_cell(1023, 'Sst.Erbb4.Rgs10')
+import pandas as pd
+
+# the fitted model, saved by pciSeq.fit at <output_path>/pciSeq/data/debug/pciSeq.pickle
+obj = pd.read_pickle('pciSeq.pickle')
+obj.check_cell(7768, '030 L6 CT CTX Glut')
 ```
 
-![check_cell output for cell 1023](/explaining-the-calls/cell-1023.png)
+`fit` saves the fitted model when `save_data` is `True`, the default, see
+[the fitted model](overview.md#the-fitted-model).
+
+![check_cell output for cell 7768](/explaining-the-calls/cell-7768-mrf.png)
 
 The figure has four panels.
 
-1. **Top left.** The genes whose counts favour the assigned type, as the difference in
-   log-likelihood between the two types, up to `top_n` genes. The title gives their sum.
-2. **Top right.** The same for the genes that favour the second type. The differences
-   are negative.
+1. **Top left.** For each gene, the log-likelihood of the cell's count under the assigned
+   type minus its log-likelihood under the second type. A positive difference means the
+   count is more likely under the assigned type, so the gene favours it. The panel shows
+   up to `top_n` genes with the largest positive differences, and the title gives their
+   sum.
+2. **Top right.** The same difference for the genes where it is negative: the count is
+   more likely under the second type, so the gene favours the second type. The panel
+   shows up to `top_n` genes with the most negative differences.
 3. **Bottom left.** The three terms of the score for both types: the gene log-likelihood
-   summed over all genes, the log prior and the MRF term. The type with the larger total
-   wins.
+   summed over all genes, the log prior and the MRF term. Higher is better: the type with
+   the larger total wins.
 4. **Bottom right.** The posterior over all types, for the `top_classes` most likely
    types and the second type. The note gives the probability of the types not shown.
 
@@ -43,37 +58,47 @@ The top panels explain the gene log-likelihood in panel 3. Panel 3 shows whether
 genes, the prior or the neighbours decide the call. Panel 4 shows how confident the call
 is, and which other types remain plausible.
 
-## Example 1: the genes decide
+For cell 7768:
 
-Cell 1023 has 83 spots and is assigned `Pvalb.Tac1.Sst` with probability 1.00. It is
-compared with `Sst.Erbb4.Rgs10`.
+- **Top panels.** Sema5a, Gad1 and Cdh9 favour `037 DG Glut`, by 3.08, 1.78 and 1.59;
+  the ten genes on that side sum to 10.65. Rprm and Glul favour `030 L6 CT CTX Glut`, by
+  2.26 and 1.25; the ten genes on that side sum to -5.90.
+- **Bottom left.** The gene log-likelihood is -110.4 for `037 DG Glut` against -116.5 for
+  `030 L6 CT CTX Glut`, so the genes alone favour DG by 6.1. The priors are equal. The MRF
+  term is 7.2 for `037 DG Glut` and 0 for `030 L6 CT CTX Glut`: four of the cell's nine
+  neighbours are DG cells and none is L6 CT.
+- **Bottom right.** The posterior is 100% on `037 DG Glut`.
 
-- **Top panels.** Tac1 alone contributes a difference of 11.8. The ten genes that favour
-  `Pvalb.Tac1.Sst` sum to 17.7, and the ten that favour `Sst.Erbb4.Rgs10` to -6.0.
-- **Bottom left.** The gene log-likelihood is -113.2 against -124.8. The prior is the
-  same for both types and the MRF term is 0 for both, so the gene counts alone decide.
-- **Bottom right.** The posterior is 100% on `Pvalb.Tac1.Sst`.
+Genes and neighbours agree, and the call is certain.
 
-`check_cell` also returns a table with one row per gene shown in the top panels:
+## The table
 
-<!--@include: ./_tables/cell-1023.md-->
+`check_cell` also returns a table with one row for each gene in the two gene charts of the
+figure (top left and top right):
 
-Each row compares the cell's count of a gene with what the two types predict for it.
-*observed* is the count in this cell. *expected* is the count the model predicts for this
-cell under the type, after the reference has been
-[warped](../how-it-works/warping-the-reference.md) to the scale of the experiment. The
-gene favours the type whose expected count agrees better with the observed count. *mean*
-is the average count of the gene in the cells currently assigned to the type, and shows
-whether this cell is typical of them.
+<!--@include: ./_tables/cell-7768-mrf.md-->
 
-Tac1 decides this cell. The cell has 26.9 Tac1 spots. `Pvalb.Tac1.Sst` predicts 1.6 and
-`Sst.Erbb4.Rgs10` predicts 0.8. Both predict too few, but `Pvalb.Tac1.Sst` predicts
-more, and the evidence from a gene grows with the number of its spots. With 26.9 spots
-Tac1 contributes 11.8, the largest bar in the top-left panel. The cells assigned to
-`Pvalb.Tac1.Sst` have 9.6 Tac1 spots on average, those assigned to `Sst.Erbb4.Rgs10`
-0.6.
+The table has the same columns as the DataFrame `check_cell` returns:
 
-::: details How the 11.8 is computed
+- **Cell 7768, observed.** The count of the gene in this cell, the sum of the assignment
+  probabilities of its spots.
+- **Model prediction for cell 7768.** The number of spots of the gene the model expects in
+  this cell if the cell were of that type: the cell type definition rescaled by the
+  [scaling factors](../how-it-works/warping-the-reference.md), see the
+  [example below](#the-prediction-is-not-the-observed-mean). A gene favours the type whose
+  prediction is closer to the observed count.
+- **Cells typed as a type, observed mean.** The average count of the gene in the cells
+  currently assigned to that type, weighted by their probability of the type. It is
+  measured, not predicted, and it does not enter the score.
+
+Sema5a is the strongest gene. The cell has 11.9 Sema5a spots. `037 DG Glut` predicts 4.4
+and `030 L6 CT CTX Glut` predicts 1.9. Both predict too few, but `037 DG Glut` predicts
+more, and the evidence from a gene grows with the number of its spots. With 11.9 spots
+Sema5a contributes 3.08, the largest bar in the top-left panel. The cells assigned to
+`037 DG Glut` have 6.9 Sema5a spots on average, those assigned to `030 L6 CT CTX Glut`
+2.7.
+
+::: details How the 3.08 is computed
 The gene log-likelihood is a negative binomial with mean $\mu$, the expected count, and
 dispersion $r$, the `rSpot` setting, here 2. For a count $x$:
 
@@ -88,76 +113,176 @@ $$
 \Delta = x \left[\log\frac{\mu_A}{r+\mu_A} - \log\frac{\mu_B}{r+\mu_B}\right] + r \log\frac{r+\mu_B}{r+\mu_A}
 $$
 
-The first term grows with the count, the second does not. For Tac1, with the expected
+The first term grows with the count, the second does not. For Sema5a, with the expected
 counts from the table:
 
 | type | $\mu$ | $\mu/(r+\mu)$ | $\log$ |
 | --- | --- | --- | --- |
-| `Pvalb.Tac1.Sst` | 1.585 | 0.4421 | -0.8162 |
-| `Sst.Erbb4.Rgs10` | 0.777 | 0.2798 | -1.2737 |
+| `037 DG Glut` | 4.438 | 0.6893 | -0.3720 |
+| `030 L6 CT CTX Glut` | 1.913 | 0.4889 | -0.7156 |
 
-Each spot adds $-0.8162 - (-1.2737) = 0.4575$ in favour of `Pvalb.Tac1.Sst`. The second
-term is $2 \log(2.777/3.585) = -0.511$ and favours `Sst.Erbb4.Rgs10`, which predicts
-fewer spots overall. With $x = 26.895$:
+Each spot adds $-0.3720 - (-0.7156) = 0.3436$ in favour of `037 DG Glut`. The second term
+is $2 \log(3.913/6.438) = -0.996$ and favours `030 L6 CT CTX Glut`, which predicts fewer
+spots overall. With $x = 11.851$:
 
 $$
-\Delta = 26.895 \times 0.4575 - 0.511 = 11.79
+\Delta = 11.851 \times 0.3436 - 0.996 = 3.08
 $$
 
-With a single Tac1 spot, $\Delta = -0.05$, and the gene would carry almost no evidence.
+With a single Sema5a spot, $\Delta = -0.65$: one spot of a gene that both types predict
+would favour the type that predicts fewer.
 :::
 
-## Example 2: the neighbours decide
+### The prediction is not the observed mean
+
+For Sema5a the model predicts 4.44 spots in cell 7768 as `037 DG Glut`, while the cells
+typed as `037 DG Glut` have 6.94 on average. The two numbers are different quantities.
+
+The prediction is built from the single-cell reference:
+
+| factor | value |
+| --- | --- |
+| reference mean of Sema5a in `037 DG Glut` | 18.49 |
+| × `Inefficiency` | 0.1 |
+| × eta of Sema5a | 4.04 |
+| × theta of cell 7768 as `037 DG Glut` | 0.58 |
+| + `SpotReg` | 0.1 |
+| **prediction** | **4.44** |
+
+gamma, the factor for one gene in one cell, is not part of the product. It expresses the
+discrepancy between the observed count in the cell and the prediction, regularised by
+`rSpot`.
+
+The prediction is lower than the observed mean of the cells typed as `037 DG Glut`, 6.94,
+and this is expected. eta is one number per gene, shared by all cell types, so it cannot
+correct the reference for each type separately, and the reference does not match the in
+situ data exactly. What decides the call is the comparison within the cell: the observed
+count of 11.85 is closer to the prediction under `037 DG Glut`, 4.44, than under
+`030 L6 CT CTX Glut`, 1.91.
+
+## The same cell without the spatial term
+
+Fitted with `mrf_beta = 0`, and otherwise identical settings, cell 7768 is assigned
+`030 L6 CT CTX Glut`:
 
 ```python
-obj.check_cell(430, 'PC.Other2')
+# the fitted model of the run with mrf_beta = 0
+obj_nomrf = pd.read_pickle('pciSeq_nomrf.pickle')
+obj_nomrf.check_cell(7768, '037 DG Glut')
 ```
 
-![check_cell output for cell 430](/explaining-the-calls/cell-430.png)
+![check_cell output for cell 7768 without the MRF](/explaining-the-calls/cell-7768-nomrf.png)
 
-Cell 430 has 39 spots and is assigned `PC.Other1` with probability 0.999. It is compared
-with `PC.Other2`.
+- **Top panels.** The order of the genes is reversed. Rprm and Glul now favour
+  `030 L6 CT CTX Glut` by 3.57 and 2.78, Sema5a, Gad1 and Cdh9 favour `037 DG Glut` by
+  2.43, 1.40 and 1.04.
+- **Bottom left.** The gene log-likelihood is -111.0 for `030 L6 CT CTX Glut` against
+  -113.4 for `037 DG Glut`: the genes favour L6 CT by 2.4. There is no MRF term.
+- **Bottom right.** The posterior is 90.9% `030 L6 CT CTX Glut` and 8.2% `037 DG Glut`.
 
-- **Top panels.** The genes are split. Pcp4 favours `PC.Other1`, Crym and Neurod6 favour
-  `PC.Other2`. Over all genes, those favouring `PC.Other1` sum to 3.8 and those favouring
-  `PC.Other2` to -5.8. The top panels show only the ten largest on each side.
-- **Bottom left.** The gene log-likelihood favours `PC.Other2`, -65.5 against -67.4. The
-  priors are equal. The MRF term is 9.0 for `PC.Other1` and 0 for `PC.Other2`. With
-  `mrf_beta = 1` and `nNeighbors = 9`, 9.0 is the largest value the term can take: all
-  neighbours are `PC.Other1`. The totals are -63.4 against -70.4.
-- **Bottom right.** The posterior is 99.9% on `PC.Other1`.
+In both fits the cell's own genes support its call. What differs is not how the evidence
+is weighed but the evidence itself: the two fits give the cell different spots.
 
-The neighbours override a small preference of the genes for the other type. This is the
-purpose of the spatial term, but for closely related types that occur in the same
-region the neighbours carry little information. Such types can be grouped with
-[`mrf_pooled_classes`](../the-model/cell-class.md#pooling-sister-classes), so that the
-spatial term supports them equally and the genes decide between them.
+| gene | favours | spots, without MRF | spots, with MRF |
+| --- | --- | --- | --- |
+| Glul | L6 CT | 3.66 | 1.82 |
+| Rprm | L6 CT | 3.27 | 2.35 |
+| Sema5a | DG | 10.01 | 11.85 |
+| Tafa1 | DG | 0.04 | 0.43 |
 
-## Example 3: a near-empty cell
+The total number of spots is almost the same, 44 against 45. Scoring the spots the cell
+holds in the fit with the MRF under the parameters of the fit without it turns the
+preference of the genes from 2.4 for L6 CT to 5.5 for DG, so the difference in the call
+comes from which spots the cell holds.
 
-```python
-obj.check_cell(2979, 'Zero')
-```
+## How the call goes wrong
 
-![check_cell output for cell 2979](/explaining-the-calls/cell-2979.png)
+Cell typing and spot assignment depend on each other. A spot's score for a cell includes
+the expected log expression of the spot's gene under the cell's current type
+probabilities, the `attention` term of [`check_spot`](../api/reference.md#check-spot). A
+cell that leans towards a type therefore attracts spots of that type's genes, and those
+spots make the type more likely. Once a cell leans the wrong way, this loop can lock in
+the wrong type.
 
-Cell 2979 has 0.6 spots and is assigned `Oligo.4` with probability 0.60. It is compared
-with Zero, the type that expects no expression.
+The two fits were repeated with the cell's type probabilities and spot assignments
+recorded at every iteration.
 
-- **Top panels.** One gene, Cplx2, favours `Oligo.4`, by 0.03. Plp1 favours Zero by 2.8:
-  `Oligo.4` expects 6.6 Plp1 spots in this cell and there are none. The genes that
-  favour Zero sum to -4.1.
-- **Bottom left.** The gene log-likelihood favours Zero, -10.8 against -14.9. So does the
-  prior, -0.7 against -5.0, because `cell_type_weights` gives Zero a weight of 0.5 and
-  the remaining 0.5 is shared by the 71 real types. The MRF term is 8.9 for `Oligo.4`
-  and 0.04 for Zero. The totals are -11.0 against -11.4.
-- **Bottom right.** The posterior is 60.2% `Oligo.4` and 37.3% Zero.
+![Probability of the two types per iteration](/explaining-the-calls/iter-7768-type-trajectory.png)
 
-The cell has almost no counts, so the gene evidence is weak and the neighbours move it
-onto the type around it. A call like this rests on the neighbours alone, and the
-posterior shows it is uncertain. The [Zero boost](../the-model/cell-class.md#the-zero-boost)
-(`zero_boost`, off by default) gives Zero a spatial bonus that decreases with the
-number of spots in the cell, so that empty cells remain Zero.
+**Iteration 0.** At the start every spot is shared equally among its nearest cells and
+the background, so the first type update sees an average of the neighbourhood rather than
+the cell's own spots. Both fits call the cell `017 CA3 Glut`.
+
+**Iteration 1.** The cell scores its own spots for the first time. It holds about 10 of
+the 18 Glul spots of a dense cluster next to it, most likely an unsegmented glial cell,
+because the background density of Glul has not yet been learned and is still low. Glul is more
+highly expressed in `030 L6 CT CTX Glut` than in `037 DG Glut`, and alone it is worth
+7.7 against DG. The genes now favour L6 CT slightly.
+
+**Without the spatial term**, the cell follows its genes: the probability of
+`030 L6 CT CTX Glut` rises to 0.38 at iteration 1 and 0.97 at iteration 3. Expecting L6 CT
+genes, the cell takes Rprm spots it shares with its DG neighbours, and loses Tafa1, a DG
+gene, to a neighbour. The Glul cluster drains to the background over the following
+iterations as its density is learned, but the extra Rprm keeps the call at 91%.
+
+**With the spatial term**, the neighbours decide the early iterations. At iteration 1 they
+are still CA3, so the cell stays CA3 instead of following its contaminated counts. By
+iteration 2 the neighbours are DG, and the MRF term moves the cell to `037 DG Glut` while
+its genes still slightly favour L6 CT. The cell then collects DG spots, and from
+iteration 3 its genes favour DG on their own.
+
+![Score of DG minus L6 CT per iteration](/explaining-the-calls/iter-7768-score-terms.png)
+
+The figure shows the difference between the two types. The gene log-likelihood of both
+fits starts at the same value. Without the MRF it turns towards L6 CT by iteration 3.
+With the MRF, the MRF term carries the cell over iterations 1 and 2, after which the gene
+log-likelihood alone favours DG, by 6.1 at the end.
+
+![Spots of the key genes per iteration](/explaining-the-calls/iter-7768-culprit-counts.png)
+
+Rprm spot 2452812 shows the loop directly. It lies at a distance of 18.8 from cell 7768
+and at a similar distance from the DG cells 3546 and 2287, so the distance term hardly separates
+the three. `check_spot` on the two fits:
+
+| | cell 7768, without MRF | cell 7768, with MRF | cell 3546, with MRF | cell 2287, with MRF |
+| --- | --- | --- | --- | --- |
+| distance term (`mvn_loglik`) | -11.41 | -11.41 | -11.08 | -11.53 |
+| `attention` | -0.23 | -1.75 | -1.75 | -1.75 |
+| probability | 0.63 | 0.31 | 0.30 | 0.36 |
+
+Without the MRF, cell 7768 is L6 CT, Rprm is expected in it, and its `attention` for the
+spot is -0.23, higher than the neighbours'. It takes the spot with probability 0.63. With
+the MRF all three cells are DG, their `attention` is equal, and the spot is split between
+them. Over the first iterations of the fit without the MRF, the probability of this spot
+belonging to the cell rises from 0.21 to 0.63 as the probability of L6 CT rises.
+
+## A slower case
+
+Cell 16166 lies in the CA1 pyramidal layer, and eight of its nine neighbours are CA1
+cells. With the spatial term it is `016 CA1-ProS Glut` at every iteration. Without it, it
+starts as CA1 and ends as `025 CA2-FC-IG Glut` with probability 0.99.
+
+![Probability of CA1 and CA2 per iteration for cell 16166](/explaining-the-calls/iter-16166-type-trajectory.png)
+
+Here there is no early contamination. The cell's own Prkca and Rgs4 spots lean towards
+CA2 and leave a probability of CA2 of a few percent. Without the MRF, that is enough to
+tilt which shared spots the cell takes: Prkca spots on the border with CA1 neighbours
+come in, Lypd1 spots go out. The loop builds over ten iterations, and between iterations
+11 and 14 the probability of CA2 rises from 0.37 to 0.95. With the MRF, the support of
+the neighbours, 12.4 for CA1, keeps the probability of CA2 at zero, and the loop never
+starts.
+
+## What to look for
+
+- **A call that the neighbours do not support.** If the genes give the call but the MRF
+  term of the assigned type in panel 3 is small, the cell's neighbours are of other
+  types. Inspect the spots of the top genes with
+  [`check_spot`](../api/reference.md#check-spot), and compare with a fit that uses a
+  larger `mrf_beta`.
+- **Culprit genes.** Genes of another cell type or of glia, such as Glul here, that are
+  concentrated at the edge of the cell often come from an adjacent, unsegmented cell.
+- **Border spots.** Spots of the top genes that lie between two cells go to the cell
+  whose type expects them. Their assignment follows the type, not only the distance.
 
 ## Notes
 
