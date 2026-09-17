@@ -18,8 +18,10 @@ export default defineConfig({
   // don't die on a bad link while the docs are still being written
   ignoreDeadLinks: true,
 
-  // generated table snippets that pages pull in with @include, not pages themselves
-  srcExclude: ['**/_tables/**'],
+  // generated table snippets that pages pull in with @include, not pages themselves.
+  // errata and the self-consistency appendix are hidden for a few days, not deleted,
+  // put them back here and in the sidebar below
+  srcExclude: ['**/_tables/**', 'the-model/errata.md', 'the-model/appendix-self-consistency.md'],
 
   head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/pciSeq_3d/favicon.svg' }],
@@ -94,8 +96,9 @@ export default defineConfig({
           { text: 'Scale factors', link: '/the-model/scale-factors' },
           { text: 'Cell-class assignment', link: '/the-model/cell-class' },
           { text: 'Spot assignment', link: '/the-model/spot-assignment' },
-          { text: 'Errata', link: '/the-model/errata' },
-          { text: 'Appendix: self-consistency', link: '/the-model/appendix-self-consistency' },
+          // hidden for now, see srcExclude above
+          // { text: 'Errata', link: '/the-model/errata' },
+          // { text: 'Appendix: self-consistency', link: '/the-model/appendix-self-consistency' },
         ],
       },
       {
