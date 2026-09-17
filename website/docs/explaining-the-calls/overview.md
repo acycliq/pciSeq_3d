@@ -10,7 +10,7 @@ Two methods of the fitted model answer these questions:
 
 | question | method | page |
 | --- | --- | --- |
-| Why was this cell assigned this type, and not another? | [`check_cell`](../api/reference.md#check-cell) | [Why a cell got its type](why-a-cell-got-its-type.md) |
+| Why was this cell assigned this class, and not another? | [`check_cell`](../api/reference.md#check-cell) | [Why a cell got its class](why-a-cell-got-its-type.md) |
 | Why was this spot assigned to this cell, or to the background? | [`check_spot`](../api/reference.md#check-spot) | [Why a spot went where it went](why-a-spot-went-where-it-went.md) |
 
 Both read the values the model used in its last iteration, so what they show agrees with

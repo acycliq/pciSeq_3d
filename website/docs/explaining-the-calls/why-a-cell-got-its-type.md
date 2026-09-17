@@ -1,8 +1,8 @@
 
-# Why a cell got its type
+# Why a cell got its class
 
-A cell is assigned the type with the highest posterior probability. For every type the
-model adds three terms, and a softmax over all types turns the totals into
+A cell is assigned the class with the highest posterior probability. For every class the
+model adds three terms, and a softmax over all classes turns the totals into
 probabilities:
 
 $$
@@ -11,9 +11,9 @@ $$
 + \underbrace{\text{MRF}_k}_{\text{the neighbours}}
 $$
 
-[`check_cell`](../api/reference.md#check-cell) compares the assigned type of a cell with
-a second type of your choice and shows how each of these terms contributes. It reads the
-values the model used in its last cell type update, so the figure agrees with the
+[`check_cell`](../api/reference.md#check-cell) compares the assigned class of a cell with
+a second class of your choice and shows how each of these terms contributes. It reads the
+values the model used in its last cell class update, so the figure agrees with the
 probabilities in `cellData`.
 
 The examples on this page use the 3D dataset described in the [overview](overview.md),
@@ -22,8 +22,8 @@ fit without the spatial term, `mrf_beta = 0`.
 
 ## The figure
 
-Cell 18223 has 39 spots and is assigned `037 DG Glut` with probability 1.00. The following
-compares it with `030 L6 CT CTX Glut`, a cortical type:
+Cell 18223 has a total gene count of 39 and is assigned `037 DG Glut` with probability
+1.00. The following compares it with `030 L6 CT CTX Glut`, a cortical class:
 
 ```python
 import pandas as pd
@@ -42,19 +42,19 @@ The cell is given by its label in the segmentation passed to `fit`.
 The figure has four panels.
 
 1. **Top left.** For each gene, the log-likelihood of the cell's count under the assigned
-   type minus its log-likelihood under the second type. A positive difference means the
-   count is more likely under the assigned type, so the gene favours it. The panel shows
+   class minus its log-likelihood under the second class. A positive difference means the
+   count is more likely under the assigned class, so the gene favours it. The panel shows
    up to `top_n` genes with the largest positive differences, and the title gives their
    sum.
 2. **Top right.** The same difference for the genes where it is negative: the count is
-   more likely under the second type, so the gene favours the second type. The panel
+   more likely under the second class, so the gene favours the second class. The panel
    shows up to `top_n` genes with the most negative differences.
-3. **Bottom left.** The three terms of the score for both types: the gene log-likelihood
+3. **Bottom left.** The three terms of the score for both classes: the gene log-likelihood
    summed over all genes (the top panels break this term down by gene), the log prior and
-   the MRF term. Higher is better: the type with
+   the MRF term. Higher is better: the class with
    the larger total wins.
-4. **Bottom right.** The posterior over all types, for the `top_classes` most likely
-   types and the second type. The note gives the probability of the types not shown.
+4. **Bottom right.** The posterior over all classes, for the `top_classes` most likely
+   classes and the second class. The note gives the probability of the classes not shown.
 
 For cell 18223:
 
@@ -80,22 +80,21 @@ The table has the same columns as the DataFrame `check_cell` returns:
 
 - **Cell 18223, observed.** The count of the gene in this cell, the sum of the assignment
   probabilities of its spots.
-- **Model prediction for cell 18223.** The number of spots of the gene the model expects in
-  this cell if the cell were of that type: the cell type definition rescaled by the
+- **Model prediction for cell 18223.** The count of the gene the model expects in
+  this cell if the cell were of that class: the cell type definition rescaled by the
   [scaling factors](../how-it-works/warping-the-reference.md), see the
-  [example below](#the-prediction-is-not-the-observed-mean). A gene favours the type whose
+  [example below](#the-prediction-is-not-the-observed-mean). A gene favours the class whose
   prediction is closer to the observed count.
-- **Cells typed as a type, observed mean.** The average count of the gene in the cells
-  currently assigned to that type, weighted by their probability of the type. It is
+- **Cells typed as a class, observed mean.** The average count of the gene in the cells
+  currently assigned to that class, weighted by their probability of the class. It is
   measured, not predicted, and it does not enter the score.
 
-Synpr is the strongest gene. The cell has 1.7 Synpr spots. `037 DG Glut` predicts 0.76 and
-`030 L6 CT CTX Glut` predicts 0.10. The count is small, but the prediction under
+Synpr is the strongest gene. The Synpr count of the cell is 1.7. `037 DG Glut` predicts
+0.76 and `030 L6 CT CTX Glut` predicts 0.10. The count is small, but the prediction under
 `030 L6 CT CTX Glut` is near zero, so each Synpr spot adds 1.74 in favour of
-`037 DG Glut`. With 1.7 spots Synpr contributes 2.38, the largest bar in the top-left
-panel. The cells assigned to
-`037 DG Glut` have 0.61 Synpr spots on average, those assigned to `030 L6 CT CTX Glut`
-0.05.
+`037 DG Glut`. With a count of 1.7 Synpr contributes 2.38, the largest bar in the
+top-left panel. The cells assigned to `037 DG Glut` have a mean Synpr count of 0.61,
+those assigned to `030 L6 CT CTX Glut` 0.05.
 
 ::: details How the 2.38 is computed
 The gene log-likelihood is a negative binomial with mean $\mu$, the expected count, and
@@ -105,7 +104,7 @@ $$
 \log \text{NB}(x;\, r, \mu) = x \log\frac{\mu}{r+\mu} + r \log\frac{r}{r+\mu} + \log\frac{\Gamma(x+r)}{x!\,\Gamma(r)}
 $$
 
-The last term does not depend on $\mu$ and cancels in the difference between two types
+The last term does not depend on $\mu$ and cancels in the difference between two classes
 $A$ and $B$:
 
 $$
@@ -115,7 +114,7 @@ $$
 The first term grows with the count, the second does not. For Synpr, with the expected
 counts from the table:
 
-| type | $\mu$ | $\mu/(r+\mu)$ | $\log$ |
+| class | $\mu$ | $\mu/(r+\mu)$ | $\log$ |
 | --- | --- | --- | --- |
 | `037 DG Glut` | 0.765 | 0.2767 | -1.2850 |
 | `030 L6 CT CTX Glut` | 0.102 | 0.0487 | -3.0212 |
@@ -128,13 +127,13 @@ $$
 \Delta = 1.689 \times 1.7362 - 0.548 = 2.38
 $$
 
-With no Synpr spots, $\Delta = -0.55$: the absence of a gene favours the type that
+With a Synpr count of 0, $\Delta = -0.55$: the absence of a gene favours the class that
 predicts fewer.
 :::
 
 ### The prediction is not the observed mean
 
-For Synpr the model predicts 0.76 spots in cell 18223 as `037 DG Glut`, while the cells
+For Synpr the model predicts a count of 0.76 in cell 18223 as `037 DG Glut`, while the cells
 typed as `037 DG Glut` have 0.61 on average. The two numbers are different quantities.
 
 The prediction is built from the single-cell reference:
@@ -153,7 +152,7 @@ discrepancy between the observed count in the cell and the prediction, regularis
 `rSpot`.
 
 The prediction and the observed mean need not agree. eta is one number per gene, shared by
-all cell types, so it cannot correct the reference for each type separately, and the
+all classes, so it cannot correct the reference for each class separately, and the
 reference does not match the in situ data exactly. For Sema5a in the same table the
 prediction as `037 DG Glut` is 3.96 against an observed mean of 6.94. What decides the
 call is the comparison within the cell: the observed Synpr count of 1.69 is closer to the
@@ -191,7 +190,7 @@ is weighed but the evidence itself: the two fits give the cell different spots.
 | Synpr | DG | 0.11 | 1.69 |
 | Sema5a | DG | 3.91 | 6.51 |
 
-The total number of spots is almost the same, 38 against 39. Scoring the spots the cell
+The total count is almost the same, 38 against 39. Scoring the spots the cell
 holds in the fit with the MRF under the parameters of the fit without it turns the
 preference of the genes from 12.4 for L6 CT to 4.4 for DG. The spots the cell holds
 account for almost all of the difference.
