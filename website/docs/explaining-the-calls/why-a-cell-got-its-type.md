@@ -24,13 +24,17 @@ fit without the spatial term, `mrf_beta = 0`.
 
 Cell 18223 lies in the dentate gyrus, at the tip of the upper blade, and its nine nearest
 neighbours are the cells packed around it. Panel **a** is the DAPI image of the section,
-with the cell circled. Panel **b** is the same cell at full resolution, 210 by 140 pixels
-of image, with its outline in red and its neighbours in blue. Neighbours are taken in 3D,
+with the cell circled. Panel **b** is a close-up of the same cell, with its outline
+in red and its neighbours in blue. Neighbours are taken in 3D,
 so one of the nine sits on another plane and is not drawn.
 
 ![Cell 18223 in the section and up close](/explaining-the-calls/cell-18223-map.png)
 
-## The figure
+Without the spatial term the cell is assigned `030 L6 CT CTX Glut`, a cortical class. With
+it, the cell is assigned `037 DG Glut`. The rest of this page examines the score of both
+fits, term by term and iteration by iteration.
+
+## Calling `check_cell`
 
 Cell 18223 has a total gene count of 39 and is assigned `037 DG Glut` with probability
 1.00. The following compares it with `030 L6 CT CTX Glut`, a cortical class:
@@ -79,7 +83,7 @@ For cell 18223:
 
 Both terms favour `037 DG Glut`, and the posterior is 1.00.
 
-## The table
+## The returned table
 
 `check_cell` also returns a table with one row for each gene in the two gene charts of the
 figure (top left and top right):
