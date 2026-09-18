@@ -20,6 +20,16 @@ The examples on this page use the 3D dataset described in the [overview](overvie
 fitted with `mrf_beta = 1.5`. The second half of the page compares the same cell in a
 fit without the spatial term, `mrf_beta = 0`.
 
+## The cell
+
+Cell 18223 lies in the dentate gyrus, at the tip of the upper blade, and its nine nearest
+neighbours are the cells packed around it. Panel **a** is the DAPI image of the section,
+with the cell circled. Panel **b** is the same cell at full resolution, 210 by 140 pixels
+of image, with its outline in red and its neighbours in blue. Neighbours are taken in 3D,
+so one of the nine sits on another plane and is not drawn.
+
+![Cell 18223 in the section and up close](/explaining-the-calls/cell-18223-map.png)
+
 ## The figure
 
 Cell 18223 has a total gene count of 39 and is assigned `037 DG Glut` with probability
