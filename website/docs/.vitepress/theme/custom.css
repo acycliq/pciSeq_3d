@@ -198,7 +198,7 @@
 .sb-badge-txt { fill: #fff; font-weight: 700; }
 .sb-name { fill: var(--vp-c-text-1); font-size: 14px; font-weight: 700; }
 .sb-q { fill: var(--vp-c-text-1); fill-opacity: 0.7; font-size: 12.5px; }
-.sb-cap { fill: var(--vp-c-text-1); fill-opacity: 0.55; font-size: 13px; font-style: italic; }
+.sb-cap { fill: var(--vp-c-text-1); fill-opacity: 0.8; font-size: 13px; font-style: italic; font-weight: 600; }
 
 /* inefficiency pyramid (how-it-works/warping-the-reference) */
 .ip-tier { stroke: var(--vp-c-text-1); stroke-opacity: 0.4; stroke-width: 1; stroke-linejoin: round; }

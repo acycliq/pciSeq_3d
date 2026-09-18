@@ -12,7 +12,7 @@ spot's position, four on its gene.
 <figure class="diagram">
 <svg class="sb-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 372" role="img" aria-label="The terms of the spot-to-cell score">
 <rect class="sb-root" x="380" y="12" width="180" height="42" rx="11" />
-<text class="sb-root-txt" x="470" y="39" text-anchor="middle">spot &#8594; cell score</text>
+<text class="sb-root-txt" x="470" y="39" text-anchor="middle">spot <tspan font-size="19">&#8594;</tspan> cell score</text>
 <path class="sb-link" d="M 470,54 L 470,92" />
 <path class="sb-link" d="M 122,92 L 586,92" />
 <path class="sb-link" d="M 122,92 L 122,110" />
@@ -29,10 +29,11 @@ spot's position, four on its gene.
 <text class="sb-plus" x="746" y="264" text-anchor="middle">+</text>
 <rect class="sb-card sb-card-where" x="44" y="174" width="156" height="170" rx="10" />
 <circle class="sb-badge-where" cx="122" cy="208" r="21" />
-<text class="sb-badge-txt" x="122" y="214" text-anchor="middle" font-size="15">&#8722;D</text>
-<text class="sb-name" x="122" y="252" text-anchor="middle">Spatial fit</text>
-<text class="sb-q" x="122" y="275" text-anchor="middle">distance to</text>
-<text class="sb-q" x="122" y="292" text-anchor="middle">the cell</text>
+<text class="sb-badge-txt" x="122" y="213" text-anchor="middle" font-size="12">loglik</text>
+<text class="sb-name" x="122" y="246" text-anchor="middle">Spatial fit:</text>
+<text class="sb-name" x="122" y="264" text-anchor="middle">Gaussian LogLik</text>
+<text class="sb-q" x="122" y="287" text-anchor="middle">distance to</text>
+<text class="sb-q" x="122" y="304" text-anchor="middle">the cell</text>
 <text class="sb-cap" x="122" y="326" text-anchor="middle">geometry</text>
 <rect class="sb-card sb-card-what" x="272" y="174" width="148" height="170" rx="10" />
 <circle class="sb-badge-what" cx="346" cy="208" r="21" />
@@ -40,7 +41,7 @@ spot's position, four on its gene.
 <text class="sb-name" x="346" y="252" text-anchor="middle">Class expression</text>
 <text class="sb-q" x="346" y="275" text-anchor="middle">expected count</text>
 <text class="sb-q" x="346" y="292" text-anchor="middle">of the gene</text>
-<text class="sb-cap" x="346" y="326" text-anchor="middle">class &#8596; gene</text>
+<text class="sb-cap" x="346" y="326" text-anchor="middle">class <tspan font-size="17">&#8596;</tspan> gene</text>
 <rect class="sb-card sb-card-what" x="432" y="174" width="148" height="170" rx="10" />
 <circle class="sb-badge-what" cx="506" cy="208" r="21" />
 <text class="sb-badge-txt" x="506" y="216" text-anchor="middle" font-size="20">&#952;</text>
@@ -54,7 +55,7 @@ spot's position, four on its gene.
 <text class="sb-name" x="666" y="252" text-anchor="middle">Cell-gene scale</text>
 <text class="sb-q" x="666" y="275" text-anchor="middle">this gene in</text>
 <text class="sb-q" x="666" y="292" text-anchor="middle">this cell</text>
-<text class="sb-cap" x="666" y="326" text-anchor="middle">cell &#8596; gene</text>
+<text class="sb-cap" x="666" y="326" text-anchor="middle">cell <tspan font-size="17">&#8596;</tspan> gene</text>
 <rect class="sb-card sb-card-what" x="752" y="174" width="148" height="170" rx="10" />
 <circle class="sb-badge-what" cx="826" cy="208" r="21" />
 <text class="sb-badge-txt" x="826" y="216" text-anchor="middle" font-size="20">&#951;</text>
