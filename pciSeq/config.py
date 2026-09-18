@@ -114,31 +114,6 @@ DEFAULT = {
     "mrf_pooled_classes": None,
 
 
-    # Spatial bonus for the Zero class that decreases with the cell's total count.
-    # Without it, a cell with few or no spots can be assigned to a real cell type
-    # by the spatial prior alone. When enabled, the Zero class receives the bonus
-    # `mrf_beta * nNeighbors * exp(-N / zero_boost_r0)`, where N is the cell's
-    # total count. At N = 0 this equals the largest spatial bonus any cell type can
-    # receive, so the spatial prior cannot move an empty cell off Zero. See
-    # [The Zero boost](../the-model/cell-class.md#the-zero-boost).
-    "zero_boost": False,
-
-
-    # Decay length of the Zero class bonus, in spots. Divided by mrf_beta, the
-    # bonus is `nNeighbors * exp(-N / zero_boost_r0)`, in units of one neighbour at
-    # full weight with probability 1 for a single cell type. For nNeighbors = 9 and
-    # zero_boost_r0 = 2:
-    #
-    # | spots in the cell | equivalent neighbours |
-    # | ----------------- | --------------------- |
-    # | 0                 | 9.0                   |
-    # | 2                 | 3.3                   |
-    # | 4                 | 1.2                   |
-    #
-    # Larger values extend the bonus to cells with more spots.
-    "zero_boost_r0": 2.0,
-
-
     # Prior mean of the background density, in spots per unit volume. Spots not
     # explained by any cell, such as RNA in cell processes or technical misreads,
     # are modelled as a uniform background over the imaged region, and each spot

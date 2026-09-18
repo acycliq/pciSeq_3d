@@ -44,8 +44,7 @@ One class, Zero, expects no expression. It takes the cells that are effectively 
 debris, segmentation fragments, and cells whose markers are not in the gene panel.
 Without it such cells would be forced onto a real type. A near-empty cell has no counts
 to weigh against its neighbours, so the spatial term alone can pull it onto the type
-around it; the [Zero boost](../the-model/cell-class.md#the-zero-boost) (`zero_boost`,
-off by default) counters that.
+around it.
 
 The output, a distribution over types for every cell, is the input to
 [spot assignment](spots-to-cells.md).

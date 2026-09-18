@@ -424,7 +424,7 @@ class Cells(object):
 
         # If a cell is surrounded by Zero cells, don't let the mrf pull it towards
         # Zero. Zero just never gets any neighbour support. Zero is the last
-        # column. Note zero_boost, if on, overwrites this column later anyway.
+        # column.
         # 11-Sep-2026: Commenting it out, I have my second thoughts
         # support[:, -1] = 0
         return support

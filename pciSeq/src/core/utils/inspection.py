@@ -113,8 +113,7 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True, top_classes=5):
     user_idx = class_names.index(user_class)
 
     log_prior = obj.cellTypes.log_prior
-    # the mrf the model actually used in its last class update. it already has the
-    # zero_boost value in the Zero column, calc_mrf() does not.
+    # the mrf the model actually used in its last class update
     mrf = obj.cells.mrf
 
     gene_loglik_pciSeq = my_contr_df[pciSeq_class].sum()

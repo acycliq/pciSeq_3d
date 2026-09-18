@@ -139,35 +139,6 @@ The spatial bonuses of the types in a group add up, so a large group can take
 cells from types outside it. Groups should be kept small. See
 [Pooling sister classes](../the-model/cell-class.md#pooling-sister-classes).
 
-### `zero_boost`
-
-**Default:** `False`
-
-Spatial bonus for the Zero class that decreases with the cell's total count.
-Without it, a cell with few or no spots can be assigned to a real cell type
-by the spatial prior alone. When enabled, the Zero class receives the bonus
-`mrf_beta * nNeighbors * exp(-N / zero_boost_r0)`, where N is the cell's
-total count. At N = 0 this equals the largest spatial bonus any cell type can
-receive, so the spatial prior cannot move an empty cell off Zero. See
-[The Zero boost](../the-model/cell-class.md#the-zero-boost).
-
-### `zero_boost_r0`
-
-**Default:** `2.0`
-
-Decay length of the Zero class bonus, in spots. Divided by mrf_beta, the
-bonus is `nNeighbors * exp(-N / zero_boost_r0)`, in units of one neighbour at
-full weight with probability 1 for a single cell type. For nNeighbors = 9 and
-zero_boost_r0 = 2:
-
-| spots in the cell | equivalent neighbours |
-| ----------------- | --------------------- |
-| 0                 | 9.0                   |
-| 2                 | 3.3                   |
-| 4                 | 1.2                   |
-
-Larger values extend the bonus to cells with more spots.
-
 ### `MisreadDensity`
 
 **Default:** `1e-05`
