@@ -13,6 +13,17 @@ changing class and how quickly a run settles.
 The viewer reads the class probabilities after each iteration and does not change them.
 A run gives the same result with the viewer on or off.
 
+<figure class="diagram">
+<!-- the mp4 is hosted on github (issue #1, "docs assets") so it stays out of the repo -->
+<video src="https://github.com/user-attachments/assets/ab9867e4-866e-4f81-88e5-359bdf7d7a64"
+       poster="/live-viewer/live-viewer-poster.jpg"
+       autoplay loop muted playsinline controls width="1200"></video>
+<figcaption>The first 14 iterations of a 3D dataset of 25,254 cells, recorded while the run
+went, with the waits between iterations cut. Cells are coloured by their current class, the
+counts on the right follow the class sizes, and the chart at the bottom right is the
+convergence value against its tolerance.</figcaption>
+</figure>
+
 ## Turning it on
 
 ```python

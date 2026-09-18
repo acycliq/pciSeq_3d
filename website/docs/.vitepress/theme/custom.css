@@ -143,6 +143,13 @@
   height: auto;
 }
 
+.vp-doc figure.diagram video {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
 .vp-doc figure.diagram svg {
   display: block;
   width: 100%;
