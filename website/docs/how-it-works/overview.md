@@ -1,7 +1,7 @@
 # How it works
 
 pciSeq treats every unknown as a latent variable of one Bayesian model: the cell of
-origin of each spot, the type of each cell, the detection efficiency of each gene, and
+origin of each spot, the class of each cell, the detection efficiency of each gene, and
 the per-cell and per-gene scale factors. Each has a prior. The target of inference is
 their joint posterior given the spots and the cell type definitions.
 
@@ -47,13 +47,13 @@ repeats until the estimates stop changing. The four steps below are these update
 2. **[Warping the cell type definitions.](warping-the-reference.md)** Per-gene detection
    efficiencies and per-cell and per-cell-gene scale factors that rescale the reference
    expression to this experiment. These are latent, with no observed counterpart, and
-   are identified only through the fit between cells and types.
+   are identified only through the fit between cells and classes.
 
-3. **[Cell to cell type.](cell-to-celltype.md)** Every cell is scored against every type
+3. **[Cell to class.](cell-to-celltype.md)** Every cell is scored against every class
    with the warped definitions, and the scores are normalised to probabilities.
 
 4. **[Spots to cells.](spots-to-cells.md)** Every spot is assigned to one of its
-   neighbouring cells or to the background, as a probability, given the cell type
+   neighbouring cells or to the background, as a probability, given the cell class
    probabilities.
 
 The new spot assignments change the gene counts per cell, which enter step 1 of the next

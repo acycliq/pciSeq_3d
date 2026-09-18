@@ -31,7 +31,7 @@ $\theta_c \sim \mathrm{Gamma}(r_\theta, r_\theta)$, mean $1$.
 
 **Conditional on the class.** Both $\theta_c$ and the cell-gene factor
 [$\gamma_{g,c}$](#gamma) are computed **conditional on a candidate class $k$**. The
-predicted count a cell is compared against depends on which type the cell is assumed to be,
+predicted count a cell is compared against depends on which class the cell is assumed to be,
 so the correction is class-specific. The estimate is written $\hat\theta_{c\mid k}$, and the
 [cell-class assignment](cell-class.md) recomputes it for every class $k$ it tests the cell
 against.
@@ -99,7 +99,7 @@ $$
 $$
 
 The class $k$ enters through the reference mean $\mu_{g,k}$ in the denominator: a different
-candidate type gives a different predicted total, and hence a different $\hat\theta_{c\mid k}$.
+candidate class gives a different predicted total, and hence a different $\hat\theta_{c\mid k}$.
 
 #### Reading the result
 
@@ -123,15 +123,15 @@ $r_\theta$ sets how far the data can move $\theta_c$ from $1$. The two limits:
 A weak prior has one consequence for **near-empty cells**. For a cell with few spots,
 small $\bar N_c$, $\hat\theta_{c\mid k}$ can collapse to a small value, and a small
 $\theta$ scales the predicted expression of any class $k$ down toward the cell's counts. A
-real type shrunk far enough predicts almost nothing, the same as an empty cell.
+real class shrunk far enough predicts almost nothing, the same as an empty cell.
 
 The **Zero class**, which expects no expression, is the class for such cells (see
-[assigning cells to cell types](../how-it-works/cell-to-celltype.md)). When the prior is
-weak and $\theta$ collapses, a real type shrunk to imitate Zero can win the cell instead,
-and the cell gets a spurious type.
+[assigning cells to classes](../how-it-works/cell-to-celltype.md)). When the prior is
+weak and $\theta$ collapses, a real class shrunk to imitate Zero can win the cell instead,
+and the cell gets a spurious class.
 
 A weaker prior lets the data set $\theta$ at the risk of near-empty cells being explained
-by a collapsed type; a stronger prior holds $\theta$ near $1$ so those cells go to Zero.
+by a collapsed class; a stronger prior holds $\theta$ near $1$ so those cells go to Zero.
 The default `rTheta` is $25$.
 
 ### Derivation: the cell-gene scale factor $\gamma_{g,c}$ {#gamma}
@@ -146,7 +146,7 @@ Gamma random variable and **integrated out**.
 
 **Conditional on the class.** Like [$\theta_c$](#theta), $\gamma_{g,c}$ is computed
 **conditional on a candidate class $k$**: it measures how far gene $g$ in cell $c$ deviates
-from the expression that class $k$ predicts, so the answer depends on which type the cell is
+from the expression that class $k$ predicts, so the answer depends on which class the cell is
 assumed to be. Every formula on this page carries that conditioning, written
 $\gamma_{g,c}\mid k$, and the [cell-class assignment](cell-class.md) recomputes it for each
 class it tests.
@@ -256,7 +256,7 @@ $\lambda_{g,c}$.
 
 This Negative Binomial is the per-gene likelihood that the
 [cell-class assignment](cell-class.md) multiplies across genes to score a cell against each
-candidate type. Keeping $\gamma_{g,c}$ conjugate, so that it can be integrated out in closed
+candidate class. Keeping $\gamma_{g,c}$ conjugate, so that it can be integrated out in closed
 form, is therefore what keeps cell typing tractable. It is also why $\theta_c$ is held as a
 [point estimate](#theta): if it were a full random variable too, the rate would be a product
 of two mixing distributions and this clean Poisson-Gamma collapse would be lost.

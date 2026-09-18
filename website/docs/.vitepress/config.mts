@@ -75,7 +75,7 @@ export default defineConfig({
               { text: '2a. Demo: the scaling factors', link: '/how-it-works/scale-factors-demo' },
             ],
           },
-          { text: '3. Cell to cell type', link: '/how-it-works/cell-to-celltype' },
+          { text: '3. Cell to class', link: '/how-it-works/cell-to-celltype' },
           { text: '4. Spots to cells', link: '/how-it-works/spots-to-cells' },
         ],
       },

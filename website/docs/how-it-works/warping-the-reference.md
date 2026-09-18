@@ -1,20 +1,20 @@
 
 # 2. Warping the cell type definitions
 
-The cell type definitions give the mean expression of each gene in each type. The
+The cell type definitions give the mean expression of each gene in each class. The
 observed counts are on a different scale: detection efficiency differs between genes,
 transcript yield differs between cells, and the two datasets differ in overall scale.
 pciSeq rescales the expected expression to the scale of the current experiment before
 comparing. The rescaling is the warp.
 
-The step reads the current gene counts per cell, the current cell type estimates and the
+The step reads the current gene counts per cell, the current cell class estimates and the
 raw cell type definitions, and produces a warped expected expression rescaled at every
-level. [Cell typing](cell-to-celltype.md) scores cells against types using it.
+level. [Cell typing](cell-to-celltype.md) scores cells against classes using it.
 
 The correction factors are nuisance parameters. They are estimated because the cell
-types and spot assignments depend on them, they are not in the output, and nothing
+classes and spot assignments depend on them, they are not in the output, and nothing
 observed corresponds to them directly. They are identified through the agreement they
-produce between cells and their assigned types.
+produce between cells and their assigned classes.
 
 ## The scaling factors
 
@@ -29,16 +29,16 @@ most specific:
 - **eta** ($\eta_g$). One factor per gene, shared by all cells: the gene's detection
   efficiency relative to the constant above.
 
-- **theta** ($\theta_{c\mid k}$). One factor per cell and candidate type: the cell's
-  total yield relative to what the type predicts, applied to all its genes.
+- **theta** ($\theta_{c\mid k}$). One factor per cell and candidate class: the cell's
+  total yield relative to what the class predicts, applied to all its genes.
 
-- **gamma** ($\gamma_{g,c\mid k}$). One factor per gene, cell and candidate type: the
+- **gamma** ($\gamma_{g,c\mid k}$). One factor per gene, cell and candidate class: the
   residual mismatch of a given gene in a given cell that the broader factors leave.
 
-Inefficiency and eta do not depend on the cell's type. theta and gamma do, since the
+Inefficiency and eta do not depend on the cell's class. theta and gamma do, since the
 expectation they correct is class-specific, and they are computed for every candidate
-type. That is what lets [cell typing](cell-to-celltype.md) use them while scoring a cell
-against every type.
+class. That is what lets [cell typing](cell-to-celltype.md) use them while scoring a cell
+against every class.
 
 ## Granularity of the factors
 
@@ -94,9 +94,9 @@ $$
 $$
 
 - **gamma** compares the observed count of a *given gene in a given cell* with its
-  expected count, under a candidate type.
+  expected count, under a candidate class.
 - **theta** compares the observed total count of a *given cell* with its expected
-  total, under a candidate type.
+  total, under a candidate class.
 - **eta** compares the observed count of a *given gene across all cells* with its
   expected total.
 
@@ -129,18 +129,18 @@ starting value for `rTheta` is the typical number of counts in a cell.
 
 ## The spatial factor (the MRF)
 
-Cells of the same type cluster in space, in layers or regions. When a cell is scored
-against the types, each type receives a bonus proportional to the weighted number of
+Cells of the same class cluster in space, in layers or regions. When a cell is scored
+against the classes, each class receives a bonus proportional to the weighted number of
 the cell's neighbours that carry it, closer neighbours weighted more. This is the
 spatial term, a Markov random field (MRF), where a cell's label depends on its
 neighbours' labels. `mrf_beta` sets its strength; at `0` only the gene counts and the
-prior decide the type. It is described with the cell typing step in
-[cell to cell type](cell-to-celltype.md#the-class-prior-and-the-spatial-term).
+prior decide the class. It is described with the cell typing step in
+[cell to class](cell-to-celltype.md#the-class-prior-and-the-spatial-term).
 
 <!-- Parked, bring it back with the rest of the story:
 
 A cell with almost no spots has nothing to weigh against its neighbours, so the spatial
-term alone can decide its type.
+term alone can decide its class.
 
 On its own the sentence states the problem and leaves the reader with no way out, so it
 needs the settings that hold such a cell back: a heavier prior on the Zero class through
