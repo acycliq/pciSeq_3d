@@ -562,107 +562,107 @@
   }
  },
  "spots": {
-  "spot-2452812-mrf": {
-   "gene": "Rprm",
+  "spot-1642419-mrf": {
+   "gene": "Synpr",
    "table": {
-    "Cell 3546": {
-     "mvn_loglik": -11.0780421964,
-     "attention": -1.7447759301,
-     "expr_fluct": 0.3509050723,
-     "cell_inefficiency": -0.7024959961,
-     "gene_inefficiency": 1.3082208633,
+    "Cell 18223": {
+     "mvn_loglik": -10.4051380626,
+     "attention": 0.9429937124,
+     "expr_fluct": 0.1835926816,
+     "cell_inefficiency": -0.6600297102,
+     "gene_inefficiency": -0.6513376236,
      "bonus": 0.0,
      "misread": null,
-     "sum": -11.8661881871,
-     "prob": 0.2971749343
+     "sum": -10.5899190025,
+     "prob": 0.7374406772
     },
-    "Cell 7768": {
-     "mvn_loglik": -11.4114348165,
-     "attention": -1.7447739692,
-     "expr_fluct": 0.5798764724,
-     "cell_inefficiency": -0.5438162289,
-     "gene_inefficiency": 1.3082208633,
+    "Cell 17371": {
+     "mvn_loglik": -12.0701569788,
+     "attention": 0.9429937575,
+     "expr_fluct": -0.5437278148,
+     "cell_inefficiency": -0.2980917991,
+     "gene_inefficiency": -0.6513376236,
      "bonus": 0.0,
      "misread": null,
-     "sum": -11.8119276788,
-     "prob": 0.3137452899
+     "sum": -12.6203204588,
+     "prob": 0.0968132816
     },
-    "Cell 2287": {
-     "mvn_loglik": -11.5248367063,
-     "attention": -1.7447705792,
-     "expr_fluct": 0.2882426228,
-     "cell_inefficiency": -0.0075327816,
-     "gene_inefficiency": 1.3082208633,
+    "Cell 21574": {
+     "mvn_loglik": -12.8080236189,
+     "attention": 0.9429937574,
+     "expr_fluct": 0.065794826,
+     "cell_inefficiency": 0.1020290851,
+     "gene_inefficiency": -0.6513376236,
      "bonus": 0.0,
      "misread": null,
-     "sum": -11.680676581,
-     "prob": 0.3577493408
+     "sum": -12.348543574,
+     "prob": 0.1270475055
     },
-    "Cell 3561": {
-     "mvn_loglik": -13.3530015222,
-     "attention": -1.9608498376,
-     "expr_fluct": -0.2957446921,
-     "cell_inefficiency": -0.6910898947,
-     "gene_inefficiency": 1.3082208633,
+    "Cell 18222": {
+     "mvn_loglik": -13.7957741491,
+     "attention": 0.942991932,
+     "expr_fluct": -0.3894932403,
+     "cell_inefficiency": -1.2695835583,
+     "gene_inefficiency": -0.6513376236,
      "bonus": 0.0,
      "misread": null,
-     "sum": -14.9924650833,
-     "prob": 0.0130402936
+     "sum": -15.1631966393,
+     "prob": 0.007613386
     },
-    "Cell 8113": {
-     "mvn_loglik": -15.6087176077,
-     "attention": -1.7447765299,
-     "expr_fluct": -0.2748894109,
-     "cell_inefficiency": -1.1666150407,
-     "gene_inefficiency": 1.3082208633,
+    "Cell 19974": {
+     "mvn_loglik": -14.5201422445,
+     "attention": 0.9429937334,
+     "expr_fluct": -0.1760701501,
+     "cell_inefficiency": -0.2074216613,
+     "gene_inefficiency": -0.6513376236,
      "bonus": 0.0,
      "misread": null,
-     "sum": -17.4867777259,
-     "prob": 0.0010765176
+     "sum": -14.6119779461,
+     "prob": 0.0132120158
     },
-    "Cell 2978": {
-     "mvn_loglik": -16.1330796949,
-     "attention": -1.9646599293,
-     "expr_fluct": 0.1967970729,
-     "cell_inefficiency": 0.4483202696,
-     "gene_inefficiency": 1.3082208633,
+    "Cell 19121": {
+     "mvn_loglik": -15.6063434355,
+     "attention": 0.9429937548,
+     "expr_fluct": -0.5005158179,
+     "cell_inefficiency": -0.173411593,
+     "gene_inefficiency": -0.6513376236,
      "bonus": 0.0,
      "misread": null,
-     "sum": -16.1444014184,
-     "prob": 0.004121049
+     "sum": -15.9886147151,
+     "prob": 0.0033350575
     },
-    "Cell 1325": {
-     "mvn_loglik": -17.1632954351,
-     "attention": -2.2740797997,
-     "expr_fluct": -0.2710106969,
-     "cell_inefficiency": -0.1987109035,
-     "gene_inefficiency": 1.3082208633,
+    "Cell 17357": {
+     "mvn_loglik": -15.8471233122,
+     "attention": 0.9429937224,
+     "expr_fluct": -0.690323824,
+     "cell_inefficiency": -0.0499192042,
+     "gene_inefficiency": -0.6513376236,
      "bonus": 0.0,
      "misread": null,
-     "sum": -18.5988759718,
-     "prob": 0.0003540324
+     "sum": -16.2957102415,
+     "prob": 0.0024532027
     },
-    "Cell 2966": {
-     "mvn_loglik": -18.9548899404,
-     "attention": -1.9830630398,
-     "expr_fluct": 0.2211954486,
-     "cell_inefficiency": 0.1651542318,
-     "gene_inefficiency": 1.3082208633,
+    "Cell 19555": {
+     "mvn_loglik": -15.9566919081,
+     "attention": 0.9429937443,
+     "expr_fluct": -0.4054390775,
+     "cell_inefficiency": -0.7962777615,
+     "gene_inefficiency": -0.6513376236,
      "bonus": 0.0,
      "misread": null,
-     "sum": -19.2433824364,
-     "prob": 0.0001858392
+     "sum": -16.8667526264,
+     "prob": 0.0013859032
     },
-    "Cell 7759": {
-     "mvn_loglik": -19.5105730764,
-     "attention": -1.7447766707,
-     "expr_fluct": -0.3185588278,
-     "cell_inefficiency": -0.7278749911,
-     "gene_inefficiency": 1.3082208633,
+    "Cell 22339": {
+     "mvn_loglik": -16.9936415426,
+     "attention": 0.9429937596,
+     "expr_fluct": -0.7704367637,
+     "cell_inefficiency": 0.2771729827,
+     "gene_inefficiency": -0.6513376236,
      "bonus": 0.0,
      "misread": null,
-     "sum": -20.9935627027,
-     "prob": 3.22882e-05
+     "sum": -17.1952491876,
+     "prob": 0.0009978578
     },
     "background": {
      "mvn_loglik": null,
@@ -671,113 +671,113 @@
      "cell_inefficiency": null,
      "gene_inefficiency": null,
      "bonus": null,
-     "misread": -15.0331486542,
-     "sum": -15.0331486542,
-     "prob": 0.0125204149
+     "misread": -14.9208640602,
+     "sum": -14.9208640602,
+     "prob": 0.0097011127
     }
    }
   },
-  "spot-2665680-mrf": {
-   "gene": "Glul",
+  "spot-1533144-mrf": {
+   "gene": "Neurod6",
    "table": {
-    "Cell 7768": {
-     "mvn_loglik": -10.2424723081,
-     "attention": -1.8842755334,
-     "expr_fluct": 0.453417424,
-     "cell_inefficiency": -0.5438162289,
-     "gene_inefficiency": 1.3838119507,
+    "Cell 18223": {
+     "mvn_loglik": -10.8840680591,
+     "attention": -2.2070348037,
+     "expr_fluct": 0.3660276478,
+     "cell_inefficiency": -0.6600297102,
+     "gene_inefficiency": 1.5734205246,
      "bonus": 0.0,
      "misread": null,
-     "sum": -10.8333346957,
-     "prob": 0.3410761739
+     "sum": -11.8116844006,
+     "prob": 0.345238125
     },
-    "Cell 2287": {
-     "mvn_loglik": -12.3487245313,
-     "attention": -1.8842739383,
-     "expr_fluct": 0.1564782535,
-     "cell_inefficiency": -0.0075327816,
-     "gene_inefficiency": 1.3838119507,
+    "Cell 17371": {
+     "mvn_loglik": -10.9366808407,
+     "attention": -2.207034825,
+     "expr_fluct": 0.2622413631,
+     "cell_inefficiency": -0.2980917991,
+     "gene_inefficiency": 1.5734205246,
      "bonus": 0.0,
      "misread": null,
-     "sum": -12.7002410471,
-     "prob": 0.0527307873
+     "sum": -11.6061455771,
+     "prob": 0.4240168606
     },
-    "Cell 3546": {
-     "mvn_loglik": -12.880183386,
-     "attention": -1.8842765791,
-     "expr_fluct": -0.2267832945,
-     "cell_inefficiency": -0.7024959961,
-     "gene_inefficiency": 1.3838119507,
+    "Cell 19974": {
+     "mvn_loglik": -13.3360549681,
+     "attention": -2.2070348123,
+     "expr_fluct": 0.4314261029,
+     "cell_inefficiency": -0.2074216613,
+     "gene_inefficiency": 1.5734205246,
      "bonus": 0.0,
      "misread": null,
-     "sum": -14.3099273051,
-     "prob": 0.0105435387
+     "sum": -13.7456648141,
+     "prob": 0.0499116271
     },
-    "Cell 8113": {
-     "mvn_loglik": -14.4136840574,
-     "attention": -1.8842750338,
-     "expr_fluct": -0.1903867701,
-     "cell_inefficiency": -1.1666150407,
-     "gene_inefficiency": 1.3838119507,
+    "Cell 11098": {
+     "mvn_loglik": -13.8675595991,
+     "attention": -2.2070348244,
+     "expr_fluct": -0.2753735785,
+     "cell_inefficiency": -0.7849684358,
+     "gene_inefficiency": 1.5734205246,
      "bonus": 0.0,
      "misread": null,
-     "sum": -16.2711489513,
-     "prob": 0.001483333
+     "sum": -15.5615159132,
+     "prob": 0.0081205906
     },
-    "Cell 3561": {
-     "mvn_loglik": -15.1097304098,
-     "attention": -1.1964077475,
-     "expr_fluct": -0.0088604241,
-     "cell_inefficiency": -0.6910898947,
-     "gene_inefficiency": 1.3838119507,
+    "Cell 18222": {
+     "mvn_loglik": -14.1087795965,
+     "attention": -2.2070340247,
+     "expr_fluct": -0.2019490818,
+     "cell_inefficiency": -1.2695835583,
+     "gene_inefficiency": 1.5734205246,
      "bonus": 0.0,
      "misread": null,
-     "sum": -15.6222765254,
-     "prob": 0.0028381829
+     "sum": -16.2139257367,
+     "prob": 0.0042291163
     },
-    "Cell 2978": {
-     "mvn_loglik": -17.5967203848,
-     "attention": -1.1914350986,
-     "expr_fluct": 0.3807855844,
-     "cell_inefficiency": 0.4483202696,
-     "gene_inefficiency": 1.3838119507,
+    "Cell 16443": {
+     "mvn_loglik": -14.9657942526,
+     "attention": -2.2070347753,
+     "expr_fluct": -0.2776919997,
+     "cell_inefficiency": -0.9407856959,
+     "gene_inefficiency": 1.5734205246,
      "bonus": 0.0,
      "misread": null,
-     "sum": -16.5752376787,
-     "prob": 0.0010943963
+     "sum": -16.8178861988,
+     "prob": 0.0023118142
     },
-    "Cell 1325": {
-     "mvn_loglik": -18.3641010992,
-     "attention": 0.6929662824,
-     "expr_fluct": 0.6782698631,
-     "cell_inefficiency": -0.1987109035,
-     "gene_inefficiency": 1.3838119507,
+    "Cell 19555": {
+     "mvn_loglik": -15.5171906225,
+     "attention": -2.2070348189,
+     "expr_fluct": -0.1533949987,
+     "cell_inefficiency": -0.7962777615,
+     "gene_inefficiency": 1.5734205246,
      "bonus": 0.0,
      "misread": null,
-     "sum": -15.8077639065,
-     "prob": 0.0023576766
+     "sum": -17.1004776771,
+     "prob": 0.0017427096
     },
-    "Cell 7759": {
-     "mvn_loglik": -18.6053024999,
-     "attention": -1.884276956,
-     "expr_fluct": -0.1959559379,
-     "cell_inefficiency": -0.7278749911,
-     "gene_inefficiency": 1.3838119507,
+    "Cell 19564": {
+     "mvn_loglik": -16.4018413297,
+     "attention": -2.2070324358,
+     "expr_fluct": -0.27146661,
+     "cell_inefficiency": -2.7532551381,
+     "gene_inefficiency": 1.5734205246,
      "bonus": 0.0,
      "misread": null,
-     "sum": -20.0295984343,
-     "prob": 3.45911e-05
+     "sum": -20.0601749891,
+     "prob": 9.03327e-05
     },
-    "Cell 11053": {
-     "mvn_loglik": -20.4966322653,
-     "attention": 0.6831604343,
-     "expr_fluct": -0.328812355,
-     "cell_inefficiency": -2.153748012,
-     "gene_inefficiency": 1.3838119507,
+    "Cell 19121": {
+     "mvn_loglik": -17.410449671,
+     "attention": -2.2070348237,
+     "expr_fluct": -0.1069074282,
+     "cell_inefficiency": -0.173411593,
+     "gene_inefficiency": 1.5734205246,
      "bonus": 0.0,
      "misread": null,
-     "sum": -20.9122202472,
-     "prob": 1.43102e-05
+     "sum": -18.3243829913,
+     "prob": 0.0005124951
     },
     "background": {
      "mvn_loglik": null,
@@ -786,113 +786,113 @@
      "cell_inefficiency": null,
      "gene_inefficiency": null,
      "bonus": null,
-     "misread": -10.289007828,
-     "sum": -10.289007828,
-     "prob": 0.58782701
+     "misread": -12.5571119004,
+     "sum": -12.5571119004,
+     "prob": 0.1638263289
     }
    }
   },
-  "spot-2452812-nomrf": {
-   "gene": "Rprm",
+  "spot-1642419-nomrf": {
+   "gene": "Synpr",
    "table": {
-    "Cell 3546": {
-     "mvn_loglik": -11.0780421964,
-     "attention": -1.744617584,
-     "expr_fluct": 0.2045510691,
-     "cell_inefficiency": -0.8576686718,
-     "gene_inefficiency": 1.3504333496,
+    "Cell 18223": {
+     "mvn_loglik": -10.4051380626,
+     "attention": -2.2029019383,
+     "expr_fluct": -0.2035604255,
+     "cell_inefficiency": -0.955781791,
+     "gene_inefficiency": -0.3816900253,
      "bonus": 0.0,
      "misread": null,
-     "sum": -12.1253440335,
-     "prob": 0.1511114803
+     "sum": -14.1490722428,
+     "prob": 0.0596656957
     },
-    "Cell 7768": {
-     "mvn_loglik": -11.4114348165,
-     "attention": -0.2342951517,
-     "expr_fluct": 0.3764714266,
-     "cell_inefficiency": -0.7857455025,
-     "gene_inefficiency": 1.3504333496,
+    "Cell 17371": {
+     "mvn_loglik": -12.0701569788,
+     "attention": 0.942976396,
+     "expr_fluct": -0.435989941,
+     "cell_inefficiency": -0.4219234375,
+     "gene_inefficiency": -0.3816900253,
      "bonus": 0.0,
      "misread": null,
-     "sum": -10.7045706945,
-     "prob": 0.6256500463
+     "sum": -12.3667839866,
+     "prob": 0.3546195413
     },
-    "Cell 2287": {
-     "mvn_loglik": -11.5248367063,
-     "attention": -1.7406459735,
-     "expr_fluct": 0.2036940161,
-     "cell_inefficiency": -0.1330293469,
-     "gene_inefficiency": 1.3504333496,
+    "Cell 21574": {
+     "mvn_loglik": -12.8080236189,
+     "attention": 0.9429934972,
+     "expr_fluct": 0.1949602891,
+     "cell_inefficiency": 0.0118009494,
+     "gene_inefficiency": -0.3816900253,
      "bonus": 0.0,
      "misread": null,
-     "sum": -11.8443846611,
-     "prob": 0.2001320136
+     "sum": -12.0399589085,
+     "prob": 0.491700887
     },
-    "Cell 3561": {
-     "mvn_loglik": -13.3530015222,
-     "attention": -1.8247076231,
-     "expr_fluct": -0.3266444829,
-     "cell_inefficiency": -0.5537146374,
-     "gene_inefficiency": 1.3504333496,
+    "Cell 18222": {
+     "mvn_loglik": -13.7957741491,
+     "attention": -2.1489890696,
+     "expr_fluct": -0.2697698336,
+     "cell_inefficiency": -2.4403471993,
+     "gene_inefficiency": -0.3816900253,
      "bonus": 0.0,
      "misread": null,
-     "sum": -14.7076349161,
-     "prob": 0.0114241206
+     "sum": -19.036570277,
+     "prob": 0.0004498951
     },
-    "Cell 8113": {
-     "mvn_loglik": -15.6087176077,
-     "attention": -2.2931728567,
-     "expr_fluct": -0.252149637,
-     "cell_inefficiency": -0.9614900963,
-     "gene_inefficiency": 1.3504333496,
+    "Cell 19974": {
+     "mvn_loglik": -14.5201422445,
+     "attention": 0.9429080016,
+     "expr_fluct": -0.0122623035,
+     "cell_inefficiency": -0.3680679095,
+     "gene_inefficiency": -0.3816900253,
      "bonus": 0.0,
      "misread": null,
-     "sum": -17.765096848,
-     "prob": 0.0005370119
+     "sum": -14.3392544812,
+     "prob": 0.049332101
     },
-    "Cell 2978": {
-     "mvn_loglik": -16.1330796949,
-     "attention": -1.9646599293,
-     "expr_fluct": 0.1647403836,
-     "cell_inefficiency": 0.3115490973,
-     "gene_inefficiency": 1.3504333496,
+    "Cell 19121": {
+     "mvn_loglik": -15.6063434355,
+     "attention": -2.1943414705,
+     "expr_fluct": -0.2600071747,
+     "cell_inefficiency": -0.4775009708,
+     "gene_inefficiency": -0.3816900253,
      "bonus": 0.0,
      "misread": null,
-     "sum": -16.2710167937,
-     "prob": 0.0023925149
+     "sum": -18.9198830769,
+     "prob": 0.0005055777
     },
-    "Cell 1325": {
-     "mvn_loglik": -17.1632954351,
-     "attention": -2.2740797997,
-     "expr_fluct": -0.2709458768,
-     "cell_inefficiency": -0.3381567299,
-     "gene_inefficiency": 1.3504333496,
+    "Cell 17357": {
+     "mvn_loglik": -15.8471233122,
+     "attention": 0.9401982302,
+     "expr_fluct": -0.7315221946,
+     "cell_inefficiency": -0.1482088474,
+     "gene_inefficiency": -0.3816900253,
      "bonus": 0.0,
      "misread": null,
-     "sum": -18.6960444919,
-     "prob": 0.0002116794
+     "sum": -16.1683461492,
+     "prob": 0.0079207297
     },
-    "Cell 2966": {
-     "mvn_loglik": -18.9548899404,
-     "attention": -1.9831172722,
-     "expr_fluct": 0.1986779593,
-     "cell_inefficiency": 0.0255330211,
-     "gene_inefficiency": 1.3504333496,
+    "Cell 19555": {
+     "mvn_loglik": -15.9566919081,
+     "attention": 0.9404210595,
+     "expr_fluct": -0.2400632512,
+     "cell_inefficiency": -0.9048053034,
+     "gene_inefficiency": -0.3816900253,
      "bonus": 0.0,
      "misread": null,
-     "sum": -19.3633628826,
-     "prob": 0.000108609
+     "sum": -16.5428294285,
+     "prob": 0.0054466463
     },
-    "Cell 7759": {
-     "mvn_loglik": -19.5105730764,
-     "attention": -1.7447067857,
-     "expr_fluct": -0.3155858562,
-     "cell_inefficiency": -0.821651175,
-     "gene_inefficiency": 1.3504333496,
+    "Cell 22339": {
+     "mvn_loglik": -16.9936415426,
+     "attention": 0.9429921915,
+     "expr_fluct": -0.6760681341,
+     "cell_inefficiency": 0.1417832015,
+     "gene_inefficiency": -0.3816900253,
      "bonus": 0.0,
      "misread": null,
-     "sum": -21.0420835437,
-     "prob": 2.02678e-05
+     "sum": -16.966624309,
+     "prob": 0.0035651466
     },
     "background": {
      "mvn_loglik": null,
@@ -901,113 +901,113 @@
      "cell_inefficiency": null,
      "gene_inefficiency": null,
      "bonus": null,
-     "misread": -15.0136721625,
-     "sum": -15.0136721625,
-     "prob": 0.0084122562
+     "misread": -14.9496597311,
+     "sum": -14.9496597311,
+     "prob": 0.0267937796
     }
    }
   },
-  "spot-2665680-nomrf": {
-   "gene": "Glul",
+  "spot-1533144-nomrf": {
+   "gene": "Neurod6",
    "table": {
-    "Cell 7768": {
-     "mvn_loglik": -10.2424723081,
-     "attention": -1.1359035515,
-     "expr_fluct": 0.7364993082,
-     "cell_inefficiency": -0.7857455025,
-     "gene_inefficiency": 1.5324840546,
+    "Cell 18223": {
+     "mvn_loglik": -10.8840680591,
+     "attention": -0.6733312521,
+     "expr_fluct": 0.557362715,
+     "cell_inefficiency": -0.955781791,
+     "gene_inefficiency": 1.6974992752,
      "bonus": 0.0,
      "misread": null,
-     "sum": -9.8951379993,
-     "prob": 0.5695973125
+     "sum": -10.258319112,
+     "prob": 0.7529988459
     },
-    "Cell 2287": {
-     "mvn_loglik": -12.3487245313,
-     "attention": -1.8822303439,
-     "expr_fluct": 0.1389555777,
-     "cell_inefficiency": -0.1330293469,
-     "gene_inefficiency": 1.5324840546,
+    "Cell 17371": {
+     "mvn_loglik": -10.9366808407,
+     "attention": -2.2070263139,
+     "expr_fluct": -0.0134299004,
+     "cell_inefficiency": -0.4219234375,
+     "gene_inefficiency": 1.6974992752,
      "bonus": 0.0,
      "misread": null,
-     "sum": -12.6925445899,
-     "prob": 0.0347271934
+     "sum": -11.8815612172,
+     "prob": 0.148535144
     },
-    "Cell 3546": {
-     "mvn_loglik": -12.880183386,
-     "attention": -1.8841973948,
-     "expr_fluct": -0.2305220597,
-     "cell_inefficiency": -0.8576686718,
-     "gene_inefficiency": 1.5324840546,
+    "Cell 19974": {
+     "mvn_loglik": -13.3360549681,
+     "attention": -2.2069862444,
+     "expr_fluct": 0.0469470904,
+     "cell_inefficiency": -0.3680679095,
+     "gene_inefficiency": 1.6974992752,
      "bonus": 0.0,
      "misread": null,
-     "sum": -14.3200874578,
-     "prob": 0.0068208233
+     "sum": -14.1666627564,
+     "prob": 0.0151154901
     },
-    "Cell 8113": {
-     "mvn_loglik": -14.4136840574,
-     "attention": -2.2174029929,
-     "expr_fluct": -0.1670378643,
-     "cell_inefficiency": -0.9614900963,
-     "gene_inefficiency": 1.5324840546,
+    "Cell 11098": {
+     "mvn_loglik": -13.8675595991,
+     "attention": -2.2070013829,
+     "expr_fluct": -0.2794579658,
+     "cell_inefficiency": -0.7996642343,
+     "gene_inefficiency": 1.6974992752,
      "bonus": 0.0,
      "misread": null,
-     "sum": -16.2271309563,
-     "prob": 0.0010130207
+     "sum": -15.4561839068,
+     "prob": 0.0041628457
     },
-    "Cell 3561": {
-     "mvn_loglik": -15.1097304098,
-     "attention": -1.6300863062,
-     "expr_fluct": -0.0019541541,
-     "cell_inefficiency": -0.5537146374,
-     "gene_inefficiency": 1.5324840546,
+    "Cell 18222": {
+     "mvn_loglik": -14.1087795965,
+     "attention": -2.1990630368,
+     "expr_fluct": -0.2524704208,
+     "cell_inefficiency": -2.4403471993,
+     "gene_inefficiency": 1.6974992752,
      "bonus": 0.0,
      "misread": null,
-     "sum": -15.763001453,
-     "prob": 0.0016113401
+     "sum": -17.3031609783,
+     "prob": 0.0006565357
     },
-    "Cell 2978": {
-     "mvn_loglik": -17.5967203848,
-     "attention": -1.1914350986,
-     "expr_fluct": 0.363486886,
-     "cell_inefficiency": 0.3115490973,
-     "gene_inefficiency": 1.5324840546,
+    "Cell 16443": {
+     "mvn_loglik": -14.9657942526,
+     "attention": -2.2068422741,
+     "expr_fluct": -0.2803179186,
+     "cell_inefficiency": -0.8795272324,
+     "gene_inefficiency": 1.6974992752,
      "bonus": 0.0,
      "misread": null,
-     "sum": -16.5806354455,
-     "prob": 0.0007113663
+     "sum": -16.6349824024,
+     "prob": 0.0012806918
     },
-    "Cell 1325": {
-     "mvn_loglik": -18.3641010992,
-     "attention": 0.6929662824,
-     "expr_fluct": 0.671179533,
-     "cell_inefficiency": -0.3381567299,
-     "gene_inefficiency": 1.5324840546,
+    "Cell 19555": {
+     "mvn_loglik": -15.5171906225,
+     "attention": -2.2059361043,
+     "expr_fluct": -0.2089056209,
+     "cell_inefficiency": -0.9048053034,
+     "gene_inefficiency": 1.6974992752,
      "bonus": 0.0,
      "misread": null,
-     "sum": -15.8056279592,
-     "prob": 0.0015440976
+     "sum": -17.1393383759,
+     "prob": 0.0007734026
     },
-    "Cell 7759": {
-     "mvn_loglik": -18.6053024999,
-     "attention": -1.8842405805,
-     "expr_fluct": -0.1924346249,
-     "cell_inefficiency": -0.821651175,
-     "gene_inefficiency": 1.5324840546,
+    "Cell 19564": {
+     "mvn_loglik": -16.4018413297,
+     "attention": -2.1388041802,
+     "expr_fluct": -0.273091063,
+     "cell_inefficiency": -3.1348867088,
+     "gene_inefficiency": 1.6974992752,
      "bonus": 0.0,
      "misread": null,
-     "sum": -19.9711448258,
-     "prob": 2.3967e-05
+     "sum": -20.2511240066,
+     "prob": 3.4433e-05
     },
-    "Cell 11053": {
-     "mvn_loglik": -20.4966322653,
-     "attention": 0.683160398,
-     "expr_fluct": -0.3328066355,
-     "cell_inefficiency": -2.2933547111,
-     "gene_inefficiency": 1.5324840546,
+    "Cell 19121": {
+     "mvn_loglik": -17.410449671,
+     "attention": -0.6800157875,
+     "expr_fluct": -0.4020297034,
+     "cell_inefficiency": -0.4775009708,
+     "gene_inefficiency": 1.6974992752,
      "bonus": 0.0,
      "misread": null,
-     "sum": -20.9071491593,
-     "prob": 9.3997e-06
+     "sum": -17.2724968576,
+     "prob": 0.0006769797
     },
     "background": {
      "mvn_loglik": null,
@@ -1016,9 +1016,9 @@
      "cell_inefficiency": null,
      "gene_inefficiency": null,
      "bonus": null,
-     "misread": -10.2895774977,
-     "sum": -10.2895774977,
-     "prob": 0.3839414794
+     "misread": -12.5547380263,
+     "sum": -12.5547380263,
+     "prob": 0.0757656316
     }
    }
   }

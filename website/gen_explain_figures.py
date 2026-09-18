@@ -62,13 +62,12 @@ CELLS = [
     ("mrf", 18223, L6CT, "cell-18223-mrf"),    # the walkthrough: DG with the spatial prior
     ("nomrf", 18223, DG, "cell-18223-nomrf"),  # the same cell called L6 CT without it
 ]
-# (run, spot id, file name): spots of cell 7768 that change hands between the runs, for the
-# spot page (not written yet, might switch to spots of 18223 then)
+# (run, spot id, file name): two spots of cell 18223 that change hands between the runs
 SPOTS = [
-    ("nomrf", 2452812, "spot-2452812-nomrf"),  # Rprm, border with DG neighbours
-    ("mrf", 2452812, "spot-2452812-mrf"),
-    ("nomrf", 2665680, "spot-2665680-nomrf"),  # Glul, goes to background with the mrf
-    ("mrf", 2665680, "spot-2665680-mrf"),
+    ("nomrf", 1642419, "spot-1642419-nomrf"),  # Synpr, the cell only gets it with the mrf
+    ("mrf", 1642419, "spot-1642419-mrf"),
+    ("nomrf", 1533144, "spot-1533144-nomrf"),  # Neurod6, the cell loses it with the mrf
+    ("mrf", 1533144, "spot-1533144-mrf"),
 ]
 
 # the tissue map: which cell to show and how the two panels look
