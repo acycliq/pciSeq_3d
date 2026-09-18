@@ -214,7 +214,7 @@ and Prob its posterior probability.
 <tr><td>last</td><td>L6 CT</td><td>0.99</td><td>-12.4</td><td>DG</td><td>1.00</td><td>+4.6</td><td>9 DG</td></tr>
 </tbody>
 <tfoot>
-<tr><td colspan="8"><div style="width: 0; min-width: 100%">¹ Gene log-likelihood of <code>037 DG Glut</code> minus that of <code>030 L6 CT CTX Glut</code>: positive values favour DG, negative values favour L6 CT.<br>² Most likely class of the nine nearest neighbours of the cell at the end of the iteration.</div></td></tr>
+<tr><td colspan="8"><div style="width: 0; min-width: 100%; font-size: 0.92em">¹ Gene log-likelihood of <code>037 DG Glut</code> minus that of <code>030 L6 CT CTX Glut</code>: positive values mean the gene counts alone, without the prior and the MRF term, favour DG; negative values favour L6 CT.<br>² Most likely class of the nine nearest neighbours of the cell at the end of the iteration.</div></td></tr>
 </tfoot>
 </table>
 
