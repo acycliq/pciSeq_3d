@@ -33,7 +33,7 @@ most specific:
   total yield relative to what the type predicts, applied to all its genes.
 
 - **gamma** ($\gamma_{g,c\mid k}$). One factor per gene, cell and candidate type: the
-  residual mismatch of one gene in one cell that the broader factors leave.
+  residual mismatch of a given gene in a given cell that the broader factors leave.
 
 Inefficiency and eta do not depend on the cell's type. theta and gamma do, since the
 expectation they correct is class-specific, and they are computed for every candidate
@@ -43,7 +43,7 @@ against every type.
 ## Granularity of the factors
 
 Ordered by how much of the experiment each covers: Inefficiency applies to everything,
-gamma to one gene in one cell under one type.
+gamma to a given gene in a given cell under a given class.
 
 <figure class="diagram">
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 460" role="img" aria-label="A pyramid of the four scaling factors">
@@ -119,7 +119,7 @@ and those counts differ by orders of magnitude between the three levels.
   theta. It has to stay above 1: theta is
   $(\text{spots} + r_\theta - 1) / (r_\theta + \text{expected})$, so at 1 or below a cell with no
   spots gives a theta of zero or less.
-- **gamma** is estimated from one gene in one cell, usually a fraction of a spot. The default
+- **gamma** is estimated from a given gene in a given cell, usually a fraction of a spot. The default
   `rSpot` of 2 therefore dominates, which is the intent: there is too little data at that level
   to estimate anything on its own. `rSpot` is also the dispersion of the negative binomial, since
   integrating gamma out is what produces it.

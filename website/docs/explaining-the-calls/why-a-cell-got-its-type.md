@@ -147,7 +147,7 @@ The prediction is built from the single-cell reference:
 | + `SpotReg` | 0.1 |
 | **prediction** | **0.76** |
 
-gamma, the factor for one gene in one cell, is not part of the product. It expresses the
+gamma, the factor for a given gene in a given cell, is not part of the product. It expresses the
 discrepancy between the observed count in the cell and the prediction, regularised by
 `rSpot`.
 

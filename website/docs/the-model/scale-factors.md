@@ -9,7 +9,7 @@ describes them; this page derives them.
 | Factor | Indexed by | Corrects |
 | --- | --- | --- |
 | **[$\theta_{c\mid k}$](#theta)** | cell, class | the whole cell's total count, given the class |
-| **[$\gamma_{g,c\mid k}$](#gamma)** | gene, cell, class | one gene in one cell, given the class |
+| **[$\gamma_{g,c\mid k}$](#gamma)** | gene, cell, class | a given gene in a given cell, under a given class |
 | **[$\eta_g$](#eta)** | gene only (global) | one gene across the whole experiment |
 
 $\theta_c$ is one number for a cell, $\gamma_{g,c}$ one per gene in that cell, and

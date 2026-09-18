@@ -37,12 +37,12 @@ DEFAULT = {
     # Inefficiency is the first of four multiplicative factors on the expected
     # counts, from the broadest to the most specific:
     #
-    # | factor       | scope                  | prior strength |
-    # | ------------ | ---------------------- | -------------- |
-    # | Inefficiency | all genes in all cells | fixed          |
-    # | eta          | one gene, all cells    | rGene          |
-    # | theta        | one cell, all genes    | rTheta         |
-    # | gamma        | one gene in one cell   | rSpot          |
+    # | factor       | scope                        | prior strength |
+    # | ------------ | ---------------------------- | -------------- |
+    # | Inefficiency | all genes in all cells       | fixed          |
+    # | eta          | a given gene, all cells      | rGene          |
+    # | theta        | a given cell, all genes      | rTheta         |
+    # | gamma        | a given gene in a given cell | rSpot          |
     #
     # Inefficiency is set directly. eta, theta and gamma are estimated from the
     # data, each with a prior of mean 1 whose strength is set by the
