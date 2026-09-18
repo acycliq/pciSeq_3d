@@ -80,21 +80,23 @@ first three are averaged over the cell's type probabilities from
 [cell typing](cell-to-celltype.md), so a confidently typed cell weighs them more. The
 fourth depends on the gene alone.
 
-- **Class expression.** The expected count of the gene under the cell's type. A cell
-  whose likely type expresses the gene scores higher than one whose type does not, at
-  the same distance.
-- **Cell scale (theta).** The cell's total counts relative to what its type predicts. A
-  cell that already holds more transcripts than expected scores higher for every gene.
-- **Cell-gene scale (gamma).** This gene's count in this cell relative to what the type
-  predicts. Two cells of the same type have the same class expression; the one that
-  already holds the gene has the higher cell-gene scale.
+- **Class expression, the alignment.** The expected count of the gene under the cell's
+  type. A cell whose likely type expresses the gene scores higher than one whose type
+  does not, at the same distance. The term is the dot product of two vectors over the
+  types: the cell's type probabilities and the log expected counts of the gene. A dot
+  product is large only when both are large on the same types, that is when the cell is
+  confident of its type and that type expresses the gene. Hence the alignment.
+- **Cell scale, the gravity (theta).** The cell's total counts relative to what its type
+  predicts. A cell that already holds more transcripts than expected scores higher for
+  every gene, so it draws in the spots around it whatever they are. Hence the gravity.
+- **Cell-gene scale, the enrichment (gamma).** This gene's count in this cell relative to
+  what the type predicts. Two cells of the same type have the same alignment; the one
+  already enriched in the gene has the higher term, which is what tells cells of the same
+  type apart. Hence the enrichment.
 - **Gene efficiency (eta).** The gene's detection rate. It is the same for every
   candidate cell, so it does not choose between cells. It enters the comparison with the
   background, which has no efficiency term, and lowers the score of a poorly detected
   gene against it.
-
-An inside-cell bonus, `InsideCellBonus`, can be added for a spot whose pixel lies inside
-the candidate cell's segmentation. It is off by default.
 
 ## The background option
 
