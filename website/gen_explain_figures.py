@@ -185,35 +185,11 @@ def gene_breakdown(obj, label, gene, type_names):
     return out
 
 
-def _tile_window(con, plane, zoom, cx, cy, w_img, h_img, img_w, img_h, tile=256):
-    """Stitch the tiles covering a w_img by h_img window of image pixels centred on (cx, cy).
-
-    Returns the image, the image pixel to tile pixel scale, and the top left corner of the
-    window in tile pixels, so boundaries can be drawn on top.
-    """
-    s = tile * 2 ** zoom / max(img_w, img_h)
-    # keep the window inside the image, otherwise the panel gets a black band
-    cx = min(max(cx, w_img / 2), img_w - w_img / 2)
-    cy = min(max(cy, h_img / 2), img_h - h_img / 2)
-    x0, y0 = (cx - w_img / 2) * s, (cy - h_img / 2) * s
-    x1, y1 = (cx + w_img / 2) * s, (cy + h_img / 2) * s
-    tx0, ty0, tx1, ty1 = int(x0 // tile), int(y0 // tile), int(x1 // tile), int(y1 // tile)
-    canvas = Image.new("L", ((tx1 - tx0 + 1) * tile, (ty1 - ty0 + 1) * tile))
-    rows = con.execute(
-        "select tile_column, tile_row, tile_data from tiles where plane_id=? and zoom_level=? "
-        "and tile_column between ? and ? and tile_row between ? and ?",
-        (plane, zoom, tx0, tx1, ty0, ty1))
-    for tx, ty, blob in rows:
-        canvas.paste(Image.open(io.BytesIO(blob)).convert("L"), ((tx - tx0) * tile, (ty - ty0) * tile))
-    im = canvas.crop((round(x0 - tx0 * tile), round(y0 - ty0 * tile),
-                      round(x1 - tx0 * tile), round(y1 - ty0 * tile))).convert("RGB")
-    return im, s, (x0, y0)
-
-
 def _outline(im, scale, origin, bounds, labels, colour, width, fill_alpha=0.0):
-    """Draw the outlines of the given cells on a stitched window, optionally filled.
+    """Draw the outlines of the given cells on a window read with read_tiles.
 
-    fill_alpha is how opaque the fill is, 0 for outline only.
+    origin is the top left of the window in image pixels and scale the one read_tiles
+    returns. fill_alpha is how opaque the fill is, 0 for outline only.
     """
     drawn = 0
     over = Image.new("RGBA", im.size, (0, 0, 0, 0))
@@ -223,13 +199,23 @@ def _outline(im, scale, origin, bounds, labels, colour, width, fill_alpha=0.0):
         if lab not in bounds.index:
             continue
         r = bounds.loc[lab]
-        pts = [(x * scale - origin[0], y * scale - origin[1]) for x, y in zip(r.x_list, r.y_list)]
+        pts = [((x - origin[0]) * scale, (y - origin[1]) * scale) for x, y in zip(r.x_list, r.y_list)]
         if fill:
             d.polygon(pts, fill=fill)
         d.line(pts + [pts[0]], fill=colour + (255,), width=width, joint="curve")
         drawn += 1
     im.paste(Image.alpha_composite(im.convert("RGBA"), over).convert("RGB"), (0, 0))
     return drawn
+
+
+def _image_size(mbtiles):
+    """Width and height of the original image, off the mbtiles metadata."""
+    con = sqlite3.connect(f"file:{mbtiles}?mode=ro", uri=True)
+    try:
+        meta = dict(con.execute("select name, value from metadata"))
+        return int(meta["width"]), int(meta["height"])
+    finally:
+        con.close()
 
 
 def cell_map(obj, label):
@@ -253,28 +239,26 @@ def cell_map(obj, label):
     inv = {v: k for k, v in lm.items()} if lm else None
     nbrs = [inv[r] if inv else r for r in obj.cells.nbrs["indices"][row]]
 
-    con = sqlite3.connect(f"file:{MBTILES}?mode=ro", uri=True)
-    meta = dict(con.execute("select name, value from metadata"))
-    img_w, img_h = int(meta["width"]), int(meta["height"])
-    maxzoom = int(meta["maxzoom"])
     bounds = pd.read_feather(BOUNDARIES / f"boundaries_plane_{plane:02d}.feather").set_index("label")
-
     pw, ph = MAP["panel_w"], MAP["panel_h"]
+
     # a: the whole section, cropped to the same shape as panel b so nothing is stretched
-    a, sa, oa = _tile_window(con, plane, maxzoom - 4, img_w / 2, img_h / 2,
-                             img_w, img_w * ph / pw, img_w, img_h)
+    img_w, img_h = _image_size(MBTILES)
+    band = img_w * ph / pw
+    box_a = (0, (img_h - band) / 2, img_w, (img_h + band) / 2)
+    a, sa = pciSeq.read_tiles(str(MBTILES), plane=plane, bbox=box_a, width=pw)
     a = ImageOps.autocontrast(a, cutoff=(0.2, 0.05))  # the overview is dark, lift it a little
-    ax, ay = cx * sa - oa[0], cy * sa - oa[1]
+    ax, ay = (cx - box_a[0]) * sa, (cy - box_a[1]) * sa
+    # the marker is drawn at panel scale now, so keep the ring thin against its radius
     r = 0.022 * max(a.size)
-    ImageDraw.Draw(a).ellipse([ax - r, ay - r, ax + r, ay + r], outline=MAP["accent"], width=22)
-    a = a.resize((pw, ph), Image.LANCZOS)
+    ImageDraw.Draw(a).ellipse([ax - r, ay - r, ax + r, ay + r], outline=MAP["accent"], width=6)
 
     # b: the cell and the neighbours the mrf term listens to
-    b, sb, ob = _tile_window(con, plane, maxzoom, cx, cy, MAP["zoom_w"], MAP["zoom_h"], img_w, img_h)
-    on_plane = _outline(b, sb, ob, bounds, nbrs, MAP["faint"], 4, fill_alpha=0.15)
-    _outline(b, sb, ob, bounds, [label], MAP["accent"], 6, fill_alpha=0.3)
-    b = b.resize((pw, ph), Image.LANCZOS)
-    con.close()
+    box_b = (cx - MAP["zoom_w"] / 2, cy - MAP["zoom_h"] / 2,
+             cx + MAP["zoom_w"] / 2, cy + MAP["zoom_h"] / 2)
+    b, sb = pciSeq.read_tiles(str(MBTILES), plane=plane, bbox=box_b, width=pw)
+    on_plane = _outline(b, sb, box_b[:2], bounds, nbrs, MAP["faint"], 4, fill_alpha=0.15)
+    _outline(b, sb, box_b[:2], bounds, [label], MAP["accent"], 6, fill_alpha=0.3)
 
     out = Image.new("RGB", (pw * 2 + MAP["gutter"], ph), (255, 255, 255))
     out.paste(a, (0, 0))

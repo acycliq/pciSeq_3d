@@ -72,6 +72,9 @@ def _check_libvips():
         return False
 
 
+# reading tiles back only needs sqlite and pillow, so it is not behind the libvips check
+from pciSeq.src.tiling.read_tiles import read_tiles
+
 if _check_libvips():
     from pciSeq.src.tiling.stage_image import tile_maker, stage_image
 else:

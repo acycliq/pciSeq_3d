@@ -36,6 +36,10 @@
     "link": "/api/reference#add-boundaries"
   },
   {
+    "text": "read_tiles",
+    "link": "/api/reference#read-tiles"
+  },
+  {
     "text": "stage_image",
     "link": "/api/reference#stage-image"
   },

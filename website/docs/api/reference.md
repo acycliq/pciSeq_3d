@@ -242,6 +242,73 @@ Args:
         provenance, same as add_image.
 
 
+## `read_tiles`
+
+`pciSeq.src.tiling.read_tiles.read_tiles`
+
+```python
+read_tiles(mbtiles: str, plane: int=0, bbox: Optional[Tuple[float, float, float, float]]=None, width: Optional[int]=None, zoom: Optional[int]=None) -> Tuple[Image.Image, float]
+```
+
+Read part of a plane out of an mbtiles pyramid.
+
+**Parameters**
+
+- **`mbtiles`** *(str)*
+  Path to the .mbtiles file, as written by :func:`pciSeq.stage_image`.
+- **`plane`** *(int, default 0)*
+  The z-plane to read. For a 2D image there is only plane 0.
+- **`bbox`** *(tuple of float, optional)*
+  The region to read, ``(x0, y0, x1, y1)`` in the pixel coordinates of the original image, the same coordinates as `cellData` and the spots. The box is clamped to the image. The default is the whole plane.
+- **`width`** *(int, optional)*
+  Width of the returned image in pixels. The pyramid level is picked to cover it and the result is resampled to exactly this width. The default returns the region at its original scale, one pixel per image pixel.
+- **`zoom`** *(int, optional)*
+  Read this pyramid level instead of choosing one. Mostly useful for inspecting the file itself.
+
+**Returns**
+
+- **`image`** *(PIL.Image.Image)*
+  The region, in RGB.
+- **`scale`** *(float)*
+  Returned pixels per image pixel. Multiply a coordinate by it and subtract the box origin to draw on top of the image.
+
+**Notes**
+
+This is not a lossless recovery of the original data. The tiles are JPEG and every
+level was produced by resizing, so the crop is a close visual copy, not the raw
+pixels of the image the pyramid was built from. Use it for figures and for checking
+a segmentation against the image, not for measurements.
+
+`width` sets the size of the result and therefore how much detail is read. The
+pyramid level is chosen as the cheapest one that covers the request, and the result
+is resampled to exactly `width`. Levels only go as high as the pyramid does, so a
+`width` beyond the top level is allowed and enlarges the result, which is
+magnification, not detail.
+
+**Examples**
+
+A cell and its surroundings, one pixel per image pixel:
+
+>>> im, scale = read_tiles('dapi.mbtiles', plane=57, bbox=(5393, 702, 5603, 842))
+>>> im.size, scale
+((210, 140), 1.0)
+
+The same region as a 1200 pixel wide panel. The box is 210 across, so `scale` is
+5.71 and the panel is magnified: the level read is the top of the pyramid, which
+renders that box 10.2 times up, and it is resampled down to 5.71.
+
+>>> im, scale = read_tiles('dapi.mbtiles', plane=57, bbox=(5393, 702, 5603, 842),
+...                        width=1200)
+
+A whole 6408 by 4382 plane, trimmed to 3:2 and shown 1200 wide. Here `scale` is
+1200 / 6408 = 0.187, and a cell at (5498.2, 772.5) lands at
+``((5498.2 - 0) * 0.187, (772.5 - 55) * 0.187)``, so about (1029, 134) in the
+returned image. `bbox=None` would give the untrimmed plane.
+
+>>> im, scale = read_tiles('dapi.mbtiles', plane=57, bbox=(0, 55, 6408, 4327),
+...                        width=1200)
+
+
 ## `stage_image`
 
 `pciSeq.src.tiling.stage_image.stage_image`
