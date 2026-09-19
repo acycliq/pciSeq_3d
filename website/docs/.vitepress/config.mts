@@ -60,6 +60,7 @@ export default defineConfig({
         link: '/running-pciseq',
         items: [
           { text: 'From Python', link: '/running-pciseq' },
+          { text: 'Fine-tuning', link: '/running-pciseq#fine-tuning' },
           { text: 'Command line', link: '/api/command-line' },
           { text: 'Live viewer', link: '/api/live-viewer' },
           { text: 'Working with results', link: '/api/working-with-results' },
