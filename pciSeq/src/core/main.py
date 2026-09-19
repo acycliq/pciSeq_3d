@@ -285,9 +285,11 @@ class VarBayes:
 
         One pass updates, in this order: the gene counts per cell, the per gene
         misread density, the gene inefficiency, the cell inefficiency, gamma, the
-        cell types, then the spot to cell assignments. Two more steps run only when
-        there is no single cell reference to lean on: the dirichlet prior and the
-        mean expression itself.
+        cell types, then the spot to cell assignments. One more step, the dirichlet
+        prior update, runs right after the cell types, but only when cell_type_prior
+        is 'weighted'. It gives classes with more cells a higher prior; the Zero weight
+        stays fixed at its cell_type_weights value. With the default, 'uniform', the
+        prior stays at cell_type_weights throughout.
 
         The loop stops when the biggest change in the spot to cell probabilities
         drops below CellCallTolerance, or when it runs out of iterations.
@@ -906,6 +908,20 @@ class VarBayes:
         return inspection.check_spot(self, spot_id, show_plot)
 
     def read_tsv(self, filepath):
+        """
+        Read a tsv file written by pciSeq into a DataFrame.
+
+        Columns that hold lists or dicts are parsed back from text.
+
+        Parameters
+        ----------
+        filepath : str
+            Path to the file, e.g. cellData.tsv or geneData.tsv.
+
+        Returns
+        -------
+        pd.DataFrame
+        """
         return read_tsv(filepath)
 
     def cell_typing_breakdown(self, label, weights=None, show_plot=True):

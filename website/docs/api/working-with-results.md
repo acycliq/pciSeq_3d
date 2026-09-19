@@ -140,6 +140,16 @@ probs = pd.DataFrame(obj.cells.classProb, columns=obj.cells.class_names)
 probs.iloc[1:].idxmax(axis=1)   # most likely class for each real cell
 ```
 
+Rows follow pciSeq's internal cell labels. If the input labels were not sequential they
+were renumbered, and `obj.config['label_map']` maps each original label to its row; it is
+`None` when no renumbering took place.
+
+```python
+label_map = obj.config['label_map']
+row = label_map[18223] if label_map else 18223
+obj.cells.classProb[row]
+```
+
 `cellData`'s `ClassName` and `Prob` columns are built from this array: for each
 cell the classes are sorted by descending probability and any below `0.001` are
 dropped. `cells.classProb` is the raw form, keeping every class in the fixed
@@ -149,10 +159,10 @@ dropped. `cells.classProb` is the raw form, keeping every class in the fixed
 
 `spots.parent_cell_prob` is `(nS, nNeighbors + 1)`: for each spot, the
 probability over its nearest candidate cells. The matching cell labels are in
-`spots.parent_cell_id`. The **last column is the background**, i.e. the misread
-probability. `geneData`'s `neighbour_array` and `neighbour_prob` are the same
-numbers sorted by descending probability; these two arrays are the raw form, with
-the candidates in a fixed order.
+`spots.parent_cell_id`, in the same internal numbering. The **last column is the
+background**, i.e. the misread probability. `geneData`'s `neighbour_array` and
+`neighbour_prob` are the same numbers sorted by descending probability; these two
+arrays are the raw form, with the candidates in a fixed order.
 
 ### Genes (`genes.gene_panel`, efficiency, misread density)
 
@@ -193,7 +203,7 @@ The cell type definitions are held twice:
 The fitted scale factors, derived in [the cell scale factor](/the-model/scale-factors#theta)
 and [the cell-gene scale factor](/the-model/scale-factors#gamma) sections.
 
-- `cells.theta_bar` is `(nC, nK)`, the posterior mean cell scale factor per cell
+- `cells.theta_bar` is `(nC, nK)`, the estimate of the cell scale factor per cell
   and class.
 - `spots.gamma_bar` is `(nC, nG, nK)`, the posterior mean expression rate per
   cell, gene and class. This is a cells x genes x classes array, so it can be

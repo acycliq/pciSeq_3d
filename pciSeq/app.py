@@ -51,14 +51,20 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
     Raises
     ------
     ValueError
-        If spots or coo are missing or malformed.
+        If spots, coo or scRNAseq are missing or malformed, or an option value is
+        out of range.
+    KeyError
+        If opts has a key that is not a config option.
+    TypeError
+        If an input or an option value has the wrong type.
     RuntimeError
         If cell typing fails. Not converging is not a failure on its own: the loop
         runs to max_iter, logs the convergence status and returns its results.
 
     Notes
     -----
-    Positional and keyword forms can be mixed; the keywords win if both are given.
+    `spots` and `coo` are given either both as keywords or as the first two positional
+    arguments. `scRNAseq` and `opts` are keyword only.
     """
     viewer = None  # Track realtime viewer for cleanup
     try:
@@ -117,7 +123,7 @@ def cell_type(
     Parameters
     ----------
     cells : pd.DataFrame
-        Preprocessed cell data containing cell locations and boundaries
+        Preprocessed cell data, as returned by stage_data: label, area and centroid
     spots : pd.DataFrame
         Preprocessed spot data containing gene expressions and coordinates
     scRNAseq : pd.DataFrame

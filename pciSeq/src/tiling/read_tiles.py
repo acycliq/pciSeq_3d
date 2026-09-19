@@ -61,8 +61,8 @@ def read_tiles(mbtiles: str,
     image : PIL.Image.Image
         The region, in RGB.
     scale : float
-        Returned pixels per image pixel. Multiply a coordinate by it and subtract the
-        box origin to draw on top of the image.
+        Zoom factor, returned width over box width. A point ``(x, y)`` of the original
+        image is at ``((x - x0) * scale, (y - y0) * scale)`` in the returned one.
 
     Notes
     -----

@@ -85,12 +85,17 @@ Both terms favour `037 DG Glut`, and the posterior is 1.00.
 
 ## The returned table
 
-`check_cell` also returns a table with one row for each gene in the two gene charts of the
-figure (top left and top right):
+```python
+table, contr, fig = obj.check_cell(18223, '030 L6 CT CTX Glut')
+```
+
+`check_cell` returns three things: a table with one row for each gene in the two gene charts
+of the figure (top left and top right), the per-gene log-likelihoods the charts are drawn
+from, and the figure itself. The first is shown here:
 
 <!--@include: ./_tables/cell-18223-mrf.md-->
 
-The table has the same columns as the DataFrame `check_cell` returns:
+Its columns are:
 
 - **Cell 18223, observed.** The count of the gene in this cell, the sum of the assignment
   probabilities of its spots.
@@ -99,9 +104,8 @@ The table has the same columns as the DataFrame `check_cell` returns:
   [scaling factors](../how-it-works/warping-the-reference.md), see the
   [example below](#the-prediction-is-not-the-observed-mean). A gene favours the class whose
   prediction is closer to the observed count.
-- **Cells typed as a class, observed mean.** The average count of the gene in the cells
-  currently assigned to that class, weighted by their probability of the class. It is
-  measured, not predicted, and it does not enter the score.
+- **Cells typed as a class, observed mean.** The average count of the gene over all cells,
+  each weighted by its probability of the class.
 
 Synpr is the strongest gene. The Synpr count of the cell is 1.7. `037 DG Glut` predicts
 0.76 and `030 L6 CT CTX Glut` predicts 0.10. The count is small, but the prediction under

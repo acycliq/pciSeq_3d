@@ -37,8 +37,8 @@ most specific:
 
 Inefficiency and eta do not depend on the cell's class. theta and gamma do, since the
 expectation they correct is class-specific, and they are computed for every candidate
-class. That is what lets [cell typing](cell-to-celltype.md) use them while scoring a cell
-against every class.
+class. That is what lets [cell typing](cell-to-celltype.md) score a cell against every
+class.
 
 ## Granularity of the factors
 

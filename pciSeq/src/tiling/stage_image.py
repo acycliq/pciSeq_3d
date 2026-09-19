@@ -137,7 +137,7 @@ def _prepare_plane(im, zoom_levels):
 
     Args:
         im: pyvips.Image object
-        zoom_levels: number of zoom levels
+        zoom_levels: the deepest zoom level (levels 0 to zoom_levels get made)
 
     Returns:
         im: the prepared pyvips.Image (uchar, resized)
@@ -170,7 +170,7 @@ def _process_single_plane(im, zoom_levels, plane_out_dir):
 
     Args:
         im: pyvips.Image object
-        zoom_levels: number of zoom levels
+        zoom_levels: the deepest zoom level (levels 0 to zoom_levels get made)
         plane_out_dir: output directory for this plane's tiles
 
     Returns:
@@ -196,7 +196,8 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_", pr
             - numpy array (H, W): single 2D grayscale image
             - numpy array (Z, H, W): 3D stack of grayscale images
             - numpy array (Z, H, W, C): 3D stack with channels
-        zoom_levels: (int) Number of zoom levels to produce. Default is 8.
+        zoom_levels: (int) The deepest zoom level. Levels 0 to zoom_levels are written, so the
+            default of 8 gives nine, the last one 256 * 2**8 = 65536 pixels wide.
         out_dir: (str) Output folder for the tile pyramid. Will be deleted and recreated if exists.
         plane_prefix: (str) Prefix for plane subdirectories when processing 3D images.
                       Default is "plane_" resulting in "plane_0", "plane_1", etc.
@@ -207,7 +208,7 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_", pr
         dict with keys:
             - 'original_dims': [width, height] of the original input image
             - 'num_planes': number of planes processed
-            - 'zoom_levels': number of zoom levels
+            - 'zoom_levels': the deepest zoom level, as passed in
     """
     if os.path.exists(out_dir):
         shutil.rmtree(out_dir)
@@ -260,7 +261,8 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
     out_dir : str, optional
         Directory for the `.mbtiles` file. Defaults to the system temp directory.
     zoom_levels : int, optional
-        Number of zoom levels to produce. Default is 8.
+        The deepest zoom level. Levels 0 to `zoom_levels` are written, so the default
+        of 8 gives nine, the last one 256 * 2**8 = 65536 pixels wide.
     name : str, optional
         Short identifier for the dataset. Also used as the output filename, e.g.
         `name="S10_gcamp_10"` writes `S10_gcamp_10.mbtiles`. If empty, the file

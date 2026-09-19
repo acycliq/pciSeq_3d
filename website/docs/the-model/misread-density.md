@@ -3,10 +3,11 @@
 
 A spot is either claimed by a nearby cell or treated as an artefact (a misread) and
 assigned to the background. A cell claims a spot through its spatial term combined with
-how well the spot fits the cell's likely class; the background claims it through the mean
-of the misread density. Here the misread density varies **per gene**: each gene $g$ has
-its own background rate $\rho_g$. The [how it works page](../how-it-works/misread-density.md)
-describes the step; this page derives the variational posterior.
+how well the spot fits the cell's likely class; the background claims it through the
+expectation (in log-space) of the misread density. Here the misread density varies
+**per gene**: each gene $g$ has its own background rate $\rho_g$. The
+[how it works page](../how-it-works/misread-density.md) describes the step; this page
+derives the variational posterior.
 
 ## Prior
 
@@ -78,8 +79,8 @@ cell.
 
 Only $z$ is corrected here. The pixels are taken to be square in $x$ and $y$, which holds for
 every dataset the model has been run on. The scaling that produces the spot coordinates does
-also divide $y$ by $\texttt{voxel\_size}[1] / \texttt{voxel\_size}[0]$, so a dataset with
-non-square pixels would need that factor restored here as well. The default `voxel_size` is
+also multiply $y$ by $\texttt{voxel\_size}[1] / \texttt{voxel\_size}[0]$, so a dataset with
+non-square pixels would need that factor included here as well. The default `voxel_size` is
 `[1, 1, 1]`, so 2D and isotropic runs are unaffected.
 
 ## Variational update

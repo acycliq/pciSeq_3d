@@ -64,11 +64,16 @@ def stage_data(spots: pd.DataFrame,
     Parameters
     ----------
     spots : pd.DataFrame
-        Spot data with columns: ['gene_name', 'x', 'y', 'z_plane']
+        Spot data with columns 'gene_name', 'x', 'y', 'z_plane', 'score' and 'intensity'.
+        `fit` fills in 'z_plane', 'score' and 'intensity' when they are missing; a direct
+        call has to supply them.
     coo : List[coo_matrix]
-        List of sparse matrices containing cell segmentation
+        List of sparse matrices containing cell segmentation. Modified in place: with
+        `remove_flat_cells` the cells that span a single plane are zeroed, and labels
+        that are not sequential are renumbered.
     cfg : Dict
-        Configuration dictionary with processing parameters
+        Configuration dictionary. Reads 'is3D', 'remove_flat_cells' and 'voxel_size';
+        writes 'label_map' and 'img_dim'.
 
     Returns
     -------

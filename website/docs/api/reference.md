@@ -45,13 +45,18 @@ keywords. Keyword form is preferred.
 **Raises**
 
 - **`ValueError`**
-  If spots or coo are missing or malformed.
+  If spots, coo or scRNAseq are missing or malformed, or an option value is out of range.
+- **`KeyError`**
+  If opts has a key that is not a config option.
+- **`TypeError`**
+  If an input or an option value has the wrong type.
 - **`RuntimeError`**
   If cell typing fails. Not converging is not a failure on its own: the loop runs to max_iter, logs the convergence status and returns its results.
 
 **Notes**
 
-Positional and keyword forms can be mixed; the keywords win if both are given.
+`spots` and `coo` are given either both as keywords or as the first two positional
+arguments. `scRNAseq` and `opts` are keyword only.
 
 
 ## `cell_type`
@@ -67,7 +72,7 @@ Perform cell typing using Variational Bayes algorithm.
 **Parameters**
 
 - **`cells`** *(pd.DataFrame)*
-  Preprocessed cell data containing cell locations and boundaries
+  Preprocessed cell data, as returned by stage_data: label, area and centroid
 - **`spots`** *(pd.DataFrame)*
   Preprocessed spot data containing gene expressions and coordinates
 - **`scRNAseq`** *(pd.DataFrame)*
@@ -101,11 +106,11 @@ Process spots and label images for cell typing analysis.
 **Parameters**
 
 - **`spots`** *(pd.DataFrame)*
-  Spot data with columns: ['gene_name', 'x', 'y', 'z_plane']
+  Spot data with columns 'gene_name', 'x', 'y', 'z_plane', 'score' and 'intensity'. `fit` fills in 'z_plane', 'score' and 'intensity' when they are missing; a direct call has to supply them.
 - **`coo`** *(List[coo_matrix])*
-  List of sparse matrices containing cell segmentation
+  List of sparse matrices containing cell segmentation. Modified in place: with `remove_flat_cells` the cells that span a single plane are zeroed, and labels that are not sequential are renumbered.
 - **`cfg`** *(Dict)*
-  Configuration dictionary with processing parameters
+  Configuration dictionary. Reads 'is3D', 'remove_flat_cells' and 'voxel_size'; writes 'label_map' and 'img_dim'.
 
 **Returns**
 
@@ -167,7 +172,9 @@ Assemble the run into an in-memory SpatialData object.
 Args:
     cellData: cell typing results, one row per cell, original labels.
     geneData: spot results, one row per spot, original labels.
-    coo: the segmentation, one sparse plane per z, as fit() received it.
+    coo: the segmentation, one sparse plane per z, with the labels as pciSeq
+        renumbered them. fit() renumbers the list it is given in place, so pass
+        that same list, not a fresh copy of the original segmentation.
     varBayes: the fitted model, read for the arrays the two frames do not
         carry (class posterior, spot probabilities, gene panel, reference).
     cfg: the resolved config. voxel_size and label_map are used here.
@@ -270,7 +277,7 @@ Read part of a plane out of an mbtiles pyramid.
 - **`image`** *(PIL.Image.Image)*
   The region, in RGB.
 - **`scale`** *(float)*
-  Returned pixels per image pixel. Multiply a coordinate by it and subtract the box origin to draw on top of the image.
+  Zoom factor, returned width over box width. A point ``(x, y)`` of the original image is at ``((x - x0) * scale, (y - y0) * scale)`` in the returned one.
 
 **Notes**
 
@@ -330,7 +337,7 @@ and it writes one `.mbtiles` file.
 - **`out_dir`** *(str, optional)*
   Directory for the `.mbtiles` file. Defaults to the system temp directory.
 - **`zoom_levels`** *(int, optional)*
-  Number of zoom levels to produce. Default is 8.
+  The deepest zoom level. Levels 0 to `zoom_levels` are written, so the default of 8 gives nine, the last one 256 * 2**8 = 65536 pixels wide.
 - **`name`** *(str, optional)*
   Short identifier for the dataset. Also used as the output filename, e.g. `name="S10_gcamp_10"` writes `S10_gcamp_10.mbtiles`. If empty, the file is named `output.mbtiles`.
 - **`description`** *(str, optional)*
@@ -371,7 +378,8 @@ Args:
         - numpy array (H, W): single 2D grayscale image
         - numpy array (Z, H, W): 3D stack of grayscale images
         - numpy array (Z, H, W, C): 3D stack with channels
-    zoom_levels: (int) Number of zoom levels to produce. Default is 8.
+    zoom_levels: (int) The deepest zoom level. Levels 0 to zoom_levels are written, so the
+        default of 8 gives nine, the last one 256 * 2**8 = 65536 pixels wide.
     out_dir: (str) Output folder for the tile pyramid. Will be deleted and recreated if exists.
     plane_prefix: (str) Prefix for plane subdirectories when processing 3D images.
                   Default is "plane_" resulting in "plane_0", "plane_1", etc.
@@ -382,7 +390,7 @@ Returns:
     dict with keys:
         - 'original_dims': [width, height] of the original input image
         - 'num_planes': number of planes processed
-        - 'zoom_levels': number of zoom levels
+        - 'zoom_levels': the deepest zoom level, as passed in
 
 
 ## `VarBayes`
@@ -503,6 +511,19 @@ types for the most likely ones.
 ```python
 read_tsv(filepath)
 ```
+
+Read a tsv file written by pciSeq into a DataFrame.
+
+Columns that hold lists or dicts are parsed back from text.
+
+**Parameters**
+
+- **`filepath`** *(str)*
+  Path to the file, e.g. cellData.tsv or geneData.tsv.
+
+**Returns**
+
+- **`pd.DataFrame`**
 
 #### `heatmap_counts_per_class`
 
