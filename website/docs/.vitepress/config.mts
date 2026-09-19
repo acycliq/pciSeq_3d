@@ -12,7 +12,8 @@ export default defineConfig({
   // Project site at https://acycliq.github.io/pciSeq_3d/
   base: '/pciSeq_3d/',
 
-  // light by default, with the toggle still available (respects the OS too)
+  // keep the light/dark toggle. The site always starts light, whatever the reader's
+  // operating system says, see the script in head below
   appearance: true,
 
   // don't die on a bad link while the docs are still being written
@@ -24,6 +25,10 @@ export default defineConfig({
   srcExclude: ['**/_tables/**', 'the-model/errata.md', 'the-model/appendix-self-consistency.md'],
 
   head: [
+    // start on the light theme even when the OS is dark. VitePress reads this key and
+    // only falls back to the OS when nothing is stored, so writing 'light' once makes
+    // light the default. The toggle still works and still remembers what the reader picks.
+    ['script', {}, `try{localStorage.getItem('vitepress-theme-appearance')||localStorage.setItem('vitepress-theme-appearance','light')}catch(e){}`],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/pciSeq_3d/favicon.svg' }],
     ['meta', { name: 'theme-color', content: '#10b981' }],
     ['meta', { property: 'og:type', content: 'website' }],
