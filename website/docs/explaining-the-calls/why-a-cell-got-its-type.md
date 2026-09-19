@@ -22,11 +22,11 @@ fit without the spatial term, `mrf_beta = 0`.
 
 ## The cell
 
-Cell 18223 lies in the dentate gyrus, at the tip of the upper blade, and its nine nearest
-neighbours are the cells packed around it. Panel **a** is the DAPI image of the section,
-with the cell circled. Panel **b** is a close-up of the same cell, with its outline
-in red and its neighbours in blue. Neighbours are taken in 3D,
-so one of the nine sits on another plane and is not drawn.
+Cell 18223 lies in the dentate gyrus, at the tip of the upper blade. Panel **a** is the
+DAPI image of the section, with the cell circled. Panel **b** is a close-up of the same
+cell, with its outline in red and, in blue, the nine nearest cells that the spatial term
+reads. Neighbours are taken in 3D, so one of the nine sits on another plane and is not
+drawn.
 
 ![Cell 18223 in the section and up close](/explaining-the-calls/cell-18223-map.png)
 
