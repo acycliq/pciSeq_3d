@@ -172,9 +172,10 @@ Assemble the run into an in-memory SpatialData object.
 Args:
     cellData: cell typing results, one row per cell, original labels.
     geneData: spot results, one row per spot, original labels.
-    coo: the segmentation, one sparse plane per z, with the labels as pciSeq
-        renumbered them. fit() renumbers the list it is given in place, so pass
-        that same list, not a fresh copy of the original segmentation.
+    coo: the segmentation, one sparse plane per z. Either the list fit()
+        renumbered in place or a copy with the original labels; which of the
+        two it is gets detected, and the store always ends up with the
+        original labels.
     varBayes: the fitted model, read for the arrays the two frames do not
         carry (class posterior, spot probabilities, gene panel, reference).
     cfg: the resolved config. voxel_size and label_map are used here.

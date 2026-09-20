@@ -126,6 +126,40 @@ class TestElements:
         vals = set(np.unique(np.asarray(sdata.labels['cell_labels'])))
         assert vals == {0, 10, 20, 30}
 
+    def test_masks_with_the_original_labels_are_not_mapped_back_again(self):
+        # somebody calling the exporter themselves hands over their own segmentation
+        # with the original labels still in it. The originals here are 2, 3, 7 and
+        # pciSeq renumbered them to 1, 2, 3, so an original 2 is also a renumbered 2.
+        # Mapping back a second time read it as the renumbered one and made it a 3,
+        # and made the 3 a 7: two cells relabelled and the table no longer matching.
+        from pciSeq.src.core.utils.spatialdata_export import _labels
+        plane = np.zeros((16, 16), dtype=np.uint32)
+        plane[2:5, 2:5], plane[7:10, 7:10], plane[12:15, 12:15] = 2, 3, 7
+        label_map = {0: 0, 2: 1, 3: 2, 7: 3}
+
+        out = np.asarray(_labels([coo_matrix(plane), coo_matrix(plane)], label_map, VOXEL))
+        assert np.array_equal(out[0], plane)
+        assert np.array_equal(out[1], plane)
+
+    def test_the_renumbered_masks_of_that_same_run_are_mapped_back(self):
+        # the other way round, which is what fit() hands over: same cells, labels 1, 2, 3
+        from pciSeq.src.core.utils.spatialdata_export import _labels
+        original = np.zeros((16, 16), dtype=np.uint32)
+        original[2:5, 2:5], original[7:10, 7:10], original[12:15, 12:15] = 2, 3, 7
+        renumbered = np.zeros((16, 16), dtype=np.uint32)
+        renumbered[2:5, 2:5], renumbered[7:10, 7:10], renumbered[12:15, 12:15] = 1, 2, 3
+        label_map = {0: 0, 2: 1, 3: 2, 7: 3}
+
+        out = np.asarray(_labels([coo_matrix(renumbered)], label_map, VOXEL))
+        assert np.array_equal(out, original)
+
+    def test_without_a_label_map_nothing_is_touched(self):
+        from pciSeq.src.core.utils.spatialdata_export import _labels
+        plane = np.zeros((16, 16), dtype=np.uint32)
+        plane[2:5, 2:5], plane[7:10, 7:10] = 1, 2
+        out = np.asarray(_labels([coo_matrix(plane)], None, VOXEL))
+        assert np.array_equal(out, plane)
+
     def test_points_use_the_plane_index_not_the_scaled_z(self, sdata):
         df = sdata.points['transcripts'].compute()
         assert sorted(df.z.unique()) == [0.0, 1.0]

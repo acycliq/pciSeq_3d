@@ -93,10 +93,14 @@ def _points(geneData: pd.DataFrame, varBayes, voxel_size):
 def _labels(coo: List[coo_matrix], label_map: Optional[Dict], voxel_size):
     """The segmentation masks as a labels element.
 
-    The coo list holds the labels as pciSeq renumbered them, but the rest of
-    the outputs were mapped back to the user's original labels before saving,
-    so the masks are mapped back too. Otherwise the table would say cell 2627
-    and the pixels would say 2176 and nothing would line up.
+    Inside fit() the coo list holds the labels as pciSeq renumbered them, but the
+    rest of the outputs were mapped back to the user's original labels before
+    saving, so the masks are mapped back too. Otherwise the table would say cell
+    2627 and the pixels would say 2176 and nothing would line up.
+
+    Somebody calling this themselves may well hand over their own segmentation,
+    with the original labels still in it. Mapping that back a second time would
+    scramble it, so which of the two it is gets worked out first, see below.
 
     Built as a dask array one plane at a time because a full stack does not
     always fit in memory (a 6431 x 8544 x 68 uint32 stack is 15 GB dense).
@@ -107,8 +111,19 @@ def _labels(coo: List[coo_matrix], label_map: Optional[Dict], voxel_size):
     import fastremap
     from spatialdata.models import Labels2DModel, Labels3DModel
 
-    # label_map goes original -> renumbered, we need the other direction
-    inverse = {v: k for k, v in label_map.items()} if label_map else None
+    # label_map goes original -> renumbered, we need the other direction. But only if
+    # the masks really are in the renumbered labels. pciSeq renumbers only when the
+    # labels are not sequential, and then the n cells become exactly 1..n. n labels
+    # that are not 1..n must have one above n, so the biggest label settles it: up to
+    # n means renumbered, above n means these are the originals already.
+    inverse = None
+    if label_map:
+        n_cells = sum(1 for original in label_map if original != 0)
+        biggest = max((int(m.data.max()) for m in coo if m.nnz), default=0)
+        if biggest <= n_cells:
+            inverse = {v: k for k, v in label_map.items()}
+        else:
+            logger.info('the masks already hold the original labels, not mapping them back')
 
     def plane(sparse_plane):
         arr = sparse_plane.toarray().astype(np.uint32)
@@ -257,9 +272,10 @@ def to_spatialdata(cellData: pd.DataFrame,
     Args:
         cellData: cell typing results, one row per cell, original labels.
         geneData: spot results, one row per spot, original labels.
-        coo: the segmentation, one sparse plane per z, with the labels as pciSeq
-            renumbered them. fit() renumbers the list it is given in place, so pass
-            that same list, not a fresh copy of the original segmentation.
+        coo: the segmentation, one sparse plane per z. Either the list fit()
+            renumbered in place or a copy with the original labels; which of the
+            two it is gets detected, and the store always ends up with the
+            original labels.
         varBayes: the fitted model, read for the arrays the two frames do not
             carry (class posterior, spot probabilities, gene panel, reference).
         cfg: the resolved config. voxel_size and label_map are used here.
