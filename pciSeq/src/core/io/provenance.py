@@ -1,4 +1,4 @@
-"""What produced a run: version, branch, commit, and the pickled model."""
+"""What produced a run: the stamp that goes on it, and the pickled model."""
 
 import os
 import pickle
@@ -11,47 +11,47 @@ logger = logging.getLogger(__name__)
 
 
 
-def collect_metadata() -> Dict:
-    """Collect metadata about the environment and analysis run."""
-    import platform
-    import subprocess
+def run_metadata() -> Dict:
+    """The stamp that goes on every run, so a result can be traced back to the code
+    and the environment that made it.
+
+    VarBayes calls this once, when the model is built, and keeps the result as
+    `metadata`. The pickle, the diagnostics db and the SpatialData store all carry
+    that same dict, so there is one stamp and one place to add a field.
+
+    Everything in it is a string, or a dict of strings, because the db and the store
+    both write it out as json. There is no hostname or user name in here on purpose:
+    these files get passed on to other people, and the machine a run happened on says
+    nothing about how to reproduce it.
+    """
     import sys
-    from datetime import datetime
+    import platform
+    import datetime
+    from importlib import metadata as importlib_metadata
 
-    # Git commit of the pciSeq code
-    git_commit = None
-    try:
-        pciSeq_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
-            os.path.abspath(__file__)
-        ))))
-        git_commit = subprocess.check_output(
-            ['git', 'rev-parse', '--short', 'HEAD'],
-            cwd=pciSeq_dir,
-            stderr=subprocess.DEVNULL,
-            text=True
-        ).strip()
-    except Exception:
-        pass
+    # imported here and not at the top: pciSeq/__init__.py is still half way through
+    # its own imports when this module gets loaded
+    from pciSeq import __version__, __branch__, __commit__, __build_date__
 
-    # Key package versions
-    pkg_versions = {}
-    for pkg in ['numpy', 'scipy', 'pandas', 'pciSeq']:
+    # the libraries the numbers depend on. numba is in because spots_to_cell runs
+    # through a numba kernel.
+    package_versions = {}
+    for pkg in ('numpy', 'scipy', 'pandas', 'numba'):
         try:
-            mod = __import__(pkg)
-            pkg_versions[pkg] = getattr(mod, '__version__', 'unknown')
-        except ImportError:
-            pass
+            package_versions[pkg] = importlib_metadata.version(pkg)
+        except importlib_metadata.PackageNotFoundError:
+            package_versions[pkg] = 'unknown'
 
-    metadata = {
-        'date': datetime.now().isoformat(),
-        'git_commit': git_commit,
-        'hostname': platform.node(),
-        'os': f'{platform.system()} {platform.release()}',
+    return {
+        'version': __version__,
+        'branch': __branch__,
+        'commit': __commit__,
+        'build_date': __build_date__,
+        'created_at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
         'python_version': sys.version.split()[0],
-        'package_versions': pkg_versions,
+        'os': f'{platform.system()} {platform.release()}',
+        'package_versions': package_versions,
     }
-    return metadata
-
 
 
 def serialise(varBayes: Any, debug_dir: str) -> None:
@@ -61,8 +61,6 @@ def serialise(varBayes: Any, debug_dir: str) -> None:
         varBayes: Object to serialize
         debug_dir: Directory to save pickle file
     """
-    varBayes._metadata = collect_metadata()
-
     if not os.path.exists(debug_dir):
         os.makedirs(debug_dir)
     pickle_dst = os.path.join(debug_dir, 'pciSeq.pickle')

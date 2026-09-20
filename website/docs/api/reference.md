@@ -423,7 +423,7 @@ The variational Bayes model: assigns spots to cells and cells to classes.
 - <a id="config"></a>**`config`** *(dict)*
   The configuration of the run: the defaults, the `opts` overrides, and the runtime keys `is3D`, `img_dim` and `label_map`.
 - <a id="metadata"></a>**`metadata`** *(dict)*
-  Provenance recorded when the model is built: `version`, `branch`, `commit`, `build_date` and `created_at`.
+  Provenance recorded when the model is built: `version`, `branch`, `commit`, `build_date`, `created_at`, `python_version`, `os` and `package_versions`.
 - <a id="has-converged"></a>**`has_converged`** *(bool)*
   True when the loop stopped because the change fell below `CellCallTolerance`, False when it ran to `max_iter`.
 - <a id="iter-delta"></a>**`iter_delta`** *(list of float)*

@@ -13,7 +13,7 @@ modules underneath get shuffled around later.
 from .export import write_data
 from .paths import get_out_dir, get_pciSeq_install_dir, log_file
 from .remote import download_url_to_file, load_from_url
-from .provenance import collect_metadata, serialise
+from .provenance import run_metadata, serialise
 from .tsv_export import write_tsv, read_tsv
 from .arrow_export import write_arrow, geneData_to_arrow, cellData_to_arrow, boundaries_to_arrow
 from .diagnostics_db import export_diagnostics
@@ -22,7 +22,7 @@ __all__ = [
     'write_data',
     'get_out_dir', 'get_pciSeq_install_dir', 'log_file',
     'download_url_to_file', 'load_from_url',
-    'collect_metadata', 'serialise',
+    'run_metadata', 'serialise',
     'write_tsv', 'read_tsv',
     'write_arrow', 'geneData_to_arrow', 'cellData_to_arrow', 'boundaries_to_arrow',
     'export_diagnostics',

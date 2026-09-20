@@ -39,16 +39,23 @@ commit matches, or when the changes in between are known. Every run records it, 
 
 ## Run provenance
 
-Every run records the code that produced it, so a result can be traced back to it:
+Every run records the code and the environment that produced it, so a result can be
+traced back to them:
 
 ```python
 varBayes.metadata
-# {'version':    '0.0.66.dev0',
-#  'branch':     'dev_3d',
-#  'commit':     '6db6dc8',
-#  'build_date': 'unknown',
-#  'created_at': '2026-09-04T12:47:51Z'}
+# {'version':          '0.0.66.dev0',
+#  'branch':           'dev_3d',
+#  'commit':           '6db6dc8',
+#  'build_date':       'unknown',
+#  'created_at':       '2026-09-04T12:47:51Z',
+#  'python_version':   '3.10.18',
+#  'os':               'Linux 6.8.0-138-generic',
+#  'package_versions': {'numpy': '2.2.6', 'scipy': '1.15.3',
+#                       'pandas': '2.3.3', 'numba': '0.62.1'}}
 ```
+
+No hostname or user name is recorded.
 
 `varBayes` is the fitted model returned by [`cell_type`](api/reference.md#cell-type), or
 loaded from the pickle when `save_data` is on. The same dictionary is written into the saved

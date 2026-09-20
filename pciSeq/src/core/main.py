@@ -52,7 +52,6 @@ Dependencies:
 - scipy: For statistical operations
 - numpy_groupies: For group operations
 """
-import datetime
 import logging
 from typing import Dict, List, Optional, Tuple, Union, Any
 
@@ -75,7 +74,7 @@ from .datatypes.cellClass import CellClass
 from .summary import collect_data
 from .utils.elbo import calc_elbo
 from .utils import convergence, likelihood, gaussian_model, inspection, visualisation
-from .io import read_tsv
+from .io import read_tsv, run_metadata
 import joblib
 
 # Configure logging
@@ -113,7 +112,7 @@ class VarBayes:
         runtime keys `is3D`, `img_dim` and `label_map`.
     metadata : dict
         Provenance recorded when the model is built: `version`, `branch`, `commit`,
-        `build_date` and `created_at`.
+        `build_date`, `created_at`, `python_version`, `os` and `package_versions`.
     has_converged : bool
         True when the loop stopped because the change fell below
         `CellCallTolerance`, False when it ran to `max_iter`.
@@ -148,16 +147,9 @@ class VarBayes:
         # self._cell_explorer: Optional[CellExplorer] = None
 
 
-        # Stamp this run so a pickled VarBayes can be traced back to the
-        # exact pciSeq version that produced it.
-        from pciSeq import __version__, __branch__, __commit__, __build_date__
-        self.metadata = {
-            'version': __version__,
-            'branch': __branch__,
-            'commit': __commit__,
-            'build_date': __build_date__,
-            'created_at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
-        }
+        # Stamp this run so a result can be traced back to the code and the
+        # environment that made it. Built in io/provenance.py, the one place for it.
+        self.metadata = run_metadata()
 
     @staticmethod
     def _validate_config(config: Dict[str, Any]) -> None:
