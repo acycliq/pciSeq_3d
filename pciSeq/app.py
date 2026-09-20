@@ -29,11 +29,11 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     coo : list of scipy.sparse.coo_matrix
         The label image, one sparse matrix per z-plane. A list with more than one
-        plane is treated as 3D. A single coo_matrix, or a 3D numpy array of shape
-        (planes, height, width), is also accepted. A 2D image goes in as a
-        coo_matrix, not as a 2D array. The matrices are modified in place: labels
-        that are not sequential are renumbered, and with `remove_flat_cells` the
-        cells on a single plane are zeroed. Pass a copy to keep the original.
+        plane is treated as 3D. A single coo_matrix, or a numpy array of shape
+        (height, width) or (planes, height, width), is also accepted. The matrices
+        are modified in place: labels that are not sequential are renumbered, and
+        with `remove_flat_cells` the cells on a single plane are zeroed. Pass a
+        copy to keep the original.
 
     scRNAseq : pd.DataFrame
         Cell type definitions: mean expression per gene and cell type, genes as
@@ -206,7 +206,16 @@ def parse_args(*args, **kwargs) -> Tuple[pd.DataFrame, Any, Optional[pd.DataFram
     # Get coo from kwargs if present, otherwise from args
     coo = kwargs['coo'] if 'coo' in kwargs else args[1]
     if isinstance(coo, np.ndarray):
-        coo = [coo_matrix(d) for d in coo]
+        # here coo is the dense label image. A 2D one is a single plane. Looping over
+        # it would hand back one "plane" per pixel row, which is what used to happen
+        # and nothing complained about it.
+        if coo.ndim == 2:
+            coo = [coo_matrix(coo)]
+        elif coo.ndim == 3:
+            coo = [coo_matrix(d) for d in coo]
+        else:
+            raise ValueError(f"coo as a numpy array has to be 2D (height, width) or "
+                             f"3D (planes, height, width), got {coo.ndim}D")
 
     # Optional arguments
     scRNAseq = kwargs.get('scRNAseq', None)
