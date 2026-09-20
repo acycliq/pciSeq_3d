@@ -698,9 +698,9 @@ class VarBayes:
 
         # Calcs the sum in the Gamma distribution (equation 5). The zero class
         # is excluded from the sum, hence the arrays in the einsum below stop at :-1
-        # Note. We should exclude the "cell" that is meant to keep the
-        # misreads, ie exclude the background, hence the relevant indexing below
-        # starts at 1
+        # Note. Row 0 is the placeholder for the background, not a cell, and strictly it
+        # should not be in the sum. It is left in. geneCount_upd zeroes its counts, so the
+        # model calls it Zero almost entirely and what it adds here is next to nothing.
         class_total_counts = oe.contract('ck, gk, c, cgk, ck -> g',
                                          classProb[:, :-1],
                                          mu.values[:, :-1],
