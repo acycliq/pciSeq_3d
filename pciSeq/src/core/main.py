@@ -943,8 +943,5 @@ class VarBayes:
         """
         return read_tsv(filepath)
 
-    def cell_typing_breakdown(self, label, weights=None, show_plot=True):
-        return inspection.cell_typing_breakdown(self, label, weights, show_plot)
-
     # def trellis_plot(self, label, flatfile_folder):
     #     return visualisation.trellis_plot(self, label, flatfile_folder)
