@@ -472,7 +472,6 @@ class VarBayes:
         self.spots._post_rate = beta
         self.spots._log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
         self.spots._gamma_bar = self.spots.gammaExpectation(rho, beta)
-        self.spots.my_gamma_bar = self.spots._gamma_bar
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self) -> None:
