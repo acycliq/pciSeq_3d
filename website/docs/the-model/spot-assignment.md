@@ -159,8 +159,8 @@ background and its spots are more readily called misreads, see
 
 ## The efficiency term and the signal-to-noise ratio
 
-The subject of [errata item 1](errata.md): although the efficiency
-term $\overline{\log\eta}_{g_s}$ is the same for every cell $c > 0$, it does **not** cancel
+Although the efficiency term $\overline{\log\eta}_{g_s}$ is the same for every cell
+$c > 0$, it does **not** cancel
 during normalisation, because the assignment is also compared against the background
 $\rho_{g_s}$, which carries no efficiency term. A low-efficiency gene therefore has its
 signal attenuated relative to the background, making its spots more likely to be deemed

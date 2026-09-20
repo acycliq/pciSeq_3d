@@ -131,6 +131,15 @@
   max-width: none;
 }
 
+/* Display equations scroll sideways when they are too wide, and that is wanted. But
+   overflow-x: auto drags overflow-y to auto along with it, so an equation that comes out
+   a pixel or two taller than its box (a cases brace, a \tag number) grows a vertical
+   scrollbar of its own. Hide that one, and pad the box a little so nothing gets clipped. */
+.vp-doc mjx-container[display='true'] {
+  overflow-y: hidden;
+  padding: 0.5em 0;
+}
+
 /* Centre the hand-made diagrams and give them room. The inlined SVGs use
    currentColor for their ink, so they follow the page text colour and read in
    both light and dark mode without any backdrop. */

@@ -53,9 +53,7 @@ The Dirac makes the expectation exact, $\mathbb{E}[\log\theta_c] = \log\mathbb{E
 so $\theta_c$ is a constant during the update for $\gamma_{g,c}$ and the Poisson-Gamma
 conjugacy is preserved. Optimising the point estimate against the log-joint *including* the
 prior term makes this a **Maximum A Posteriori (MAP)** step: the prior regularises the
-estimate, shrinking it toward the baseline $1.0$ when the data for a cell are sparse. The
-status of mixing a Dirac factor with full variational factors is set out in the
-[self-consistency appendix](appendix-self-consistency.md).
+estimate, shrinking it toward the baseline $1.0$ when the data for a cell are sparse.
 
 #### The objective
 
@@ -351,9 +349,7 @@ excludes them. $\eta_g'$ is then reads observed in real-class cells (ie any clas
 
 The sum runs over all cells and candidate classes, weighted by the soft class assignments
 $\bar\zeta_{c,k}$, since $\eta_g'$ is shared and aggregates evidence from every cell. A value
-$\eta_g' > 1$ means gene $g$ is detected better than the baseline, $\eta_g' < 1$ worse. The
-equivalent absolute form $\eta_g = \eta_0\,\eta_g'$, and the prior/posterior summary, are in
-[errata item 5](errata.md).
+$\eta_g' > 1$ means gene $g$ is detected better than the baseline, $\eta_g' < 1$ worse.
 
 #### The efficiency term against the background
 
@@ -366,4 +362,4 @@ small $\eta_g$ has its signal attenuated against the background and its spots ar
 readily called misreads.
 
 The original paper dropped this term, which inflated the signal-to-noise ratio for poorly
-detected genes; the correction is [errata item 1](errata.md).
+detected genes.

@@ -5,7 +5,7 @@ The [how it works](../how-it-works/overview.md) section explains the algorithm o
 at a time, in words. This section states the same model formally and derives every update
 equation. It follows *The extended pciSeq model* (v0.3), which is the version the
 `dev_3d` code implements. The model builds on the original construction of Qian et al.
-(2020); the corrections applied to that paper are listed in the [errata](errata.md).
+(2020).
 
 ## Notation
 
@@ -67,13 +67,80 @@ $$
 & + \sum_{c,k} \zeta_{c,k}\, \log \pi_k
    + \beta \sum_{c,k} \sum_{c' \in \mathcal{N}_c} \mathbf{1}(\zeta_{c,k} = \zeta_{c',k} = 1) .
 \end{aligned}
+\tag{1}
 $$
 
 The final term is the MRF: since $\zeta_{c,k}\in\{0,1\}$, the indicator
 $\mathbf{1}(\zeta_{c,k}=\zeta_{c',k}=1)$ is simply the product $\zeta_{c,k}\zeta_{c',k}$,
-and the product form is used in all derivations. The background (misread) density is also
-promoted from a single global constant to a per-gene quantity $\rho_g$, derived
-[on its own page](misread-density.md).
+and the product form is used in all derivations.
+
+### The background
+
+So far every spot is taken to come from a cell: the sums over $c$ run over the real cells,
+$c = 1, \dots, C$. Some spots come from no cell. They are misreads, and the model gives them
+a component of their own, the background, $c = 0$.
+
+The background is not a cell. It has no class, no position and no scale factors, so $\zeta$,
+$\mu$, $D_c$, $\gamma$, $\theta$ and $\eta$ do not apply to it. Misreads of gene $g$ fall
+over the whole region at a constant density, $\rho_g$. In the original model that density is
+one fixed number. Here it is a random variable, one per gene, with a prior $p(\rho_g)$, and
+it is estimated along with everything else.
+
+With the background included, the intensity has two branches:
+
+$$
+\lambda_{g,c}(x) =
+\begin{cases}
+\theta_c\, \mu_{g,k(c)}\, e^{-D_c(x)}\, \gamma_{g,c}\, \eta_g , & c = 1, \dots, C \quad \text{(a cell)} \\[4pt]
+\rho_g , & c = 0 \quad \text{(the background)}
+\end{cases}
+$$
+
+Both are Poisson processes, so the general form of the log-likelihood,
+$-\int \lambda(x)\,dx + \sum_s \log \lambda(x_s)$, applies to both. The log-joint of the top
+branch is given by equation (1). For the bottom branch, write $\mathcal{X}_{g,0}$ for the
+spots of gene $g$ assigned to the background. Conditional on $\rho_g$, their log-likelihood
+is
+
+$$
+\log p(\mathcal{X}_{g,0} \mid \rho_g)
+= - \int_{\text{ROI}} \rho_g\, dx + \sum_{s:\, g_s = g} z_{s,0}\, \log \rho_g
+= - \rho_g\, A_{\text{total}} + \sum_{s:\, g_s = g} z_{s,0}\, \log \rho_g ,
+$$
+
+where $A_{\text{total}} = \int_{\text{ROI}} dx$ is the volume of the region and
+$z_{s,0} = 1$ marks a spot assigned to the background. The first part is the cost of the
+misreads the density predicts over the region; the second is the log-intensity of each
+spot put down to the background.
+
+Adding the prior $\log p(\rho_g)$ and summing over genes turns this into a joint. With
+$\mathcal{X}_0$ for all the background spots, the log-joint of the bottom branch is
+
+$$
+\log p(\mathcal{X}_0, \rho)
+= \sum_g \Big[ - \rho_g\, A_{\text{total}} + \sum_{s:\, g_s = g} z_{s,0}\, \log \rho_g
++ \log p(\rho_g) \Big] .
+\tag{2}
+$$
+
+The log-joint of the full model is the sum of equations (1) and (2):
+
+$$
+\begin{aligned}
+\log p(x, g, z, \zeta, \gamma, \eta, \theta, \rho) =
+& - \sum_{g,c,k} \zeta_{c,k}\, \theta_c\, \mu_{g,k}\, A_c\, \gamma_{g,c}\, \eta_g \\
+& + \sum_{s,c,k} z_{s,c}\, \zeta_{c,k}\,
+   \log\!\big[\, \theta_c\, \mu_{g_s,k}\, e^{-D_c(x_s)}\, \gamma_{g_s,c}\, \eta_{g_s} \big] \\
+& + \sum_{g,c} \log p(\gamma_{g,c}) + \sum_g \log p(\eta_g) + \sum_c \log p(\theta_c) \\
+& + \sum_g \Big[ - \rho_g\, A_{\text{total}} + \sum_{s:\, g_s = g} z_{s,0}\, \log \rho_g
+   + \log p(\rho_g) \Big] \\
+& + \sum_{c,k} \zeta_{c,k}\, \log \pi_k
+   + \beta \sum_{c,k} \sum_{c' \in \mathcal{N}_c} \mathbf{1}(\zeta_{c,k} = \zeta_{c',k} = 1) .
+\end{aligned}
+\tag{3}
+$$
+
+The posterior of $\rho_g$ is derived [on its own page](misread-density.md).
 
 ## The variational approximation
 
@@ -83,15 +150,15 @@ divergence, fitted by **coordinate ascent** (CAVI), one factor at a time. $\gamm
 on $\theta$ and on the cell's class, so the three form one structured factor:
 
 $$
-p(z, \zeta, \gamma, \eta, \theta \mid x, g)
-\approx q(\gamma \mid \zeta, \theta)\, q(\theta \mid \zeta)\, q(\zeta)\, q(z)\, q(\eta) .
+p(z, \zeta, \gamma, \eta, \theta, \rho \mid x, g)
+\approx q(\gamma \mid \zeta, \theta)\, q(\theta \mid \zeta)\, q(\zeta)\, q(z)\, q(\eta)\, q(\rho) .
 $$
 
 Coordinate ascent updates each factor to its optimal form, which is always the **expected
 log-joint over all the other factors**:
 
 $$
-\log q^*(x_j) = \mathbb{E}_{q(\text{rest})}\big[\log p(x, g, z, \zeta, \gamma, \eta, \theta)\big] + \text{const} .
+\log q^*(x_j) = \mathbb{E}_{q(\text{rest})}\big[\log p(x, g, z, \zeta, \gamma, \eta, \theta, \rho)\big] + \text{const} .
 $$
 
 Each derivation that follows applies this equation: the terms of the
@@ -104,9 +171,7 @@ The per-cell scale $\theta_c$ enters the intensity multiplicatively with $\gamma
 With both as full random variables the marginalisation has no closed form and the Negative
 Binomial likelihood of the cell typing is lost. $q(\theta_c)$ is therefore restricted to a
 **point estimate** (a Dirac delta), which keeps $\theta_c$ constant during the update for
-$\gamma_{g,c}$. A Dirac factor among full variational factors makes the scheme
-**Variational EM** rather than pure variational Bayes; the
-[self-consistency appendix](appendix-self-consistency.md) records why this is sound.
+$\gamma_{g,c}$.
 
 ## What these pages derive
 
@@ -117,10 +182,6 @@ $\gamma_{g,c}$. A Dirac factor among full variational factors makes the scheme
   the class prior, and the MRF spatial term.
 - **[Spot-to-cell assignment $q(z)$](spot-assignment.md)** - which cell (or the background)
   each spot is assigned to.
-
-The [errata](errata.md) lists the corrections to Qian et al. (2020), and the
-[self-consistency appendix](appendix-self-consistency.md) records why the Dirac
-construction is sound.
 
 ## Not yet documented
 

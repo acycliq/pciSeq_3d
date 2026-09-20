@@ -20,9 +20,10 @@ export default defineConfig({
   ignoreDeadLinks: true,
 
   // generated table snippets that pages pull in with @include, not pages themselves.
-  // errata and the self-consistency appendix are hidden for a few days, not deleted,
-  // put them back here and in the sidebar below
-  srcExclude: ['**/_tables/**', 'the-model/errata.md', 'the-model/appendix-self-consistency.md'],
+  // the self-consistency appendix is hidden, not deleted: it is left out of the build here
+  // and out of the sidebar below. The errata is built but not in the sidebar and nothing
+  // links to it, so it can only be reached with its address, the-model/errata.html
+  srcExclude: ['**/_tables/**', 'the-model/appendix-self-consistency.md'],
 
   head: [
     // start on the light theme even when the OS is dark. VitePress reads this key and
