@@ -68,7 +68,9 @@ def _check_libvips():
     try:
         import pyvips
         return True
-    except OSError:
+    except (ImportError, OSError):
+        # ImportError: pyvips is not installed at all. OSError: pyvips is there but
+        # the libvips library it wraps is not.
         return False
 
 
@@ -78,13 +80,15 @@ from pciSeq.src.tiling.read_tiles import read_tiles
 if _check_libvips():
     from pciSeq.src.tiling.stage_image import tile_maker, stage_image
 else:
-    _NO_VIPS = ('>>>> %s() needs libvips, which normally arrives with the '
+    _NO_VIPS = ('%s() needs libvips, which normally arrives with the '
                 'pyvips[binary] dependency. Reinstalling pciSeq should fix it. '
                 'If your platform has no pyvips wheel, see '
-                'https://www.libvips.org/install.html <<<<')
+                'https://www.libvips.org/install.html')
 
+    # raise, do not just warn. A warning and a None back let a script carry on with
+    # no tiles made and nothing to say why.
     def tile_maker(*args, **kwargs):
-        logger.warning(_NO_VIPS, 'tile_maker')
+        raise ImportError(_NO_VIPS % 'tile_maker')
 
     def stage_image(*args, **kwargs):
-        logger.warning(_NO_VIPS, 'stage_image')
+        raise ImportError(_NO_VIPS % 'stage_image')

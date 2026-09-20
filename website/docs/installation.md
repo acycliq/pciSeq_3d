@@ -17,8 +17,8 @@ pip install -e .
 
 Python 3.10 or later. The dependencies are pulled in by pip. The image tiling functions need
 libvips, which arrives with the `pyvips[binary]` wheel; on a platform with no such wheel the
-rest of the package still imports, and `tile_maker` and `stage_image` do nothing except log
-a warning pointing at the libvips install page.
+rest of the package still imports and only `tile_maker` and `stage_image` raise, with a
+message pointing at the libvips install page. `read_tiles` does not need libvips.
 
 ## Versions
 
