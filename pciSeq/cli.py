@@ -184,19 +184,37 @@ def build_run(cfg: Dict[str, Any], overrides=None):
     return spots, coo, scrnaseq, opts
 
 
+def dry_run(args) -> int:
+    """Print the settings a run would use, and stop.
+
+    The opts go through the same Config that fit builds: the defaults, then the file's
+    opts and the --set values on top, then the checks. So an option name with a typo in
+    it, or a value of the wrong type, fails here in a second instead of after the inputs
+    have loaded. No data is read.
+
+    Two things are done differently from a real run, both on purpose. The logger is not
+    set up, it writes to stdout and the json would come out with log lines mixed into
+    it. And the Config is told not to open the log file, which is opened in write mode
+    and would wipe the log of a run that is going on at the same time.
+    """
+    from pciSeq.src.validation.config import Config
+
+    cfg = load_config(args.config)
+    opts = apply_overrides(cfg.get('opts', {}), args.set)
+    resolved = Config(opts, log_to_file=False)
+    print(json.dumps(dict(resolved), indent=2, default=str))
+    return 0
+
+
 def cmd_run(args) -> int:
     from pciSeq.app import fit
     from pciSeq.src.core.logger import setup_logger
 
+    if args.dry_run:
+        return dry_run(args)
+
     setup_logger()
     cfg = load_config(args.config)
-
-    if args.dry_run:
-        # resolve the opts without touching the data, so a typo in a sweep
-        # shows up in a second rather than after the inputs have loaded
-        opts = apply_overrides(cfg.get('opts', {}), args.set)
-        print(json.dumps(opts, indent=2, default=str))
-        return 0
 
     spots, coo, scrnaseq, opts = build_run(cfg, args.set)
     logger.info('settings: %s', json.dumps(opts, default=str))

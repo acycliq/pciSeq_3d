@@ -172,7 +172,57 @@ class TestCommandLine:
 
         assert main(['run', str(tmp_path / 'c.yaml'), '--dry-run',
                      '--set', 'rTheta=9']) == 0
-        assert json.loads(capsys.readouterr().out) == {'rTheta': 9}
+        shown = json.loads(capsys.readouterr().out)
+        assert shown['rTheta'] == 9
+
+    def test_dry_run_shows_what_the_run_would_use_defaults_and_all(self, tmp_path, capsys):
+        # it goes through the same Config that fit builds, so the settings the file
+        # says nothing about are there too, at their defaults
+        from pciSeq import config
+        (tmp_path / 'c.yaml').write_text(
+            'spots: {path: /nope/spots.csv}\n'
+            'masks: {path: /nope/seg.npy}\n'
+            'opts: {rTheta: 2, mrf_beta: 1.5}\n')
+
+        assert main(['run', str(tmp_path / 'c.yaml'), '--dry-run',
+                     '--set', 'rTheta=9']) == 0
+        shown = json.loads(capsys.readouterr().out)
+
+        assert set(shown) == set(config.DEFAULT)
+        assert shown['rTheta'] == 9            # --set beats the file
+        assert shown['mrf_beta'] == 1.5        # the file beats the default
+        assert shown['Inefficiency'] == config.DEFAULT['Inefficiency']
+
+    def test_dry_run_catches_a_mistyped_option_name(self, tmp_path, capsys):
+        (tmp_path / 'c.yaml').write_text(
+            'spots: {path: /nope/spots.csv}\n'
+            'masks: {path: /nope/seg.npy}\n')
+        assert main(['run', str(tmp_path / 'c.yaml'), '--dry-run',
+                     '--set', 'rThta=5']) == 1
+        assert capsys.readouterr().out == ''
+
+    def test_dry_run_catches_a_value_of_the_wrong_type(self, tmp_path):
+        (tmp_path / 'c.yaml').write_text(
+            'spots: {path: /nope/spots.csv}\n'
+            'masks: {path: /nope/seg.npy}\n')
+        assert main(['run', str(tmp_path / 'c.yaml'), '--dry-run',
+                     '--set', 'max_iter="lots"']) == 1
+
+    def test_dry_run_leaves_the_log_file_alone(self, tmp_path, monkeypatch):
+        # the log is opened in write mode, so a dry run that opened it would wipe the
+        # log of a run going on at the same time
+        import logging
+        opened = []
+        monkeypatch.setattr(logging, 'FileHandler',
+                            lambda *a, **k: opened.append(a) or (_ for _ in ()).throw(AssertionError('opened a log file')))
+        (tmp_path / 'c.yaml').write_text(
+            'spots: {path: /nope/spots.csv}\n'
+            'masks: {path: /nope/seg.npy}\n'
+            f'opts: {{output_path: {str(tmp_path / "out")!r}}}\n')
+
+        assert main(['run', str(tmp_path / 'c.yaml'), '--dry-run']) == 0
+        assert opened == []
+        assert not (tmp_path / 'out').exists()
 
     def test_a_bad_config_exits_nonzero_without_a_traceback(self, tmp_path):
         (tmp_path / 'c.yaml').write_text('opts: {rTheta: 2}\n')   # no spots

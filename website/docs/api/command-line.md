@@ -118,9 +118,10 @@ can take over 8 GB per run, so sweeps are best run sequentially.
 
 ## Validating a config
 
-`--dry-run` prints the settings that would be used and stops, without reading
-any data. It does not check the key names; an unknown key is only caught once
-the run starts.
+`--dry-run` prints the settings that would be used, as JSON, and stops without reading
+any data. The `opts` are resolved as in [`fit`](./reference#fit): the defaults, then the
+file's `opts`, then the `--set` values. An unknown option name or a value of the wrong
+type is an error, so a typo is caught before any data is loaded.
 
 ```bash
 pciseq run analysis.yaml --set rTheta=5 --dry-run

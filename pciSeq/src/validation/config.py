@@ -56,22 +56,27 @@ class Config(dict):
         >>> cfg.set_runtime_attrs(coo_matrices)
     """
 
-    def __init__(self, user_opts: Optional[Dict[str, Any]] = None):
+    def __init__(self, user_opts: Optional[Dict[str, Any]] = None, log_to_file: bool = True):
         """
         Create config from defaults + user overrides.
 
         Args:
             user_opts: Optional dictionary of user configuration overrides.
-                      Unknown keys will generate warnings but won't fail.
+            log_to_file: Open the run's log file. True for a real run. The command
+                      line's --dry-run passes False: the log is opened in write mode,
+                      so resolving a config just to look at it would wipe the log of
+                      a run that is going on at the same time.
 
         Raises:
+            KeyError: If user_opts has a key that is not a config option
             TypeError: If any config parameter has incorrect type
         """
         # Start with defaults
         super().__init__(config.DEFAULT.copy())
 
         # Setup logging early so warnings during merge are captured
-        self._setup_logging()
+        if log_to_file:
+            self._setup_logging()
 
         # Merge user options
         if user_opts:
