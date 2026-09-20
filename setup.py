@@ -138,6 +138,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/acycliq/pciSeq_3d",
     packages=find_packages(),
+    python_requires='>=3.10',
     install_requires=install_deps,
     include_package_data=True,
     package_data={

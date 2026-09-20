@@ -98,7 +98,7 @@ Perform cell typing using Variational Bayes algorithm.
 `pciSeq.src.preprocess.main.stage_data`
 
 ```python
-stage_data(spots: pd.DataFrame, coo: List[coo_matrix], cfg: Dict) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, Optional[Dict]]
+stage_data(spots: pd.DataFrame, coo: List[coo_matrix], cfg: Dict) -> Tuple[pd.DataFrame, Future[Tuple[pd.DataFrame, List[pd.DataFrame]]], pd.DataFrame, Optional[Dict]]
 ```
 
 Process spots and label images for cell typing analysis.

@@ -4,7 +4,7 @@ Orchestrates the complete preprocessing pipeline.
 """
 
 from typing import List, Tuple, Dict, Optional
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 import numpy as np
 import pandas as pd
 from scipy.sparse import coo_matrix
@@ -57,7 +57,10 @@ def _extract_all_borders(coo: List[coo_matrix]) -> Tuple[pd.DataFrame, List[pd.D
 
 def stage_data(spots: pd.DataFrame,
                coo: List[coo_matrix],
-               cfg: Dict) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, Optional[Dict]]:
+               cfg: Dict) -> Tuple[pd.DataFrame,
+                                   Future[Tuple[pd.DataFrame, List[pd.DataFrame]]],
+                                   pd.DataFrame,
+                                   Optional[Dict]]:
     """
     Process spots and label images for cell typing analysis.
 

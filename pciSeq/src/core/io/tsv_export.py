@@ -1,6 +1,7 @@
 """The plain text output, one file per table."""
 
 import os
+import ast
 import logging
 import pandas as pd
 
@@ -47,5 +48,7 @@ def read_tsv(filepath):
     """
     data = pd.read_csv(filepath, sep='\t')
     data = data.map(
-        lambda x: eval(x) if isinstance(x, str) and x.strip().startswith(('{', '[', '(')) else x)
+        # literal_eval only builds plain lists, dicts and numbers. eval would run
+        # whatever is in the file, which is not something to do to a tsv somebody sent you
+        lambda x: ast.literal_eval(x) if isinstance(x, str) and x.strip().startswith(('{', '[', '(')) else x)
     return data
