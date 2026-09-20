@@ -30,15 +30,24 @@ def cells_summary(cells, spots, genes, is3D):
     name_list = [list(gene_names[i][d]) for (i, d) in enumerate(isCount_nonZero)]
     count_list = [((gene_count[i][d] * 1000).astype(np.int32) / 1000).tolist() for i, d in enumerate(isCount_nonZero)]
 
-    # get spot IDs grouped by cell and gene
-    spot_ids = get_contributing_spots_2(cells, spots, genes)
+    # get spot IDs grouped by cell and gene, keeping a spot only if its probability for
+    # that cell is above spot_tol.
+    #
+    # tol / 10 and not tol: tol is the cut-off for CellGeneCount, and a count just above
+    # it can be the sum of several spots that are each below it. Cutting the spots at tol
+    # too would show such a gene with a count and no spots. Not a guarantee, but any
+    # mismatch left can only be around tol.
+    spot_tol = tol / 10
+    spot_ids = get_contributing_spots_2(cells, spots, genes, spot_tol)
 
     # reorder each row so spots for genes with higher read counts come first
     spot_ids = np.take_along_axis(spot_ids, iCounts, axis=1)
 
-    # keep only spots with counts above the threshold, and convert each to a plain list
+    # keep only the genes with counts above the threshold, and convert each to a plain
+    # list. np.asarray first: a gene with no spot above spot_tol comes back as the empty
+    # python list that aggregate fills in, and that has no tolist of its own.
     spot_id_list = [
-        [d.tolist() for d in row[mask]]
+        [np.asarray(d).tolist() for d in row[mask]]
         for row, mask in zip(spot_ids, isCount_nonZero)
     ]
 
@@ -207,16 +216,25 @@ def get_contributing_spots(spot_ids, gene_id, parent_cell_id, parent_cell_prob, 
     return spot_lists
 
 
-def get_contributing_spots_2(cells, spots, genes):
+def get_contributing_spots_2(cells, spots, genes, tol=0.0):
+    """For every cell and gene, the ids of the spots of that gene that belong to the cell.
+
+    A spot counts as belonging to a cell when its probability for that cell is above
+    tol. With tol at 0 every candidate spot is listed, which is what this did before.
+    Returns an object array, cells by genes, with a list of spot ids in each entry.
+    """
     nN = spots.parent_cell_id.shape[1]
     cell_ids = spots.parent_cell_id.ravel()
     gene_ids = np.tile(spots.gene_id, (nN, 1)).T.ravel()
-    group_idx =  np.vstack((cell_ids, gene_ids))
 
     spot_ids = np.tile(spots.data.index.values, (nN, 1)).T
     spot_ids = spot_ids.ravel()
 
-    agg = npg.aggregate_np(group_idx, spot_ids, size=(cells.nC, genes.nG), func=list, fill_value=[], dtype=object)
+    # parent_cell_prob lines up with parent_cell_id, one column per candidate cell
+    keep = spots.parent_cell_prob.ravel() > tol
+    group_idx = np.vstack((cell_ids[keep], gene_ids[keep]))
+
+    agg = npg.aggregate_np(group_idx, spot_ids[keep], size=(cells.nC, genes.nG), func=list, fill_value=[], dtype=object)
 
     # # assert cells.geneCount.shape == agg.shape
     # out = []
