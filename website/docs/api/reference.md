@@ -50,8 +50,8 @@ keywords. Keyword form is preferred.
   If opts has a key that is not a config option.
 - **`TypeError`**
   If an input or an option value has the wrong type.
-- **`RuntimeError`**
-  If cell typing fails. Not converging is not a failure on its own: the loop runs to max_iter, logs the convergence status and returns its results.
+- **`Exception`**
+  Any error raised inside the model is logged and re-raised unchanged. Not converging is not an error: the loop runs to max_iter, logs the convergence status and returns its results.
 
 **Notes**
 
@@ -89,8 +89,8 @@ Perform cell typing using Variational Bayes algorithm.
 
 - **`ValueError`**
   If input data is invalid or incompatible
-- **`RuntimeError`**
-  If cell typing fails. Not converging is not a failure, it only logs a warning.
+- **`Exception`**
+  Any other error raised inside the model is logged and re-raised unchanged. Not converging is not an error, it only logs a warning.
 
 
 ## `stage_data`
