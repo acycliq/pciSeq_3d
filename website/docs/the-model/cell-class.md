@@ -104,8 +104,7 @@ S_{c,k} \;\le\; |\mathcal{N}_c| \qquad\text{and so}\qquad
 $$
 
 $\sigma_c$ is taken from the cell's own neighbour distances, so closeness is relative to
-the local cell density and one $\beta$ applies to dense and sparse regions alike. This is
-the `scaled_gaussian` weighting used by BANKSY.
+the local cell density and one $\beta$ applies to dense and sparse regions alike.
 
 **Example.** Cell $A$ has two neighbours, $B$ at distance 30 and $C$ at 60. The
 implementation uses `nNeighbors` of them; two are shown here:
