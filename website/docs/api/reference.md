@@ -28,8 +28,8 @@ keywords. Keyword form is preferred.
 
 - **`spots`** *(pd.DataFrame)*
   The spots to assign. Needs the columns 'gene_name', 'x' and 'y', plus 'z_plane' for 3D data. Optional 'score' and 'intensity' columns from the spot caller are carried through to geneData; they default to 1.0 and nothing in the model reads them.
-- **`coo`** *(list of scipy.sparse.coo_matrix)*
-  The label image, one sparse matrix per z-plane. A list with more than one plane is treated as 3D. A single coo_matrix, or a numpy array of shape (height, width) or (planes, height, width), is also accepted. The matrices are modified in place: labels that are not sequential are renumbered, and with `remove_flat_cells` the cells on a single plane are zeroed. Pass a copy to keep the original.
+- **`coo`** *(list of scipy.sparse.coo_matrix, or numpy array)*
+  The label image: each pixel holds the label of the cell it belongs to, and background pixels are labelled 0. Pass it as one sparse matrix per z-plane, or as a dense numpy array of shape (height, width) or (planes, height, width), which is converted to sparse internally. A single coo_matrix is also accepted. More than one plane is treated as 3D. Sparse matrices are modified in place: labels that are not sequential are renumbered, and with `remove_flat_cells` the cells on a single plane are zeroed; pass a copy to keep the original. A dense array is left untouched.
 - **`scRNAseq`** *(pd.DataFrame)*
   Cell type definitions: mean expression per gene and cell type, genes as rows and cell types as columns. Required.
 - **`opts`** *(dict, optional)*
