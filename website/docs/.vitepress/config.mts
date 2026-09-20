@@ -66,6 +66,7 @@ export default defineConfig({
           { text: 'Live viewer', link: '/api/live-viewer' },
           { text: 'Working with results', link: '/api/working-with-results' },
           { text: 'SpatialData store', link: '/api/spatialdata-store' },
+          { text: 'Working with the image', link: '/api/working-with-the-image' },
         ],
       },
       {
