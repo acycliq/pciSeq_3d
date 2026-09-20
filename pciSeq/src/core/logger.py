@@ -99,7 +99,7 @@ def setup_logger(level=None):
     console_handler.setFormatter(color_formatter)
 
     logging.basicConfig(
-        level=logging.INFO,
+        level=level,
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[
             console_handler
