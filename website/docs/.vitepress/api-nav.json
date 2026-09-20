@@ -53,8 +53,24 @@
     "collapsed": true,
     "items": [
       {
+        "text": "config",
+        "link": "/api/reference#config"
+      },
+      {
         "text": "metadata",
         "link": "/api/reference#metadata"
+      },
+      {
+        "text": "has_converged",
+        "link": "/api/reference#has-converged"
+      },
+      {
+        "text": "iter_delta",
+        "link": "/api/reference#iter-delta"
+      },
+      {
+        "text": "iter_num",
+        "link": "/api/reference#iter-num"
       },
       {
         "text": "check_spot",

@@ -66,6 +66,6 @@ output in two more places, so it survives without the live object:
   ```
 
 - the [SpatialData store](api/spatialdata-store.md#provenance), as `sdata.attrs['pciseq']`,
-  together with the full resolved run config.
+  together with the resolved run config, without `label_map`.
 
 `commit` is the one to quote when comparing two runs.

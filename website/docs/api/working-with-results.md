@@ -31,7 +31,7 @@ cell.
 | `Prob` | list of float | Probability of each class, lined up with `ClassName`. |
 | `Genenames` | list of str | Genes assigned to the cell, sorted by descending count. |
 | `CellGeneCount` | list of float | Expected count of each gene, lined up with `Genenames`: the sum of the assignment probabilities of the gene's spots, see [probabilistic output](../index.md#probabilistic-output). |
-| `spot_id` | list of list of int | The spot ids that make up each gene's count, lined up with `Genenames`. |
+| `spot_id` | list of list of int | The ids of the gene's spots that have this cell as a candidate, lined up with `Genenames`. Each contributes its assignment probability to the count, which can be close to zero. |
 | `gaussian_contour` | list | The 3-sigma ellipse outline of the cell, for drawing. |
 | `sphere_scale`, `sphere_rotation` | list | 3D ellipsoid drawing parameters. 3D data only. |
 
@@ -89,7 +89,7 @@ One row per spot, recording where each spot was assigned.
 | `neighbour_array` | list of int | The candidate parent cells, sorted by descending probability. The background cell `0` means a misread. |
 | `neighbour_prob` | list of float | Probability of each candidate, lined up with `neighbour_array`. |
 | `omp_score`, `omp_intensity` | float | Spot detection score and intensity. 1.0 when the input spots had no such columns. |
-| `is_hard_misread` | uint8 | 1 when the argmax over the candidate probabilities is the background (`neighbour` is 0). Only in the tsv and feather files. |
+| `is_hard_misread` | uint8 | 1 when the argmax over the candidate probabilities is the background (`neighbour` is 0). In the saved files only, not in the returned DataFrame. |
 
 ### geneData column relationships
 
@@ -106,6 +106,30 @@ row = geneData.iloc[0]
 dict(zip(row['neighbour_array'], row['neighbour_prob']))
 # {458: 0.88, 12: 0.09, 0: 0.03}   # cell 458 wins; 0 is the misread chance
 ```
+
+## Saved files
+
+With `save_data` on (the default), the same results are written under
+`<output_path>/pciSeq/data/`:
+
+```
+data/
+    tsv/
+        cellData.tsv
+        geneData.tsv
+        cellBoundaries.tsv
+    viewer_data/
+        arrow_spots/          one feather file per plane
+        arrow_cells/
+        arrow_boundaries/     one feather file per plane
+        diagnostics/diagnostics.db
+    spatialdata.zarr/
+    debug/pciSeq.pickle
+```
+
+`tsv/` holds the two DataFrames and the cell outlines. `viewer_data/` is what the viewer
+reads. `spatialdata.zarr` is described on the [SpatialData store](./spatialdata-store.md)
+page, and `debug/pciSeq.pickle` is the fitted model, see below.
 
 ## Inspecting the fitted model
 

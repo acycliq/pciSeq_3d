@@ -169,9 +169,9 @@ DEFAULT = {
     "nNeighbors": 9,
 
 
-    # Write the results to `<output_path>/pciSeq/data/`: cell and spot tables as
-    # tsv and feather files, a SpatialData zarr store, and the fitted model as a
-    # pickle.
+    # Write the results to `<output_path>/pciSeq/data/`: cell, spot and cell
+    # boundary tables as tsv and feather files, a SpatialData zarr store, the
+    # diagnostics database, and the fitted model as a pickle.
     "save_data": True,
 
 

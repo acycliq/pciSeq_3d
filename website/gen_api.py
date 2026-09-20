@@ -67,24 +67,9 @@ CLASS_MEMBERS = {
             "```\n"
             ":::"
         ),
-        # plain instance attributes worth surfacing. Attributes have no
-        # docstrings, so the description is written here by hand.
-        "attributes": [
-            {
-                "name": "metadata",
-                "type": "dict",
-                "desc": "Provenance recorded when the model is built, saved "
-                        "alongside the results so a run can be traced back to the "
-                        "code that produced it. Contains:",
-                "fields": [
-                    ("version", "the pciSeq version"),
-                    ("branch", "the git branch"),
-                    ("commit", "the git commit hash"),
-                    ("build_date", "the package build date"),
-                    ("created_at", "a UTC timestamp for when the run was created"),
-                ],
-            },
-        ],
+        # the attributes are not listed here. They come from the Attributes
+        # section of the class docstring, so help(VarBayes) and the website say
+        # the same thing. To document a new one, add it to the docstring.
         "methods": [
             "check_spot",
             "check_cell",
@@ -176,16 +161,22 @@ def parse_numpydoc(doc):
     return _dedent_body(summary), sections
 
 
-def render_param_section(body_lines):
+def render_param_section(body_lines, anchors=False):
     """Render a Parameters/Returns/... block as a markdown bullet list.
 
     Entries look like:
         name : type
             description, possibly several lines
+
+    With anchors=True every bullet gets an <a id=...> in front. Bullets get no
+    id of their own from VitePress, so the sidebar link needs one to land on.
     """
     body = _dedent_body(body_lines)
     out = []
     entry_desc = []
+
+    def anchor(name):
+        return f'<a id="{_slug(name)}"></a>' if anchors else ""
 
     def flush_desc():
         if entry_desc:
@@ -200,9 +191,9 @@ def render_param_section(body_lines):
             flush_desc()
             if " : " in line:
                 name, _, typ = line.partition(" : ")
-                out.append(f"- **`{name.strip()}`** *({typ.strip()})*")
+                out.append(f"- {anchor(name)}**`{name.strip()}`** *({typ.strip()})*")
             else:
-                out.append(f"- **`{line.strip()}`**")
+                out.append(f"- {anchor(line)}**`{line.strip()}`**")
         else:
             entry_desc.append(line)
     flush_desc()
@@ -315,7 +306,8 @@ def _render_docbody(summary, sections):
         parts.append(f"**{header}**")
         parts.append("")
         if header in PARAM_SECTIONS:
-            parts.append(render_param_section(body))
+            # only the attributes get linked from the sidebar, so only they need ids
+            parts.append(render_param_section(body, anchors=(header == "Attributes")))
         else:
             parts.append(_fix_math_delims(_dedent_body(body)))
         parts.append("")
@@ -349,19 +341,6 @@ def render_class(node, name, qualpath, source):
     # a short orientation note (e.g. how to get hold of a fitted instance)
     if spec and spec.get("note"):
         parts += [spec["note"], ""]
-
-    # hand-written attributes (plain instance attributes have no docstrings)
-    if spec and spec.get("attributes"):
-        parts += ["### Attributes", ""]
-        for attr in spec["attributes"]:
-            # bullets get no auto anchor, so add one for the sidebar link to hit
-            anchor = f'<a id="{_slug(attr["name"])}"></a>'
-            parts.append(f"- {anchor}**`{attr['name']}`** *({attr['type']})*")
-            parts.append(f"  {attr['desc']}")
-            # the dict keys (or similar) as a nested list, so they aren't crammed
-            for key, meaning in attr.get("fields", []):
-                parts.append(f"    - `{key}`: {meaning}")
-        parts.append("")
 
     # which methods to show: a hand-picked list for noisy classes, otherwise
     # every public method.
@@ -407,12 +386,32 @@ def _slug(name):
     return re.sub(r"-{2,}", "-", s).strip("-")
 
 
-def _class_subitems(spec):
+def _docstring_attributes(module_path, name):
+    """The entry names in the Attributes section of a class docstring, in order.
+
+    Grouped entries like 'nC, nS, nG, nK' are left out. They are on the page all
+    right, they are just too long to sit in the sidebar."""
+    node, source = _find_def(module_path, name)
+    _summary, sections = parse_numpydoc(_raw_docstring(node, source))
+    names = []
+    for header, body in sections:
+        if header != "Attributes":
+            continue
+        for line in _dedent_body(body).splitlines():
+            # same rule as render_param_section: an entry starts at column 0
+            if line and not line[0].isspace():
+                entry = line.partition(" : ")[0].strip()
+                if "," not in entry:
+                    names.append(entry)
+    return names
+
+
+def _class_subitems(spec, attributes):
     """Sidebar sub-items for a curated class: its attributes, then methods, then
     attribute-reached methods, each pointing at its anchor on the reference page."""
     items = []
-    for attr in spec.get("attributes", []):
-        items.append({"text": attr["name"], "link": f"/api/reference#{_slug(attr['name'])}"})
+    for attr in attributes:
+        items.append({"text": attr, "link": f"/api/reference#{_slug(attr)}"})
     for mname in spec.get("methods", []):
         items.append({"text": mname, "link": f"/api/reference#{_slug(mname)}"})
     for extra in spec.get("attr_methods", []):
@@ -426,12 +425,12 @@ def gen_nav():
     nested group of their attributes and methods. config.mts imports this json."""
     members = discover_public_api() + EXTRA_API
     nav = []
-    for _module_path, name in members:
+    for module_path, name in members:
         entry = {"text": name, "link": f"/api/reference#{_slug(name)}"}
         spec = CLASS_MEMBERS.get(name)
         if spec:
             entry["collapsed"] = True
-            entry["items"] = _class_subitems(spec)
+            entry["items"] = _class_subitems(spec, _docstring_attributes(module_path, name))
         nav.append(entry)
     return nav
 

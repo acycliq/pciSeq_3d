@@ -67,7 +67,7 @@ pciSeq needs `gene_name`, `x`, `y` and, for 3D, `z_plane`. `rename` maps the
 file's column names onto these.
 
 `filter` is applied on load, so the file on disk stays unfiltered and the
-threshold is recorded with the run.
+threshold stays in the config file.
 
 ### masks
 
@@ -92,7 +92,7 @@ Values are parsed as JSON:
 ```bash
 --set rTheta=5                       # number
 --set save_data=false                # boolean
---set voxel_size=[0.28,0.28,0.7]     # list
+--set 'voxel_size=[0.28,0.28,0.7]'   # list, quoted so the shell leaves the brackets alone
 --set output_path=default            # not valid JSON, so kept as a string
 ```
 

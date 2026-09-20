@@ -29,7 +29,11 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
 
     coo : list of scipy.sparse.coo_matrix
         The label image, one sparse matrix per z-plane. A list with more than one
-        plane is treated as 3D.
+        plane is treated as 3D. A single coo_matrix, or a 3D numpy array of shape
+        (planes, height, width), is also accepted. A 2D image goes in as a
+        coo_matrix, not as a 2D array. The matrices are modified in place: labels
+        that are not sequential are renumbered, and with `remove_flat_cells` the
+        cells on a single plane are zeroed. Pass a copy to keep the original.
 
     scRNAseq : pd.DataFrame
         Cell type definitions: mean expression per gene and cell type, genes as
@@ -123,9 +127,12 @@ def cell_type(
     Parameters
     ----------
     cells : pd.DataFrame
-        Preprocessed cell data, as returned by stage_data: label, area and centroid
+        One row per cell, with columns 'label', 'area' and the centroid 'x0', 'y0',
+        'z0'. stage_data produces it.
     spots : pd.DataFrame
-        Preprocessed spot data containing gene expressions and coordinates
+        One row per spot, with columns 'x', 'y', 'z', 'plane_id', 'gene_name', 'score',
+        'intensity' and 'label', the label of the cell the spot lies in, 0 for none.
+        stage_data produces it.
     scRNAseq : pd.DataFrame
         Cell type definitions: mean expression per gene and cell type, genes as
         rows and cell types as columns. Required.

@@ -51,8 +51,8 @@ def _points(geneData: pd.DataFrame, varBayes, voxel_size):
     """The spots as a points element.
 
     Coordinates are x, y in pixels and the plane index as z. geneData also has
-    a 'z' column on 3D runs but that one is the anisotropy scaled value the
-    model works with, so it stays out of the store.
+    a 'z' column but that one is the anisotropy scaled value the model works
+    with, so it stays out of the store.
 
     The ragged per-spot lists (neighbour_array, neighbour_prob) are dropped:
     parquet handles them badly and the useful scalar, the probability of the

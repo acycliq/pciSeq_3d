@@ -29,7 +29,7 @@ keywords. Keyword form is preferred.
 - **`spots`** *(pd.DataFrame)*
   The spots to assign. Needs the columns 'gene_name', 'x' and 'y', plus 'z_plane' for 3D data. Optional 'score' and 'intensity' columns from the spot caller are carried through to geneData; they default to 1.0 and nothing in the model reads them.
 - **`coo`** *(list of scipy.sparse.coo_matrix)*
-  The label image, one sparse matrix per z-plane. A list with more than one plane is treated as 3D.
+  The label image, one sparse matrix per z-plane. A list with more than one plane is treated as 3D. A single coo_matrix, or a 3D numpy array of shape (planes, height, width), is also accepted. A 2D image goes in as a coo_matrix, not as a 2D array. The matrices are modified in place: labels that are not sequential are renumbered, and with `remove_flat_cells` the cells on a single plane are zeroed. Pass a copy to keep the original.
 - **`scRNAseq`** *(pd.DataFrame)*
   Cell type definitions: mean expression per gene and cell type, genes as rows and cell types as columns. Required.
 - **`opts`** *(dict, optional)*
@@ -72,9 +72,9 @@ Perform cell typing using Variational Bayes algorithm.
 **Parameters**
 
 - **`cells`** *(pd.DataFrame)*
-  Preprocessed cell data, as returned by stage_data: label, area and centroid
+  One row per cell, with columns 'label', 'area' and the centroid 'x0', 'y0', 'z0'. stage_data produces it.
 - **`spots`** *(pd.DataFrame)*
-  Preprocessed spot data containing gene expressions and coordinates
+  One row per spot, with columns 'x', 'y', 'z', 'plane_id', 'gene_name', 'score', 'intensity' and 'label', the label of the cell the spot lies in, 0 for none. stage_data produces it.
 - **`scRNAseq`** *(pd.DataFrame)*
   Cell type definitions: mean expression per gene and cell type, genes as rows and cell types as columns. Required.
 - **`config`** *(Dict[str, Any])*
@@ -401,16 +401,35 @@ Returns:
 VarBayes(cells_df: pd.DataFrame, spots_df: pd.DataFrame, scRNAseq: pd.DataFrame, config: Dict[str, Any])
 ```
 
-Implements Variational Bayes algorithm for spatial transcriptomics analysis.
+The variational Bayes model: assigns spots to cells and cells to classes.
 
-This class performs cell type assignment and spot-to-cell mapping using a
-probabilistic model with variational inference.
+**Parameters**
 
-Args:
-    cells_df: DataFrame containing cell information
-    spots_df: DataFrame containing spot information
-    scRNAseq: Cell type definitions, mean expression per gene and cell type
-    config: Configuration dictionary containing algorithm parameters
+- **`cells_df`** *(pd.DataFrame)*
+  One row per cell, with columns 'label', 'area' and the centroid 'x0', 'y0', 'z0'. stage_data produces it.
+- **`spots_df`** *(pd.DataFrame)*
+  One row per spot, with columns 'x', 'y', 'z', 'plane_id', 'gene_name', 'score', 'intensity' and 'label', the label of the cell the spot lies in, 0 for none. stage_data produces it.
+- **`scRNAseq`** *(pd.DataFrame)*
+  Cell type definitions: mean expression per gene and cell type, genes as rows and cell types as columns.
+- **`config`** *(dict)*
+  The resolved configuration.
+
+**Attributes**
+
+- <a id="cells-spots-genes-single-cell-celltypes"></a>**`cells, spots, genes, single_cell, cellTypes`** *(object)*
+  The parts of the model. Working with results describes the arrays on each.
+- <a id="nc-ns-ng-nk"></a>**`nC, nS, nG, nK`** *(int)*
+  Number of cells (including the background row 0), spots, genes and classes (including Zero).
+- <a id="config"></a>**`config`** *(dict)*
+  The configuration of the run: the defaults, the `opts` overrides, and the runtime keys `is3D`, `img_dim` and `label_map`.
+- <a id="metadata"></a>**`metadata`** *(dict)*
+  Provenance recorded when the model is built: `version`, `branch`, `commit`, `build_date` and `created_at`.
+- <a id="has-converged"></a>**`has_converged`** *(bool)*
+  True when the loop stopped because the change fell below `CellCallTolerance`, False when it ran to `max_iter`.
+- <a id="iter-delta"></a>**`iter_delta`** *(list of float)*
+  The largest change in the spot assignment probabilities, one entry per iteration.
+- <a id="iter-num"></a>**`iter_num`** *(int)*
+  Index of the last iteration run, counting from 0.
 
 ::: tip Obtaining a fitted instance
 `VarBayes` is not instantiated directly in normal use. [`fit`](#fit) and [`cell_type`](#cell-type) construct and run it. `cell_type` returns the fitted instance; `fit` does not, but when `save_data=True` (the default) the fitted model is serialised to `<output_path>/pciSeq/data/debug/pciSeq.pickle` (`output_path` defaults to a temporary directory). The attributes and methods below operate on a loaded instance; [Working with results](./working-with-results) walks through the main ones with examples.
@@ -424,16 +443,6 @@ obj.metadata
 obj.check_cell(my_label=42, user_class='Astro')
 ```
 :::
-
-### Attributes
-
-- <a id="metadata"></a>**`metadata`** *(dict)*
-  Provenance recorded when the model is built, saved alongside the results so a run can be traced back to the code that produced it. Contains:
-    - `version`: the pciSeq version
-    - `branch`: the git branch
-    - `commit`: the git commit hash
-    - `build_date`: the package build date
-    - `created_at`: a UTC timestamp for when the run was created
 
 ### Methods
 

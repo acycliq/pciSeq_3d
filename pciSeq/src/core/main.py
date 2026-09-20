@@ -84,16 +84,44 @@ logger = logging.getLogger(__name__)
 
 class VarBayes:
     """
-    Implements Variational Bayes algorithm for spatial transcriptomics analysis.
+    The variational Bayes model: assigns spots to cells and cells to classes.
 
-    This class performs cell type assignment and spot-to-cell mapping using a
-    probabilistic model with variational inference.
+    Parameters
+    ----------
+    cells_df : pd.DataFrame
+        One row per cell, with columns 'label', 'area' and the centroid 'x0', 'y0',
+        'z0'. stage_data produces it.
+    spots_df : pd.DataFrame
+        One row per spot, with columns 'x', 'y', 'z', 'plane_id', 'gene_name', 'score',
+        'intensity' and 'label', the label of the cell the spot lies in, 0 for none.
+        stage_data produces it.
+    scRNAseq : pd.DataFrame
+        Cell type definitions: mean expression per gene and cell type, genes as
+        rows and cell types as columns.
+    config : dict
+        The resolved configuration.
 
-    Args:
-        cells_df: DataFrame containing cell information
-        spots_df: DataFrame containing spot information
-        scRNAseq: Cell type definitions, mean expression per gene and cell type
-        config: Configuration dictionary containing algorithm parameters
+    Attributes
+    ----------
+    cells, spots, genes, single_cell, cellTypes : object
+        The parts of the model. Working with results describes the arrays on each.
+    nC, nS, nG, nK : int
+        Number of cells (including the background row 0), spots, genes and classes
+        (including Zero).
+    config : dict
+        The configuration of the run: the defaults, the `opts` overrides, and the
+        runtime keys `is3D`, `img_dim` and `label_map`.
+    metadata : dict
+        Provenance recorded when the model is built: `version`, `branch`, `commit`,
+        `build_date` and `created_at`.
+    has_converged : bool
+        True when the loop stopped because the change fell below
+        `CellCallTolerance`, False when it ran to `max_iter`.
+    iter_delta : list of float
+        The largest change in the spot assignment probabilities, one entry per
+        iteration.
+    iter_num : int
+        Index of the last iteration run, counting from 0.
     """
 
     def __init__(self,

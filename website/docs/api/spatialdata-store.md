@@ -65,10 +65,11 @@ keys of the table.
 
 ### `cell_labels` (Labels)
 
-The segmentation, one uint32 label image over `(z, y, x)`. The value at a voxel
-is the `Cell_Num` of the cell covering it, in the original label numbering. The
-element carries a transformation into the `microns` coordinate system, so
-napari-spatialdata renders it at true scale next to the transcripts.
+The segmentation, one uint32 label image over `(z, y, x)`, or `(y, x)` for a
+single-plane run. The value at a voxel is the `Cell_Num` of the cell covering it, in
+the original label numbering. The element carries a transformation into the `microns`
+coordinate system, so napari-spatialdata renders it at true scale next to the
+transcripts.
 
 ### `transcripts` (Points)
 
@@ -128,7 +129,7 @@ genes as columns: `X[i, j]` is the reference expression of gene `j` in class `i`
 
 `sdata.attrs['pciseq']` records what produced the store: the code (`branch`,
 `commit`, `build_date`, `version`), when the store was written (`created_at`),
-the `spatialdata_version`, and the full resolved run `config`.
+the `spatialdata_version`, and the resolved run `config`, without `label_map`.
 
 ## Mapping from the tsv columns
 
@@ -173,6 +174,7 @@ tr[tr.neighbour == cid]
 
 x, y, z = adata.obsm['spatial'][pos]
 int(sdata['cell_labels'][int(z), int(y), int(x)])   # == cid
+# single-plane run: sdata['cell_labels'][int(y), int(x)]
 ```
 
 ::: warning Two ways to count a cell's spots

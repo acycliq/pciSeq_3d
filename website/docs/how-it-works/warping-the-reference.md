@@ -144,7 +144,7 @@ term alone can decide its class.
 
 On its own the sentence states the problem and leaves the reader with no way out, so it
 needs the settings that hold such a cell back: a heavier prior on the Zero class through
-`cell_type_weights` (or `zero_boost`), and a larger `rTheta`, which keeps theta near 1 in
-a cell with few counts instead of letting the data shrink it. Say when each one is the
-right knob, and what it costs. -->
+`cell_type_weights`, and a larger `rTheta`, which keeps theta near 1 in a cell with few
+counts instead of letting the data shrink it. Say when each one is the right knob, and
+what it costs. -->
 
