@@ -20,6 +20,7 @@
         cellClassNames: {},  // Maps class index to class name
         cellClassVisible: {},  // Maps class index to visibility (true/false)
         pendingColorScheme: null,  // Store color scheme loaded before class names arrive
+        customColorScheme: null,   // the scheme in use, put back on when the palette is rebuilt for a new run
 
         // Changes view state
         viewMode: 'all',  // 'all' or 'changes'

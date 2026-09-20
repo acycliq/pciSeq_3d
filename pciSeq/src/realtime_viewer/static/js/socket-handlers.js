@@ -96,10 +96,16 @@
             });
             console.log('Loaded class names:', state.cellClassNames);
 
-            // Apply pending color scheme if one was loaded before class names arrived
-            if (state.pendingColorScheme) {
-                console.log('Applying pending color scheme...');
-                window.pciSeq.colors.applyColorScheme(state.pendingColorScheme);
+            // now that the classes are known, make one colour for each real one. The
+            // palette built at startup only has 65 in it.
+            window.pciSeq.colors.generateColorPalette(meta.class_names);
+
+            // then put the user's colours on top: a scheme loaded before the class names
+            // arrived, or the one already in use if this is a new run in the same page
+            const scheme = state.pendingColorScheme || state.customColorScheme;
+            if (scheme) {
+                console.log('Applying color scheme...');
+                window.pciSeq.colors.applyColorScheme(scheme);
                 state.pendingColorScheme = null;
             }
         }
@@ -174,7 +180,7 @@
             delta: meta.delta,
             total: meta.num_cells,
             received: 0,
-            cell_classes: new Uint8Array(meta.num_cells),
+            cell_classes: new Uint16Array(meta.num_cells),  // 8 bits wrapped round past 255 classes
             prob: new Float32Array(meta.num_cells)
         };
     });

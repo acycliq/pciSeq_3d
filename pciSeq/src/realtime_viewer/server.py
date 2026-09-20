@@ -239,7 +239,9 @@ class RealtimeViewerServer:
                 cell_ids = np.arange(nC, dtype=np.int32)
 
             # Extract argmax (assigned class per cell) - most efficient format
-            cell_classes = np.argmax(cells_classProb, axis=1).astype(np.uint8)
+            # uint16, not uint8: a big taxonomy has more than 255 classes and the index
+            # used to wrap round, so class 256 was drawn as class 0
+            cell_classes = np.argmax(cells_classProb, axis=1).astype(np.uint16)
 
             # Probability (max over classes per cell). Round to 3 decimals to reduce payload size
             prob = np.round(np.max(cells_classProb, axis=1).astype(np.float32), 3)
@@ -409,7 +411,7 @@ class RealtimeViewerServer:
                     logger.warning(
                         f"Padding cell_classes from {num_cells} to {cached_num_cells}"
                     )
-                    padded_classes = np.zeros(cached_num_cells, dtype=np.uint8)
+                    padded_classes = np.zeros(cached_num_cells, dtype=np.uint16)
                     padded_classes[:num_cells] = cell_classes
                     cell_classes = padded_classes
 

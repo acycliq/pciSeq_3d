@@ -238,3 +238,27 @@ def test_the_real_tolerance_reaches_the_viewer(minimal_varbayes):
     begin = next(d for e, d in sent if e == 'geometry_init_begin')
     assert begin['cell_call_tolerance'] == pytest.approx(0.02)
     assert srv._geometry_cache['cell_call_tolerance'] == pytest.approx(0.02)
+
+
+def test_class_indices_above_255_reach_the_viewer(minimal_varbayes):
+    """A big taxonomy has more than 255 classes. The assigned class used to be cast to
+    uint8 before it was sent, so the index wrapped round and class 256 was drawn as
+    class 0, class 300 as class 44, and so on. It is uint16 now, and the browser keeps
+    it in a Uint16Array."""
+    vb = minimal_varbayes
+    _run_one_iteration(vb)
+    nC = vb.cells.classProb.shape[0]
+
+    # 300 classes, and every cell wins a class past the old limit: 250, 251, 252, ...
+    wanted = 250 + np.arange(nC)
+    big = np.zeros((nC, 300), dtype=np.float32)
+    big[np.arange(nC), wanted] = 1.0
+
+    srv, sent = _wired(vb, _free_port())
+    srv.send_update(big, 1, 0.5)
+
+    got = [c for _, d in sent if isinstance(d, dict) and 'cell_classes' in d
+           for c in d['cell_classes']]
+    # row 0 is the background pseudo cell, the server leaves it out
+    assert got == wanted[1:].tolist()
+    assert max(got) > 255

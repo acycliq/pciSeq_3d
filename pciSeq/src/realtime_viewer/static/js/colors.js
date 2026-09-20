@@ -9,17 +9,59 @@
     window.pciSeq = window.pciSeq || {};
     const state = window.pciSeq.state;
 
-    // Generate distinct colors for up to 65 classes
-    function generateColorPalette() {
-        const numColors = 65;
-        const hueStep = 360 / numColors;
+    // Zero is the "nothing here" class. It always gets the same colour, whatever the
+    // taxonomy is and whatever colour scheme gets loaded, so it reads the same on every map.
+    const ZERO_CLASS = 'Zero';
+    const ZERO_COLOR = [0, 0, 0];
 
-        for (let i = 0; i < numColors; i++) {
-            const hue = (i * hueStep) % 360;
-            const saturation = 70 + (i % 3) * 10; // Vary saturation slightly
-            const lightness = 50 + (i % 2) * 10;  // Vary lightness slightly
-            state.cellClassColors[i] = hslToRgb(hue, saturation, lightness);
+    // a class the loaded colour scheme says nothing about. Same grey as the fallback in
+    // rendering.js, so "no colour" looks the same wherever it comes from.
+    const UNSET_COLOR = [128, 128, 128];
+
+    // how many colours to make before the class names are known
+    const DEFAULT_NUM_COLORS = 65;
+
+    function paletteColor(k, hueStep) {
+        const hue = (k * hueStep) % 360;
+        const saturation = 70 + (k % 3) * 10; // Vary saturation slightly
+        const lightness = 50 + (k % 2) * 10;  // Vary lightness slightly
+        return hslToRgb(hue, saturation, lightness);
+    }
+
+    function paintZero() {
+        Object.entries(state.cellClassNames).forEach(([idx, name]) => {
+            if (name === ZERO_CLASS) state.cellClassColors[parseInt(idx)] = ZERO_COLOR;
+        });
+    }
+
+    // One colour per real class, spread evenly round the hue wheel.
+    //
+    // It used to make 65 colours and stop, so with a bigger taxonomy every class from
+    // the 66th on came out in the grey fallback. Now it is called again once the class
+    // names have arrived and makes as many colours as there are real classes. Zero is
+    // left out of the count and painted black. Anything that still ends up without a
+    // colour gets the grey fallback in rendering.js, same as before.
+    function generateColorPalette(classNames) {
+        // wipe it in place, other modules hold on to this object
+        Object.keys(state.cellClassColors).forEach((k) => delete state.cellClassColors[k]);
+
+        if (!classNames || classNames.length === 0) {
+            const hueStep = 360 / DEFAULT_NUM_COLORS;
+            for (let i = 0; i < DEFAULT_NUM_COLORS; i++) {
+                state.cellClassColors[i] = paletteColor(i, hueStep);
+            }
+            return;
         }
+
+        const realClasses = [];
+        classNames.forEach((name, idx) => {
+            if (name !== ZERO_CLASS) realClasses.push(idx);
+        });
+        const hueStep = 360 / Math.max(realClasses.length, 1);
+        realClasses.forEach((classIdx, k) => {
+            state.cellClassColors[classIdx] = paletteColor(k, hueStep);
+        });
+        paintZero();
     }
 
     // HSL to RGB conversion (use d3 for clarity and reliability)
@@ -40,6 +82,8 @@
 
     // Apply custom color scheme to cell classes
     function applyColorScheme(colorScheme) {
+        // remembered so it can go back on when the palette is rebuilt for a new run
+        state.customColorScheme = colorScheme;
         let appliedCount = 0;
         const notFoundClasses = [];
 
@@ -47,6 +91,13 @@
         const nameToIndex = {};
         Object.entries(state.cellClassNames).forEach(([idx, name]) => {
             nameToIndex[name] = parseInt(idx);
+        });
+
+        // Once a scheme is loaded the colours are the user's. A class the scheme does not
+        // name is shown grey, so it is obvious it was left out. It used to keep whatever
+        // the auto palette had given it, which could pass for one of the chosen colours.
+        Object.values(nameToIndex).forEach((classIdx) => {
+            state.cellClassColors[classIdx] = UNSET_COLOR;
         });
 
         // Apply custom colors
@@ -69,6 +120,17 @@
         if (notFoundClasses.length > 0) {
             console.warn(`Classes not found in data: ${notFoundClasses.join(', ')}`);
         }
+
+        // the other way round: classes in the data that the scheme left out, shown grey
+        const named = new Set(Object.keys(colorScheme));
+        const unnamed = Object.values(state.cellClassNames)
+            .filter((name) => name !== ZERO_CLASS && !named.has(name));
+        if (unnamed.length > 0) {
+            console.warn(`Classes with no colour in the scheme, shown grey: ${unnamed.join(', ')}`);
+        }
+
+        // Zero is black whatever the scheme says
+        paintZero();
 
         return { appliedCount, notFoundClasses };
     }

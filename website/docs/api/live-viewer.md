@@ -114,8 +114,9 @@ drawer resizes it.
 
 ## Custom colours
 
-By default the classes get evenly spread colours. **Import Color Scheme** loads a JSON
-file mapping class names to colours:
+By default every class gets its own colour, spread evenly over the hue wheel, however many
+classes there are. `Zero` is always black. **Import Color Scheme** loads a JSON file mapping
+class names to colours:
 
 ```json
 {
@@ -127,8 +128,9 @@ file mapping class names to colours:
 
 - Names must match the columns of the `scRNAseq` DataFrame exactly.
 - A colour is a hex code or a CSS colour name.
-- Classes missing from the file keep their default colour. Names not in the data are
-  ignored and listed in the browser console.
+- Once a file is loaded, a class it does not name is drawn grey. Those classes are listed
+  in the browser console, as are names in the file that are not in the data.
+- `Zero` stays black whatever the file says.
 - A file loaded before the first iteration is applied once the class names arrive.
 
 ::: tip Chrome and Opera on Linux
