@@ -122,8 +122,35 @@
   max-width: none;
 }
 
+/* the default cell padding is generous. A table with many numeric columns, like the one
+   check_spot returns, runs off the page with it, so tighten it and let the numbers sit
+   right aligned under their heading */
+.vp-doc th,
+.vp-doc td {
+  padding: 4px 5px;
+}
+
+.vp-doc td:not(:first-child),
+.vp-doc th:not(:first-child) {
+  text-align: right;
+}
+
+/* small print under a table, for the things the table leaves out */
+.vp-doc .table-note {
+  font-size: 0.85em;
+  color: var(--vp-c-text-2);
+}
+
+/* a table stays inside the column and wraps its headers rather than scrolling sideways */
+.vp-doc table {
+  max-width: 100%;
+}
+
+.vp-doc th {
+  white-space: normal;
+}
+
 /* things that are wide on purpose keep the whole column */
-.vp-doc table,
 .vp-doc pre,
 .vp-doc .mjx-container,
 .vp-doc figure.diagram,

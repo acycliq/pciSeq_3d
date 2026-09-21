@@ -904,12 +904,12 @@ class VarBayes:
         Break down the assignment of a spot to its candidate cells.
 
         The score of each candidate cell is the sum of the terms from the last
-        spot-to-cell update: the spatial log-likelihood (mvn_loglik), the expected log
-        mean expression under the cell's type probabilities (attention), the expected
-        log gamma (expr_fluct), the expected log theta (cell_inefficiency), the log
-        eta of the spot's gene (gene_inefficiency) and the inside-cell bonus (bonus).
-        The score of the background is the log misread density of the gene.
-        Probabilities are the softmax of the scores.
+        spot-to-cell update: the spatial log-likelihood ('position'), the expected log
+        mean expression under the cell's class probabilities ('alignment'), the expected
+        log gamma ('enrichment'), the expected log theta ('gravity'), the log eta of the
+        spot's gene ('eta') and the inside-cell bonus ('bonus'). The score of the
+        background is the log misread density of the gene. Probabilities are the softmax
+        of the scores.
 
         Parameters
         ----------

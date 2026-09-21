@@ -248,20 +248,25 @@ def check_spot(self, spot_id, show_plot=True):
         'labels': labels
     }
 
+    # short names, the ones the docs use. The arrays keep their own names above.
     df = pd.DataFrame({
         'Name': labels[:-1],
         # 'internal_tag':self.spots.parent_cell_id[row_pos][:-1],
-        'mvn_loglik': mvn_loglik,
-        'attention': attention,
-        'expr_fluct': expr_fluct,
-        'cell_inefficiency': cell_inefficiency,
-        'gene_inefficiency': gene_inefficiency,
+        'position': mvn_loglik,
+        'alignment': attention,
+        'gravity': cell_inefficiency,
+        'enrichment': expr_fluct,
+        'gene inefficiency': gene_inefficiency,
         'bonus': bonus}).set_index(['Name'])
     df['misread'] = np.nan
-    df['sum'] = df[['mvn_loglik', 'attention', 'expr_fluct', 'cell_inefficiency', 'gene_inefficiency', 'bonus']].sum(axis=1)
+    df['sum'] = df[['position', 'alignment', 'gravity', 'enrichment', 'gene inefficiency', 'bonus']].sum(axis=1)
     df.loc['background'] = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, misread, misread]
     # softmax of the sums, same order as the rows (cells first, background last)
     df['prob'] = probabilities
+    # the inside cell bonus is usually off. A column of zeros says nothing, so drop it,
+    # but keep it when it is set: then it really is part of the score.
+    if (df['bonus'].fillna(0) == 0).all():
+        df = df.drop(columns='bonus')
 
     if show_plot:
         spot_to_cell_score_plot(datadict)
