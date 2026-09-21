@@ -35,7 +35,6 @@ _TYPE_SPECS = {
     "remove_flat_cells": bool,
     "realtime_viewer": bool,
     "realtime_viewer_port": int,
-    "realtime_viewer_max_cells": (type(None), int),
     "realtime_viewer_fixed_radius": (type(None), float, int),
     "rRho": (int, float),
     "mrf_pooled_classes": (type(None), list),

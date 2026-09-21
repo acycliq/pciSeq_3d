@@ -38,12 +38,8 @@ A browser tab opens at `http://127.0.0.1:5001`. If it does not, open that addres
 The page says *Waiting for algorithm to start...* until the first iteration is done;
 preprocessing runs first, and on a large dataset that takes minutes.
 
-Two settings reduce the load on large sections:
-
-- `realtime_viewer_max_cells`: draw only this many cells, those with the highest class
-  probability. `None`, the default, draws all of them.
-- `realtime_viewer_fixed_radius`: draw every cell at this radius. `None` draws each cell
-  at the radius derived from its area.
+`realtime_viewer_fixed_radius` draws every cell at the given radius. `None`, the default,
+draws each cell at the radius derived from its area.
 
 When `fit` returns the viewer shuts down and the page shows it is no longer connected. The
 last picture stays, hover and class hiding still work, and anything that needs the

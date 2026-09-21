@@ -305,12 +305,6 @@ Show the cell typing in a browser while it runs. See
 
 Port of the live viewer server.
 
-### `realtime_viewer_max_cells`
-
-**Default:** `None`
-
-Maximum number of cells drawn by the live viewer. None draws all cells.
-
 ### `realtime_viewer_fixed_radius`
 
 **Default:** `None`

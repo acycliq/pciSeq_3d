@@ -237,12 +237,9 @@ def realtime_viewer_ini(cfg):
         from .src.realtime_viewer import RealtimeViewerServer
 
         port = cfg.get("realtime_viewer_port", 5001)
-        max_cells = cfg.get("realtime_viewer_max_cells", None)
         fixed_radius = cfg.get("realtime_viewer_fixed_radius", None)
 
-        viewer = RealtimeViewerServer(
-            port=port, max_cells=max_cells, fixed_radius=fixed_radius
-        )
+        viewer = RealtimeViewerServer(port=port, fixed_radius=fixed_radius)
         viewer.start()
         cfg["realtime_viewer_callback"] = viewer.send_update
         logger.info(f"Started realtime viewer on port {port}")

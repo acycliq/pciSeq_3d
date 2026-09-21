@@ -57,14 +57,12 @@ class RealtimeViewerServer:
         port=5001,
         host="127.0.0.1",
         auto_open_browser=True,
-        max_cells: int = None,
         fixed_radius: float = None,
     ):
         self.port = port
         self.host = host
         self.auto_open_browser = auto_open_browser
         # Optional payload controls
-        self.max_cells = max_cells  # if set, send only top-N cells (by confidence)
         self.fixed_radius = fixed_radius  # if set, send this radius for all cells
         self._varbayes_ref = None  # Will be set by app.py when callback is wired
         self._httpd = None         # the werkzeug server, held so stop() can shut it
@@ -286,20 +284,6 @@ class RealtimeViewerServer:
                     centroids_x, float(self.fixed_radius), dtype=np.float32
                 )
 
-            # If limiting cells, select top-N by confidence
-            if self.max_cells is not None and len(cell_classes) > self.max_cells:
-                k = int(self.max_cells)
-                # Use argpartition for efficiency, then sort those top-k indices by value desc
-                idx_part = np.argpartition(prob, -k)[-k:]
-                idx_sorted = idx_part[np.argsort(prob[idx_part])[::-1]]
-
-                cell_ids = cell_ids[idx_sorted]
-                cell_classes = cell_classes[idx_sorted]
-                prob = prob[idx_sorted]
-                centroids_x = centroids_x[idx_sorted]
-                centroids_y = centroids_y[idx_sorted]
-                centroids_z = centroids_z[idx_sorted]
-                radii = radii[idx_sorted]
 
             num_cells = len(cell_classes)
 

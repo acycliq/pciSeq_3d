@@ -256,10 +256,6 @@ DEFAULT = {
     "realtime_viewer_port": 5001,
 
 
-    # Maximum number of cells drawn by the live viewer. None draws all cells.
-    "realtime_viewer_max_cells": None,
-
-
     # Radius at which the live viewer draws every cell. None draws each cell at its
     # own size.
     "realtime_viewer_fixed_radius": None,
