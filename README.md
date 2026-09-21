@@ -11,7 +11,7 @@ https://github.com/user-attachments/assets/ab9867e4-866e-4f81-88e5-359bdf7d7a64
 *The live viewer, one picture per iteration. Cells are coloured by the class they are
 currently assigned to, and the chart at the bottom right tracks convergence.*
 
-## What it takes and what it gives back
+## Inputs and outputs
 
 **Inputs**
 
