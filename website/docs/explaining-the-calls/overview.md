@@ -34,7 +34,7 @@ an earlier version of pciSeq may lack the values these methods read.
 ## The example data
 
 The examples in this section use a 3D coppaFISH dataset of mouse hippocampus: 25,254
-segmented cells, 3,277,991 spots of the 205 genes shared with the single-cell reference,
+segmented cells, 3,018,812 spots of the 205 genes shared with the single-cell reference,
 and 38 cell types. The data were fitted twice with identical settings except `mrf_beta`,
 the strength of the spatial term: 1.5 and 0. The model from the fit with the spatial
 term is `obj`, the model from the fit without it is `obj_nomrf`:
