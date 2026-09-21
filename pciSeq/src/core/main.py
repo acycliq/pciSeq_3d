@@ -882,9 +882,10 @@ class VarBayes:
         Returns
         -------
         gene_expression_data : pd.DataFrame
-            One row per selected gene. Columns are the mean count of the gene in cells
+            One row per selected gene. Columns are the mean counts of the gene in cells
             of each type, the expected count of the gene in this cell under each type,
-            and the observed count in this cell.
+            and its counts in this cell. The counts are sums of spot assignment
+            probabilities, so they are estimates, not measurements.
         contr : pd.DataFrame
             Log-likelihood of each gene in this cell under the two types, and their
             difference, 'diff'.

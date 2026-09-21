@@ -1,7 +1,7 @@
 <table>
 <thead>
-<tr><th></th><th>Cells typed as 030 L6 CT CTX Glut</th><th>Cells typed as 037 DG Glut</th><th colspan="2">Model prediction for cell 18223</th><th>Cell 18223</th></tr>
-<tr><th>gene</th><th>observed mean</th><th>observed mean</th><th>as 030 L6 CT CTX Glut</th><th>as 037 DG Glut</th><th>observed</th></tr>
+<tr><th></th><th>Cells typed as 030 L6 CT CTX Glut</th><th>Cells typed as 037 DG Glut</th><th colspan="2">Predicted counts for cell 18223</th><th>Cell 18223</th></tr>
+<tr><th>gene</th><th>mean counts</th><th>mean counts</th><th>as 030 L6 CT CTX Glut</th><th>as 037 DG Glut</th><th>counts</th></tr>
 </thead>
 <tbody>
 <tr><td>Neurod6</td><td>1.76</td><td>0.22</td><td>0.96</td><td>0.13</td><td>3.49</td></tr>

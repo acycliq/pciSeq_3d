@@ -97,14 +97,14 @@ from, and the figure itself. The first is shown here:
 
 Its columns are:
 
-- **Cell 18223, observed.** The count of the gene in this cell, the sum of the assignment
+- **Cell 18223, counts.** The counts of the gene in this cell, the sum of the assignment
   probabilities of its spots.
-- **Model prediction for cell 18223.** The count of the gene the model expects in
+- **Predicted counts for cell 18223.** The counts of the gene the model expects in
   this cell if the cell were of that class: the cell type definition rescaled by the
   [scaling factors](../how-it-works/warping-the-reference.md), see the
-  [example below](#the-prediction-is-not-the-observed-mean). A gene favours the class whose
-  prediction is closer to the observed count.
-- **Cells typed as a class, observed mean.** The average count of the gene over all cells,
+  [example below](#the-predicted-counts-are-not-the-mean-counts). A gene favours the class whose
+  prediction is closer to those counts.
+- **Cells typed as a class, mean counts.** The average counts of the gene over all cells,
   each weighted by its probability of the class.
 
 Synpr is the strongest gene. The Synpr count of the cell is 1.7. `037 DG Glut` predicts
@@ -149,7 +149,7 @@ With a Synpr count of 0, $\Delta = -0.55$: the absence of a gene favours the cla
 predicts fewer.
 :::
 
-### The prediction is not the observed mean
+### The predicted counts are not the mean counts
 
 For Synpr the model predicts a count of 0.76 in cell 18223 as `037 DG Glut`, while the cells
 typed as `037 DG Glut` have 0.61 on average. The two numbers are different quantities.
@@ -166,13 +166,13 @@ The prediction is built from the single-cell reference:
 | **prediction** | **0.76** |
 
 gamma, the factor for a given gene in a given cell, is not part of the product. It expresses the
-discrepancy between the observed count in the cell and the prediction, regularised by
+discrepancy between the count in the cell and the prediction, regularised by
 `rSpot`.
 
-The prediction and the observed mean need not agree. eta is one number per gene, shared by
+The prediction and the mean counts need not agree. eta is one number per gene, shared by
 all classes, so it cannot correct the reference for each class separately, and the
 reference does not match the in situ data exactly. For Sema5a in the same table the
-prediction as `037 DG Glut` is 3.96 against an observed mean of 6.94. What decides the
+prediction as `037 DG Glut` is 3.96 against mean counts of 6.94. What decides the
 call is the comparison within the cell: the observed Synpr count of 1.69 is closer to the
 prediction under `037 DG Glut`, 0.76, than under `030 L6 CT CTX Glut`, 0.10.
 

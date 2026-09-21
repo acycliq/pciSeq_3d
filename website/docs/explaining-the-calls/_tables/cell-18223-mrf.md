@@ -1,7 +1,7 @@
 <table>
 <thead>
-<tr><th></th><th>Cells typed as 037 DG Glut</th><th>Cells typed as 030 L6 CT CTX Glut</th><th colspan="2">Model prediction for cell 18223</th><th>Cell 18223</th></tr>
-<tr><th>gene</th><th>observed mean</th><th>observed mean</th><th>as 037 DG Glut</th><th>as 030 L6 CT CTX Glut</th><th>observed</th></tr>
+<tr><th></th><th>Cells typed as 037 DG Glut</th><th>Cells typed as 030 L6 CT CTX Glut</th><th colspan="2">Predicted counts for cell 18223</th><th>Cell 18223</th></tr>
+<tr><th>gene</th><th>mean counts</th><th>mean counts</th><th>as 037 DG Glut</th><th>as 030 L6 CT CTX Glut</th><th>counts</th></tr>
 </thead>
 <tbody>
 <tr><td>Synpr</td><td>0.61</td><td>0.05</td><td>0.76</td><td>0.10</td><td>1.69</td></tr>

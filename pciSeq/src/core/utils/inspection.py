@@ -96,11 +96,11 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True, top_classes=5):
     new_columns = pd.MultiIndex.from_tuples([
         # observed data first, then what the model predicts for this cell. The viewer
         # server reads these columns by position, so keep the order if you rename them
-        (f'Cells typed as {pciSeq_class}', 'observed mean'),
-        (f'Cells typed as {user_class}', 'observed mean'),
-        (f'Model prediction for cell {label}', f'as {pciSeq_class}'),
-        (f'Model prediction for cell {label}', f'as {user_class}'),
-        (f'Cell {label}', 'observed')
+        (f'Cells typed as {pciSeq_class}', 'mean counts'),
+        (f'Cells typed as {user_class}', 'mean counts'),
+        (f'Predicted counts for cell {label}', f'as {pciSeq_class}'),
+        (f'Predicted counts for cell {label}', f'as {user_class}'),
+        (f'Cell {label}', 'counts')
     ])
     gene_expression_data.columns = new_columns
 
