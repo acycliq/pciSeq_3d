@@ -269,3 +269,35 @@
 .demo-wide .demoframe {
   max-width: none;
 }
+
+/* two pictures next to each other inside a figure, each with its own small label.
+   They stack on a narrow screen so the panels stay readable. */
+.vp-doc .two-panel {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.vp-doc .two-panel > div {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.vp-doc .two-panel img {
+  display: block;
+  margin: 0;
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.vp-doc .two-panel p {
+  margin: 0.4rem 0 0;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--vp-c-text-2);
+}
+
+@media (max-width: 640px) {
+  .vp-doc .two-panel { flex-direction: column; }
+}

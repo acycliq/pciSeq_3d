@@ -144,3 +144,21 @@ third closest to the spot. It has the type `037 DG Glut`. Also cell 17371 is the
 . The spot however is not assigned to cell 17371 despite being closer because it holds
 fewer reads in total, 60.0 against 98.8, and expresses fewer Synpr, 0.5 against 3.0, than
 cell 21574.
+
+<figure class="diagram">
+<div class="two-panel">
+  <div>
+    <img src="/explaining-the-calls/spot-1642419-mrf-map.png" alt="the three candidate cells with the spatial term">
+    <p>with the spatial term</p>
+  </div>
+  <div>
+    <img src="/explaining-the-calls/spot-1642419-nomrf-map.png" alt="the same cells without the spatial term">
+    <p>without it</p>
+  </div>
+</div>
+<figcaption>The same field at plane 57, with Synpr the only gene shown. Cells carry the
+colour of their class, and the line joins the spot to the cell it was assigned to. Cell
+18223 is <code>037 DG Glut</code> on the left and <code>030 L6 CT CTX Glut</code>, in
+green, on the right, while cells 17371 and 21574 stay <code>037 DG Glut</code> in both.
+</figcaption>
+</figure>
