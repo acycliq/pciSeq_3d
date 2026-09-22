@@ -127,11 +127,11 @@
    right aligned under their heading */
 .vp-doc th,
 .vp-doc td {
-  padding: 4px 5px;
+  padding: 4px 4px;
+  font-size: 13px;
 }
 
-.vp-doc td:not(:first-child),
-.vp-doc th:not(:first-child) {
+.vp-doc td:not(:first-child) {
   text-align: right;
 }
 
@@ -147,7 +147,7 @@
 }
 
 .vp-doc th {
-  white-space: normal;
+  white-space: nowrap;
 }
 
 /* things that are wide on purpose keep the whole column */

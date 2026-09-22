@@ -7,8 +7,8 @@ over them gives the probabilities:
 
 $$
 \begin{aligned}
-\text{score}_c = \;& \text{Gaussian LogLik} && \text{position} \\
-+\;& \text{alignment} + \text{gravity} + \text{enrichment} + \text{gene efficiency} && \text{expression} \\
+\text{score}_c = \;& \text{spatial fit} && \text{position} \\
++\;& \text{class expression} + \text{cell scale} + \text{cell-gene scale} + \text{gene efficiency} && \text{expression} \\
 +\;& \text{inside-cell bonus} && \text{segmentation}
 \end{aligned}
 $$
@@ -55,32 +55,34 @@ for the background:
 
 <!--@include: ./_tables/spot-1642419-mrf.md-->
 
-- **position**. The log density of the spot's position under the cell's Gaussian
+- **spatial fit**. The log density of the spot's position under the cell's Gaussian
   footprint. When several cells compete for the same spot and everything else is equal, it
   goes to the nearest one. It does not depend on the gene.
-- **alignment**. How well the cell's likely class matches the gene. When several cells
+- **class expression, the alignment**. How well the cell's likely class matches the gene. When several cells
   compete for the same spot and everything else is equal, it goes to the cell whose likely
   class expresses that gene most. Two cells with the same class probabilities get the same
   value, since the gene is the same for every candidate of a spot, which is why every
   candidate here shows 0.943.
-- **gravity**. The cell's total counts compared with what its likely class predicts. When
-  several cells compete for the same spot and everything else is equal, it goes to the
-  cell already holding more reads in total than its class predicts. Only the totals count
-  here, so the term is the same whatever the gene of the spot.
-- **enrichment**. How much of a gene is observed in a cell relative to the amount expected
-  for its likely class. When several cells compete for the same spot and all other factors
-  are equal, the spot is assigned to the cell with the higher observed-to-expected ratio
-  for that gene.
-- **gene inefficiency**. How well the gene is detected across the whole experiment. It is
-  the same for every candidate cell, so it cannot choose between them. It does weigh the
-  cells against the background, which carries no such term: a poorly detected gene lowers
-  every cell's score and makes the background more likely.
+- **cell scale, the gravity**. The factor behind it is theta: how far a cell's total
+  counts sit above or below what its likely class predicts. When several cells compete for
+  the same spot and everything else is equal, it goes to the cell already holding more
+  reads in total. Only the totals count here, so the term is the same whatever the gene of
+  the spot.
+- **cell-gene scale, the enrichment**. The factor behind it is gamma: how much of a gene
+  is observed in a cell relative to the amount expected for its likely class. When several
+  cells compete for the same spot and all other factors are equal, the spot is assigned to
+  the cell with the higher observed-to-expected ratio for that gene.
+- **gene efficiency**. The factor behind it is eta: how well the gene is detected across
+  the whole experiment. It is the same for every candidate cell, so it cannot choose
+  between them. It does weigh the cells against the background, which carries no such
+  term: a poorly detected gene lowers every cell's score and makes the background more
+  likely.
 - **misread**. The background's whole score: how likely a spot of this gene is to be a
   misread. It is the same at every position, so a cell has to beat it or the spot goes to
   the background.
 - **sum, prob**. The total and its softmax over the rows.
 
-<p class="table-note">Gene inefficiency and misread density are not the same thing. The
+<p class="table-note">Gene efficiency and misread density are not the same thing. The
 first scales what a cell is expected to hold of the gene, so it sits in every cell's
 score. The second is the background's own rate for that gene, learned from the spots no
 cell explains. A gene can be well detected and still produce many misreads.</p>
@@ -89,9 +91,31 @@ cell explains. A gene can be well detected and still produce many misreads.</p>
 in these runs, so the column was empty. When it is set, a spot whose pixel falls inside the
 cell's segmentation gets that bonus added to its score.</p>
 
+Each expression term is a log, so its sign says whether the quantity inside the log is
+above or below 1.
+
+Take the class expression, the orange segment of every bar in the score chart above. It sits
+above zero, so the quantity inside its log is above 1. The term is
+`log(mean expression x Inefficiency + SpotReg)`, averaged over the cell's class
+probabilities. Every candidate here is `037 DG Glut` with probability near 1, so the
+average reduces to the value for DG. Synpr has a mean of 24.68 in `037 DG Glut`, and with
+`Inefficiency` 0.1 and `SpotReg` 0.1 that gives `log(24.68 x 0.1 + 0.1) = log(2.57) = 0.943`, the value every DG
+candidate shows here.
+
+It is not positive by construction: the sign follows the class mean. For a cell
+confidently of one class, as here, the term is zero when
+`mean expression x Inefficiency + SpotReg` equals 1, which in this run is a class mean of
+9 counts, and negative below that. For a cell spread over several classes it is the
+average of those logs.
+
+The cell scale and the cell-gene scale are positive when the cell holds more than its class
+predicts. Here the cell-gene scale is positive for cell 18223, 0.18, and cell 21574, 0.07, the
+cells with more Synpr than their class predicts; the cell scale is positive for cells 22339,
+0.28, and 21574, 0.10, which hold more reads in total than their class predicts.
+
 Cell 18223 is not the only candidate close to the spot: cell 17371 is 1.7 further in
-position and cell 21574 is 2.4 further. Its advantage comes from the expression terms,
-where it is the only candidate with a positive enrichment and the largest total.
+spatial fit and cell 21574 is 2.4 further. Its advantage comes from the expression terms,
+where it is the only candidate with a positive cell-gene scale and the largest total.
 
 ## The same spot without the spatial term
 
@@ -107,12 +131,12 @@ obj_nomrf.check_spot(1642419)
 
 | term for cell 18223 | without MRF | with MRF |
 | --- | --- | --- |
-| position | -10.405 | -10.405 |
-| alignment | -2.203 | +0.943 |
+| spatial fit | -10.405 | -10.405 |
+| class expression | -2.203 | +0.943 |
 | sum | -14.149 | -10.590 |
 | prob | 0.06 | 0.74 |
 
-`position` is identical, as it must be. What changes is the alignment: `037 DG Glut`
+`spatial fit` is identical, as it must be. What changes is the class expression: `037 DG Glut`
 expresses Synpr and `030 L6 CT CTX Glut` does not, so the same spot is worth 3.1 more to
 the cell once the cell is DG. The spot goes to cell 21574 with probability 0.49 instead,
 a DG cell 2.4 further away.
@@ -124,8 +148,8 @@ fit without the spatial term and loses it in the fit with it:
 
 | term for cell 18223 | without MRF | with MRF |
 | --- | --- | --- |
-| position | -10.884 | -10.884 |
-| alignment | -0.673 | -2.207 |
+| spatial fit | -10.884 | -10.884 |
+| class expression | -0.673 | -2.207 |
 | sum | -10.258 | -11.812 |
 | prob | 0.75 | 0.35 |
 
@@ -133,7 +157,7 @@ fit without the spatial term and loses it in the fit with it:
 
 In the fit with the spatial term the spot goes to cell 17371 with probability 0.42, and
 0.16 goes to the background. Cell 17371 is 0.05 further from the spot and has the same
-alignment, since both cells are DG; it wins on the other expression terms.
+class expression, since both cells are DG; it wins on the other expression terms.
 
 Taken together the two spots are the loop the cell page describes: the class of a cell
 sets the attention it gives to a gene, the attention decides which spots it holds, and the

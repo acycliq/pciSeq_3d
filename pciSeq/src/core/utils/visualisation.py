@@ -198,36 +198,36 @@ def spot_to_cell_score_plot(my_dict):
     fig.add_trace(go.Bar(
         x=labels[:-1],
         y=mvn_loglik,
-        name='MVN Log-Likelihood',
+        name='spatial fit',
         marker_color='#1f77b4',
-        hovertemplate="<b>%{x}</b><br>MVN: %{y:.2f}<extra></extra>",
+        hovertemplate="<b>%{x}</b><br>spatial fit: %{y:.2f}<extra></extra>",
         width=0.7  # Matplotlib-like bar width
     ))
 
     fig.add_trace(go.Bar(
         x=labels[:-1],
         y=attention,
-        name='Attention',
+        name='class expression',
         marker_color='#ff7f0e',
-        hovertemplate="<b>%{x}</b><br>Attention: %{y:.2f}<extra></extra>",
+        hovertemplate="<b>%{x}</b><br>class expression: %{y:.2f}<extra></extra>",
         width=0.7
     ))
 
     fig.add_trace(go.Bar(
         x=labels[:-1],
         y=expr_fluct,
-        name='Expr Fluctuations',
+        name='cell-gene scale',
         marker_color='#2ca02c',
-        hovertemplate="<b>%{x}</b><br>Expr Fluct: %{y:.2f}<extra></extra>",
+        hovertemplate="<b>%{x}</b><br>cell-gene scale: %{y:.2f}<extra></extra>",
         width=0.7
     ))
 
     fig.add_trace(go.Bar(
         x=labels[:-1],
         y=cell_inefficiency,
-        name='Cell Inefficiency',
+        name='cell scale',
         marker_color='#9467bd',
-        hovertemplate="<b>%{x}</b><br>Cell Inefficiency"
+        hovertemplate="<b>%{x}</b><br>cell scale"
                       ": %{y:.2f}<extra></extra>",
         width=0.7
     ))
@@ -235,9 +235,9 @@ def spot_to_cell_score_plot(my_dict):
     fig.add_trace(go.Bar(
         x=labels[:-1],
         y=my_dict['gene_inefficiency'],
-        name='Gene Inefficiency',
+        name='gene efficiency',
         marker_color='#8c564b',
-        hovertemplate="<b>%{x}</b><br>Gene Inefficiency"
+        hovertemplate="<b>%{x}</b><br>gene efficiency"
                       ": %{y:.2f}<extra></extra>",
         width=0.7
     ))
@@ -245,9 +245,9 @@ def spot_to_cell_score_plot(my_dict):
     fig.add_trace(go.Bar(
         x=labels[:-1],
         y=my_dict['bonus'],
-        name='Inside-cell Bonus',
+        name='inside-cell bonus',
         marker_color='#e377c2',
-        hovertemplate="<b>%{x}</b><br>Inside-cell Bonus"
+        hovertemplate="<b>%{x}</b><br>inside-cell bonus"
                       ": %{y:.2f}<extra></extra>",
         width=0.7
     ))
@@ -256,7 +256,7 @@ def spot_to_cell_score_plot(my_dict):
     fig.add_trace(go.Bar(
         x=[labels[-1]],
         y=[misread],
-        name='Misread Density (log)',
+        name='misread',
         marker_color='#d62728',
         hovertemplate="<b>Misread</b><br>Value: %{y:.2f}<extra></extra>",
         width=0.7

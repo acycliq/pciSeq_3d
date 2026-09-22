@@ -250,16 +250,16 @@ def check_spot(self, spot_id, show_plot=True):
 
     # short names, the ones the docs use. The arrays keep their own names above.
     df = pd.DataFrame({
-        'Name': labels[:-1],
+        'cell': cell_ids,
         # 'internal_tag':self.spots.parent_cell_id[row_pos][:-1],
-        'position': mvn_loglik,
-        'alignment': attention,
-        'gravity': cell_inefficiency,
-        'enrichment': expr_fluct,
-        'gene inefficiency': gene_inefficiency,
-        'bonus': bonus}).set_index(['Name'])
+        'spatial fit': mvn_loglik,
+        'class expression': attention,
+        'cell scale': cell_inefficiency,
+        'cell-gene scale': expr_fluct,
+        'gene efficiency': gene_inefficiency,
+        'bonus': bonus}).set_index(['cell'])
     df['misread'] = np.nan
-    df['sum'] = df[['position', 'alignment', 'gravity', 'enrichment', 'gene inefficiency', 'bonus']].sum(axis=1)
+    df['sum'] = df[['spatial fit', 'class expression', 'cell scale', 'cell-gene scale', 'gene efficiency', 'bonus']].sum(axis=1)
     df.loc['background'] = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, misread, misread]
     # softmax of the sums, same order as the rows (cells first, background last)
     df['prob'] = probabilities

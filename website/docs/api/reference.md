@@ -456,12 +456,12 @@ check_spot(spot_id, show_plot=True)
 Break down the assignment of a spot to its candidate cells.
 
 The score of each candidate cell is the sum of the terms from the last
-spot-to-cell update: the spatial log-likelihood ('position'), the expected log
-mean expression under the cell's class probabilities ('alignment'), the expected
-log gamma ('enrichment'), the expected log theta ('gravity'), the log eta of the
-spot's gene ('eta') and the inside-cell bonus ('bonus'). The score of the
-background is the log misread density of the gene. Probabilities are the softmax
-of the scores.
+spot-to-cell update: the spatial log-likelihood ('spatial fit'), the expected log mean
+expression under the cell's class probabilities ('class expression'), the expected
+log theta ('cell scale'), the expected log gamma ('cell-gene scale'), the log eta
+of the spot's gene ('gene efficiency') and the inside-cell bonus ('bonus'). The
+score of the background is the log misread density of the gene. Probabilities are
+the softmax of the scores.
 
 **Parameters**
 
@@ -473,7 +473,7 @@ of the scores.
 **Returns**
 
 - **`pd.DataFrame`**
-  One row per candidate cell, labelled 'Cell' followed by the cell label, and a final 'background' row. Columns are the score terms above, 'misread', 'sum' and 'prob'.
+  One row per candidate cell, indexed by cell label, and a final 'background' row. Columns are the score terms above, 'misread', 'sum' and 'prob'.
 
 #### `check_cell`
 
