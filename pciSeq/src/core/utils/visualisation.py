@@ -198,9 +198,9 @@ def spot_to_cell_score_plot(my_dict):
     fig.add_trace(go.Bar(
         x=labels[:-1],
         y=mvn_loglik,
-        name='spatial fit',
+        name='Gaussian fit',
         marker_color='#1f77b4',
-        hovertemplate="<b>%{x}</b><br>spatial fit: %{y:.2f}<extra></extra>",
+        hovertemplate="<b>%{x}</b><br>Gaussian fit: %{y:.2f}<extra></extra>",
         width=0.7  # Matplotlib-like bar width
     ))
 

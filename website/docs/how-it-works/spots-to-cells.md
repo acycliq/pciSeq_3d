@@ -30,7 +30,7 @@ spot's position, four on its gene.
 <rect class="sb-card sb-card-where" x="44" y="174" width="156" height="170" rx="10" />
 <circle class="sb-badge-where" cx="122" cy="208" r="21" />
 <text class="sb-badge-txt" x="122" y="213" text-anchor="middle" font-size="12">loglik</text>
-<text class="sb-name" x="122" y="246" text-anchor="middle">Spatial fit:</text>
+<text class="sb-name" x="122" y="246" text-anchor="middle">Gaussian fit:</text>
 <text class="sb-name" x="122" y="264" text-anchor="middle">Gaussian LogLik</text>
 <text class="sb-q" x="122" y="287" text-anchor="middle">distance to</text>
 <text class="sb-q" x="122" y="304" text-anchor="middle">the cell</text>
@@ -67,7 +67,7 @@ spot's position, four on its gene.
 <figcaption>The terms of the score. One depends on the spot's position, four on its gene. They are added.</figcaption>
 </figure>
 
-### Spatial fit
+### Gaussian fit
 
 Each cell has a Gaussian footprint centred on its centroid, and the term is the log
 density of the spot's position under it. It does not depend on the gene.

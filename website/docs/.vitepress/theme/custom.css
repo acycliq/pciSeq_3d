@@ -127,7 +127,7 @@
    right aligned under their heading */
 .vp-doc th,
 .vp-doc td {
-  padding: 4px 4px;
+  padding: 4px 3px;
   font-size: 13px;
 }
 

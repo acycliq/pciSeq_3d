@@ -1,4 +1,4 @@
-| cell | spatial fit | class expression | cell scale | cell-gene scale | gene efficiency | misread | sum | prob |
+| cell | Gaussian fit | class expression | cell scale | cell-gene scale | gene efficiency | misread | sum | prob |
 |---|---|---|---|---|---|---|---|---|
 | 18223 | -10.405 | -2.203 | -0.956 | -0.204 | -0.382 |  | -14.149 | 0.060 |
 | 17371 | -12.070 | 0.943 | -0.422 | -0.436 | -0.382 |  | -12.367 | 0.355 |

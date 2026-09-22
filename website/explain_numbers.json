@@ -566,7 +566,7 @@
    "gene": "Synpr",
    "table": {
     "18223": {
-     "spatial fit": -10.4051380626,
+     "Gaussian fit": -10.4051380626,
      "class expression": 0.9429937124,
      "cell scale": -0.6600297102,
      "cell-gene scale": 0.1835926816,
@@ -576,7 +576,7 @@
      "prob": 0.7374406772
     },
     "17371": {
-     "spatial fit": -12.0701569788,
+     "Gaussian fit": -12.0701569788,
      "class expression": 0.9429937575,
      "cell scale": -0.2980917991,
      "cell-gene scale": -0.5437278148,
@@ -586,7 +586,7 @@
      "prob": 0.0968132816
     },
     "21574": {
-     "spatial fit": -12.8080236189,
+     "Gaussian fit": -12.8080236189,
      "class expression": 0.9429937574,
      "cell scale": 0.1020290851,
      "cell-gene scale": 0.065794826,
@@ -596,7 +596,7 @@
      "prob": 0.1270475055
     },
     "18222": {
-     "spatial fit": -13.7957741491,
+     "Gaussian fit": -13.7957741491,
      "class expression": 0.942991932,
      "cell scale": -1.2695835583,
      "cell-gene scale": -0.3894932403,
@@ -606,7 +606,7 @@
      "prob": 0.007613386
     },
     "19974": {
-     "spatial fit": -14.5201422445,
+     "Gaussian fit": -14.5201422445,
      "class expression": 0.9429937334,
      "cell scale": -0.2074216613,
      "cell-gene scale": -0.1760701501,
@@ -616,7 +616,7 @@
      "prob": 0.0132120158
     },
     "19121": {
-     "spatial fit": -15.6063434355,
+     "Gaussian fit": -15.6063434355,
      "class expression": 0.9429937548,
      "cell scale": -0.173411593,
      "cell-gene scale": -0.5005158179,
@@ -626,7 +626,7 @@
      "prob": 0.0033350575
     },
     "17357": {
-     "spatial fit": -15.8471233122,
+     "Gaussian fit": -15.8471233122,
      "class expression": 0.9429937224,
      "cell scale": -0.0499192042,
      "cell-gene scale": -0.690323824,
@@ -636,7 +636,7 @@
      "prob": 0.0024532027
     },
     "19555": {
-     "spatial fit": -15.9566919081,
+     "Gaussian fit": -15.9566919081,
      "class expression": 0.9429937443,
      "cell scale": -0.7962777615,
      "cell-gene scale": -0.4054390775,
@@ -646,7 +646,7 @@
      "prob": 0.0013859032
     },
     "22339": {
-     "spatial fit": -16.9936415426,
+     "Gaussian fit": -16.9936415426,
      "class expression": 0.9429937596,
      "cell scale": 0.2771729827,
      "cell-gene scale": -0.7704367637,
@@ -656,7 +656,7 @@
      "prob": 0.0009978578
     },
     "background": {
-     "spatial fit": null,
+     "Gaussian fit": null,
      "class expression": null,
      "cell scale": null,
      "cell-gene scale": null,
@@ -667,116 +667,11 @@
     }
    }
   },
-  "spot-1533144-mrf": {
-   "gene": "Neurod6",
-   "table": {
-    "18223": {
-     "spatial fit": -10.8840680591,
-     "class expression": -2.2070348037,
-     "cell scale": -0.6600297102,
-     "cell-gene scale": 0.3660276478,
-     "gene efficiency": 1.5734205246,
-     "misread": null,
-     "sum": -11.8116844006,
-     "prob": 0.345238125
-    },
-    "17371": {
-     "spatial fit": -10.9366808407,
-     "class expression": -2.207034825,
-     "cell scale": -0.2980917991,
-     "cell-gene scale": 0.2622413631,
-     "gene efficiency": 1.5734205246,
-     "misread": null,
-     "sum": -11.6061455771,
-     "prob": 0.4240168606
-    },
-    "19974": {
-     "spatial fit": -13.3360549681,
-     "class expression": -2.2070348123,
-     "cell scale": -0.2074216613,
-     "cell-gene scale": 0.4314261029,
-     "gene efficiency": 1.5734205246,
-     "misread": null,
-     "sum": -13.7456648141,
-     "prob": 0.0499116271
-    },
-    "11098": {
-     "spatial fit": -13.8675595991,
-     "class expression": -2.2070348244,
-     "cell scale": -0.7849684358,
-     "cell-gene scale": -0.2753735785,
-     "gene efficiency": 1.5734205246,
-     "misread": null,
-     "sum": -15.5615159132,
-     "prob": 0.0081205906
-    },
-    "18222": {
-     "spatial fit": -14.1087795965,
-     "class expression": -2.2070340247,
-     "cell scale": -1.2695835583,
-     "cell-gene scale": -0.2019490818,
-     "gene efficiency": 1.5734205246,
-     "misread": null,
-     "sum": -16.2139257367,
-     "prob": 0.0042291163
-    },
-    "16443": {
-     "spatial fit": -14.9657942526,
-     "class expression": -2.2070347753,
-     "cell scale": -0.9407856959,
-     "cell-gene scale": -0.2776919997,
-     "gene efficiency": 1.5734205246,
-     "misread": null,
-     "sum": -16.8178861988,
-     "prob": 0.0023118142
-    },
-    "19555": {
-     "spatial fit": -15.5171906225,
-     "class expression": -2.2070348189,
-     "cell scale": -0.7962777615,
-     "cell-gene scale": -0.1533949987,
-     "gene efficiency": 1.5734205246,
-     "misread": null,
-     "sum": -17.1004776771,
-     "prob": 0.0017427096
-    },
-    "19564": {
-     "spatial fit": -16.4018413297,
-     "class expression": -2.2070324358,
-     "cell scale": -2.7532551381,
-     "cell-gene scale": -0.27146661,
-     "gene efficiency": 1.5734205246,
-     "misread": null,
-     "sum": -20.0601749891,
-     "prob": 9.03327e-05
-    },
-    "19121": {
-     "spatial fit": -17.410449671,
-     "class expression": -2.2070348237,
-     "cell scale": -0.173411593,
-     "cell-gene scale": -0.1069074282,
-     "gene efficiency": 1.5734205246,
-     "misread": null,
-     "sum": -18.3243829913,
-     "prob": 0.0005124951
-    },
-    "background": {
-     "spatial fit": null,
-     "class expression": null,
-     "cell scale": null,
-     "cell-gene scale": null,
-     "gene efficiency": null,
-     "misread": -12.5571119004,
-     "sum": -12.5571119004,
-     "prob": 0.1638263289
-    }
-   }
-  },
   "spot-1642419-nomrf": {
    "gene": "Synpr",
    "table": {
     "18223": {
-     "spatial fit": -10.4051380626,
+     "Gaussian fit": -10.4051380626,
      "class expression": -2.2029019383,
      "cell scale": -0.955781791,
      "cell-gene scale": -0.2035604255,
@@ -786,7 +681,7 @@
      "prob": 0.0596656957
     },
     "17371": {
-     "spatial fit": -12.0701569788,
+     "Gaussian fit": -12.0701569788,
      "class expression": 0.942976396,
      "cell scale": -0.4219234375,
      "cell-gene scale": -0.435989941,
@@ -796,7 +691,7 @@
      "prob": 0.3546195413
     },
     "21574": {
-     "spatial fit": -12.8080236189,
+     "Gaussian fit": -12.8080236189,
      "class expression": 0.9429934972,
      "cell scale": 0.0118009494,
      "cell-gene scale": 0.1949602891,
@@ -806,7 +701,7 @@
      "prob": 0.491700887
     },
     "18222": {
-     "spatial fit": -13.7957741491,
+     "Gaussian fit": -13.7957741491,
      "class expression": -2.1489890696,
      "cell scale": -2.4403471993,
      "cell-gene scale": -0.2697698336,
@@ -816,7 +711,7 @@
      "prob": 0.0004498951
     },
     "19974": {
-     "spatial fit": -14.5201422445,
+     "Gaussian fit": -14.5201422445,
      "class expression": 0.9429080016,
      "cell scale": -0.3680679095,
      "cell-gene scale": -0.0122623035,
@@ -826,7 +721,7 @@
      "prob": 0.049332101
     },
     "19121": {
-     "spatial fit": -15.6063434355,
+     "Gaussian fit": -15.6063434355,
      "class expression": -2.1943414705,
      "cell scale": -0.4775009708,
      "cell-gene scale": -0.2600071747,
@@ -836,7 +731,7 @@
      "prob": 0.0005055777
     },
     "17357": {
-     "spatial fit": -15.8471233122,
+     "Gaussian fit": -15.8471233122,
      "class expression": 0.9401982302,
      "cell scale": -0.1482088474,
      "cell-gene scale": -0.7315221946,
@@ -846,7 +741,7 @@
      "prob": 0.0079207297
     },
     "19555": {
-     "spatial fit": -15.9566919081,
+     "Gaussian fit": -15.9566919081,
      "class expression": 0.9404210595,
      "cell scale": -0.9048053034,
      "cell-gene scale": -0.2400632512,
@@ -856,7 +751,7 @@
      "prob": 0.0054466463
     },
     "22339": {
-     "spatial fit": -16.9936415426,
+     "Gaussian fit": -16.9936415426,
      "class expression": 0.9429921915,
      "cell scale": 0.1417832015,
      "cell-gene scale": -0.6760681341,
@@ -866,7 +761,7 @@
      "prob": 0.0035651466
     },
     "background": {
-     "spatial fit": null,
+     "Gaussian fit": null,
      "class expression": null,
      "cell scale": null,
      "cell-gene scale": null,
@@ -874,111 +769,6 @@
      "misread": -14.9496597311,
      "sum": -14.9496597311,
      "prob": 0.0267937796
-    }
-   }
-  },
-  "spot-1533144-nomrf": {
-   "gene": "Neurod6",
-   "table": {
-    "18223": {
-     "spatial fit": -10.8840680591,
-     "class expression": -0.6733312521,
-     "cell scale": -0.955781791,
-     "cell-gene scale": 0.557362715,
-     "gene efficiency": 1.6974992752,
-     "misread": null,
-     "sum": -10.258319112,
-     "prob": 0.7529988459
-    },
-    "17371": {
-     "spatial fit": -10.9366808407,
-     "class expression": -2.2070263139,
-     "cell scale": -0.4219234375,
-     "cell-gene scale": -0.0134299004,
-     "gene efficiency": 1.6974992752,
-     "misread": null,
-     "sum": -11.8815612172,
-     "prob": 0.148535144
-    },
-    "19974": {
-     "spatial fit": -13.3360549681,
-     "class expression": -2.2069862444,
-     "cell scale": -0.3680679095,
-     "cell-gene scale": 0.0469470904,
-     "gene efficiency": 1.6974992752,
-     "misread": null,
-     "sum": -14.1666627564,
-     "prob": 0.0151154901
-    },
-    "11098": {
-     "spatial fit": -13.8675595991,
-     "class expression": -2.2070013829,
-     "cell scale": -0.7996642343,
-     "cell-gene scale": -0.2794579658,
-     "gene efficiency": 1.6974992752,
-     "misread": null,
-     "sum": -15.4561839068,
-     "prob": 0.0041628457
-    },
-    "18222": {
-     "spatial fit": -14.1087795965,
-     "class expression": -2.1990630368,
-     "cell scale": -2.4403471993,
-     "cell-gene scale": -0.2524704208,
-     "gene efficiency": 1.6974992752,
-     "misread": null,
-     "sum": -17.3031609783,
-     "prob": 0.0006565357
-    },
-    "16443": {
-     "spatial fit": -14.9657942526,
-     "class expression": -2.2068422741,
-     "cell scale": -0.8795272324,
-     "cell-gene scale": -0.2803179186,
-     "gene efficiency": 1.6974992752,
-     "misread": null,
-     "sum": -16.6349824024,
-     "prob": 0.0012806918
-    },
-    "19555": {
-     "spatial fit": -15.5171906225,
-     "class expression": -2.2059361043,
-     "cell scale": -0.9048053034,
-     "cell-gene scale": -0.2089056209,
-     "gene efficiency": 1.6974992752,
-     "misread": null,
-     "sum": -17.1393383759,
-     "prob": 0.0007734026
-    },
-    "19564": {
-     "spatial fit": -16.4018413297,
-     "class expression": -2.1388041802,
-     "cell scale": -3.1348867088,
-     "cell-gene scale": -0.273091063,
-     "gene efficiency": 1.6974992752,
-     "misread": null,
-     "sum": -20.2511240066,
-     "prob": 3.4433e-05
-    },
-    "19121": {
-     "spatial fit": -17.410449671,
-     "class expression": -0.6800157875,
-     "cell scale": -0.4775009708,
-     "cell-gene scale": -0.4020297034,
-     "gene efficiency": 1.6974992752,
-     "misread": null,
-     "sum": -17.2724968576,
-     "prob": 0.0006769797
-    },
-    "background": {
-     "spatial fit": null,
-     "class expression": null,
-     "cell scale": null,
-     "cell-gene scale": null,
-     "gene efficiency": null,
-     "misread": -12.5547380263,
-     "sum": -12.5547380263,
-     "prob": 0.0757656316
     }
    }
   }

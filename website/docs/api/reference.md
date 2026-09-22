@@ -456,7 +456,7 @@ check_spot(spot_id, show_plot=True)
 Break down the assignment of a spot to its candidate cells.
 
 The score of each candidate cell is the sum of the terms from the last
-spot-to-cell update: the spatial log-likelihood ('spatial fit'), the expected log mean
+spot-to-cell update: the spatial log-likelihood ('Gaussian fit'), the expected log mean
 expression under the cell's class probabilities ('class expression'), the expected
 log theta ('cell scale'), the expected log gamma ('cell-gene scale'), the log eta
 of the spot's gene ('gene efficiency') and the inside-cell bonus ('bonus'). The

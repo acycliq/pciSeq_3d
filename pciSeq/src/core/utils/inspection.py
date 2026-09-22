@@ -252,14 +252,14 @@ def check_spot(self, spot_id, show_plot=True):
     df = pd.DataFrame({
         'cell': cell_ids,
         # 'internal_tag':self.spots.parent_cell_id[row_pos][:-1],
-        'spatial fit': mvn_loglik,
+        'Gaussian fit': mvn_loglik,
         'class expression': attention,
         'cell scale': cell_inefficiency,
         'cell-gene scale': expr_fluct,
         'gene efficiency': gene_inefficiency,
         'bonus': bonus}).set_index(['cell'])
     df['misread'] = np.nan
-    df['sum'] = df[['spatial fit', 'class expression', 'cell scale', 'cell-gene scale', 'gene efficiency', 'bonus']].sum(axis=1)
+    df['sum'] = df[['Gaussian fit', 'class expression', 'cell scale', 'cell-gene scale', 'gene efficiency', 'bonus']].sum(axis=1)
     df.loc['background'] = [np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, misread, misread]
     # softmax of the sums, same order as the rows (cells first, background last)
     df['prob'] = probabilities

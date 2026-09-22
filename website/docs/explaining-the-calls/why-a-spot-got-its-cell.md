@@ -7,7 +7,7 @@ over them gives the probabilities:
 
 $$
 \begin{aligned}
-\text{score}_c = \;& \text{spatial fit} && \text{position} \\
+\text{score}_c = \;& \text{Gaussian fit} && \text{position} \\
 +\;& \text{class expression} + \text{cell scale} + \text{cell-gene scale} + \text{gene efficiency} && \text{expression} \\
 +\;& \text{inside-cell bonus} && \text{segmentation}
 \end{aligned}
@@ -22,7 +22,7 @@ spot. It reads the values the model used in its last spot update, so what it sho
 with the probabilities in `geneData`.
 
 The examples use the same two fits as the [cell page](why-a-cell-got-its-type.md), with
-`mrf_beta = 1.5` and `mrf_beta = 0`, and two spots of cell 18223.
+`mrf_beta = 1.5` and `mrf_beta = 0`, and one spot of cell 18223.
 
 ## Calling `check_spot`
 
@@ -48,6 +48,28 @@ better explanation of the spot.
 The second chart is the softmax of those totals, which is the assignment the model uses:
 0.74 on cell 18223, 0.13 on cell 21574, 0.10 on cell 17371 and 0.01 on the background.
 
+Each expression term is a log, so its sign says whether the quantity inside the log is
+above or below 1.
+
+Take the class expression, the orange segment of every bar in the score chart above. It sits
+above zero, so the quantity inside its log is above 1. The term is
+`log(mean expression x Inefficiency + SpotReg)`, averaged over the cell's class
+probabilities. Every candidate here is `037 DG Glut` with probability near 1, so the
+average reduces to the value for DG. Synpr has a mean of 24.68 in `037 DG Glut`, and with
+`Inefficiency` 0.1 and `SpotReg` 0.1 that gives `log(24.68 x 0.1 + 0.1) = log(2.57) = 0.943`, the value every DG
+candidate shows here.
+
+It is not positive by construction: the sign follows the class mean. For a cell
+confidently of one class, as here, the term is zero when
+`mean expression x Inefficiency + SpotReg` equals 1, which in this run is a class mean of
+9 counts, and negative below that. For a cell spread over several classes it is the
+average of those logs.
+
+The cell scale and the cell-gene scale are positive when the cell holds more than its class
+predicts. Here the cell-gene scale is positive for cell 18223, 0.18, and cell 21574, 0.07, the
+cells with more Synpr than their class predicts; the cell scale is positive for cells 22339,
+0.28, and 21574, 0.10, which hold more reads in total than their class predicts.
+
 ## The returned table
 
 `check_spot` returns the same numbers as a table, one row per candidate and a final row
@@ -55,7 +77,7 @@ for the background:
 
 <!--@include: ./_tables/spot-1642419-mrf.md-->
 
-- **spatial fit**. The log density of the spot's position under the cell's Gaussian
+- **Gaussian fit**. The log density of the spot's position under the cell's Gaussian
   footprint. When several cells compete for the same spot and everything else is equal, it
   goes to the nearest one. It does not depend on the gene.
 - **class expression, the alignment**. How well the cell's likely class matches the gene. When several cells
@@ -91,31 +113,9 @@ cell explains. A gene can be well detected and still produce many misreads.</p>
 in these runs, so the column was empty. When it is set, a spot whose pixel falls inside the
 cell's segmentation gets that bonus added to its score.</p>
 
-Each expression term is a log, so its sign says whether the quantity inside the log is
-above or below 1.
-
-Take the class expression, the orange segment of every bar in the score chart above. It sits
-above zero, so the quantity inside its log is above 1. The term is
-`log(mean expression x Inefficiency + SpotReg)`, averaged over the cell's class
-probabilities. Every candidate here is `037 DG Glut` with probability near 1, so the
-average reduces to the value for DG. Synpr has a mean of 24.68 in `037 DG Glut`, and with
-`Inefficiency` 0.1 and `SpotReg` 0.1 that gives `log(24.68 x 0.1 + 0.1) = log(2.57) = 0.943`, the value every DG
-candidate shows here.
-
-It is not positive by construction: the sign follows the class mean. For a cell
-confidently of one class, as here, the term is zero when
-`mean expression x Inefficiency + SpotReg` equals 1, which in this run is a class mean of
-9 counts, and negative below that. For a cell spread over several classes it is the
-average of those logs.
-
-The cell scale and the cell-gene scale are positive when the cell holds more than its class
-predicts. Here the cell-gene scale is positive for cell 18223, 0.18, and cell 21574, 0.07, the
-cells with more Synpr than their class predicts; the cell scale is positive for cells 22339,
-0.28, and 21574, 0.10, which hold more reads in total than their class predicts.
-
-Cell 18223 is not the only candidate close to the spot: cell 17371 is 1.7 further in
-spatial fit and cell 21574 is 2.4 further. Its advantage comes from the expression terms,
-where it is the only candidate with a positive cell-gene scale and the largest total.
+Cell 18223 is not the only candidate close to the spot: its Gaussian fit is 1.7 above cell
+17371 and 2.4 above cell 21574. It wins on the expression terms, where it has the largest
+cell-gene scale, 0.18 against 0.07 for cell 21574 and negative values for the rest.
 
 ## The same spot without the spatial term
 
@@ -131,34 +131,16 @@ obj_nomrf.check_spot(1642419)
 
 | term for cell 18223 | without MRF | with MRF |
 | --- | --- | --- |
-| spatial fit | -10.405 | -10.405 |
+| Gaussian fit | -10.405 | -10.405 |
 | class expression | -2.203 | +0.943 |
 | sum | -14.149 | -10.590 |
 | prob | 0.06 | 0.74 |
 
-`spatial fit` is identical, as it must be. What changes is the class expression: `037 DG Glut`
-expresses Synpr and `030 L6 CT CTX Glut` does not, so the same spot is worth 3.1 more to
-the cell once the cell is DG. The spot goes to cell 21574 with probability 0.49 instead,
-a DG cell 2.4 further away.
-
-## A spot that moves the other way
-
-Spot 1533144 is a Neurod6 spot, a gene of `030 L6 CT CTX Glut`. Cell 18223 holds it in the
-fit without the spatial term and loses it in the fit with it:
-
-| term for cell 18223 | without MRF | with MRF |
-| --- | --- | --- |
-| spatial fit | -10.884 | -10.884 |
-| class expression | -0.673 | -2.207 |
-| sum | -10.258 | -11.812 |
-| prob | 0.75 | 0.35 |
-
-<!--@include: ./_tables/spot-1533144-mrf.md-->
-
-In the fit with the spatial term the spot goes to cell 17371 with probability 0.42, and
-0.16 goes to the background. Cell 17371 is 0.05 further from the spot and has the same
-class expression, since both cells are DG; it wins on the other expression terms.
-
-Taken together the two spots are the loop the cell page describes: the class of a cell
-sets the attention it gives to a gene, the attention decides which spots it holds, and the
-spots it holds decide its class in the next iteration.
+`Gaussian fit` is identical, as it must be. What changes is the class expression: `037 DG Glut`
+expresses Synpr and `030 L6 CT CTX Glut` does not, and the class expression term falls from +0.943
+(with mrf) to -2.203 (without mrf). The spot is now assigned to cell 18223 with probability 6%
+and its most likely parent cell is 21574 with prob 49.2%. It is worth noticing that cell 21574 is the
+third closest to the spot. It has the type `037 DG Glut`. Also cell 17371 is the second closest, also `037 DG Glut`
+. The spot however is not assigned to cell 17371 despite being closer because it holds
+fewer reads in total, 60.0 against 98.8, and expresses fewer Synpr, 0.5 against 3.0, than
+cell 21574.
