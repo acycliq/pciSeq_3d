@@ -1,5 +1,5 @@
 
-# Why a cell got its class
+# How a cell's call was made
 
 A cell is assigned the class with the highest posterior probability. For every class the
 model adds three terms, and a softmax over all classes turns the totals into

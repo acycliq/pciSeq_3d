@@ -63,27 +63,18 @@ cellData, geneData = pciSeq.fit(spots=spots, coo=coo, scRNAseq=scRNAseq, opts=op
 
 ## Explaining the calls
 
-A fitted model can be asked about a single cell or a single spot. `check_cell` compares the
-class a cell was given with any other class, gene by gene:
-
-```python
-obj = pd.read_pickle("out/run1/pciSeq/data/debug/pciSeq.pickle")
-obj.check_cell(18223, "030 L6 CT CTX Glut")
-```
-
-![check_cell output](https://github.com/user-attachments/assets/ab9867e4-866e-4f81-88e5-359bdf7d7a64)
-
-`check_spot` does the same for a spot, breaking its score into the position term, the
-expression terms and the background. Both are walked through in the documentation, in
-[Why a cell got its class](https://acycliq.github.io/pciSeq_3d/explaining-the-calls/why-a-cell-got-its-type)
-and [Why a spot got its cell](https://acycliq.github.io/pciSeq_3d/explaining-the-calls/why-a-spot-got-its-cell).
+A fitted model can be inspected after the run. [`check_cell`](https://acycliq.github.io/pciSeq_3d/api/reference#check-cell) and
+[`check_spot`](https://acycliq.github.io/pciSeq_3d/api/reference#check-spot) break a call
+into the terms behind it: why a cell was given its class, why a spot was assigned to a
+cell. They also serve as diagnostics for miscalls. Both are walked through in the
+documentation, in
+[How a cell's call was made](https://acycliq.github.io/pciSeq_3d/explaining-the-calls/why-a-cell-got-its-type)
+and [How a spot's call was made](https://acycliq.github.io/pciSeq_3d/explaining-the-calls/why-a-spot-got-its-cell).
 
 ## Documentation
 
-https://acycliq.github.io/pciSeq_3d/
-
-The settings, how the model works, how to read the outputs, the live viewer and the two
-pages above.
+[Documentation](https://acycliq.github.io/pciSeq_3d/): settings, model, outputs, live
+viewer.
 
 ## Citation
 

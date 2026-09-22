@@ -1,5 +1,5 @@
 
-# Why a spot got its cell
+# How a spot's call was made
 
 A spot is assigned to one of its `nNeighbors` nearest cells or to the background, as a
 probability. Each candidate cell gets a score, the background gets one too, and a softmax

@@ -92,8 +92,8 @@ export default defineConfig({
         link: '/explaining-the-calls/overview',
         items: [
           { text: 'Overview', link: '/explaining-the-calls/overview' },
-          { text: 'Why a cell got its class', link: '/explaining-the-calls/why-a-cell-got-its-type' },
-          { text: 'Why a spot got its cell', link: '/explaining-the-calls/why-a-spot-got-its-cell' },
+          { text: "How a cell's call was made", link: '/explaining-the-calls/why-a-cell-got-its-type' },
+          { text: "How a spot's call was made", link: '/explaining-the-calls/why-a-spot-got-its-cell' },
         ],
       },
       {
