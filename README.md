@@ -35,7 +35,7 @@ is pickled next to them.
 ## Install
 
 ```
-pip install git+https://github.com/acycliq/pciSeq.git@dev_3d
+pip install git+https://github.com/acycliq/pciSeq_3d.git@dev_3d
 ```
 
 Python 3.10 or newer.
@@ -83,4 +83,4 @@ types in situ. *Nature Methods* 17, 101 to 106 (2020).
 
 ## Licence
 
-MIT, see [LICENCE](LICENCE).
+MIT, see [LICENSE](LICENSE).

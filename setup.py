@@ -130,7 +130,7 @@ setup(
     },
     name="pciSeq_3d",
     version=version,
-    license="BSD",
+    license="MIT",
     author="Dimitris Nicoloutsopoulos",
     author_email="dimitris.nicoloutsopoulos@gmail.com",
     description="Probabilistic cell typing for spatial transcriptomics",
@@ -146,7 +146,7 @@ setup(
     },
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: BSD License",
+        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
 )
