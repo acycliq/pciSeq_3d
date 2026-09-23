@@ -49,6 +49,7 @@ export default defineConfig({
       { text: 'Running pciSeq', link: '/running-pciseq' },
       { text: 'How it works', link: '/how-it-works/overview' },
       { text: 'Explaining the calls', link: '/explaining-the-calls/overview' },
+      { text: 'Viewer', link: '/viewer/overview' },
       { text: 'The model', link: '/the-model/overview' },
       { text: 'API', link: '/api/reference' },
     ],
@@ -94,6 +95,13 @@ export default defineConfig({
           { text: 'Overview', link: '/explaining-the-calls/overview' },
           { text: "How a cell's call was made", link: '/explaining-the-calls/why-a-cell-got-its-type' },
           { text: "How a spot's call was made", link: '/explaining-the-calls/why-a-spot-got-its-cell' },
+        ],
+      },
+      {
+        text: 'pciSeq Viewer',
+        link: '/viewer/overview',
+        items: [
+          { text: 'Overview', link: '/viewer/overview' },
         ],
       },
       {
