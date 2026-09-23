@@ -301,3 +301,22 @@
 @media (max-width: 640px) {
   .vp-doc .two-panel { flex-direction: column; }
 }
+
+/* two small tables next to each other, with their caption under each one */
+.vp-doc .two-tables {
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+
+.vp-doc .two-tables table {
+  margin: 0;
+  display: table;
+}
+
+.vp-doc .two-tables .table-note {
+  margin-top: 0.4rem;
+  max-width: 34ch;
+}

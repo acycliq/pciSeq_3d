@@ -26,6 +26,11 @@ The examples use the same two fits as the [cell page](why-a-cell-got-its-type.md
 
 ## Calling `check_spot`
 
+The example uses the same cell and the same two fits as
+[Figure 3.1](why-a-cell-got-its-type.md#fig-the-cell). The question is now on the spot
+side: which cell does the spot belong to, and how the answer changes when the spatial
+term (mrf) is switched off.
+
 Spot 1642419 is a Synpr spot. In the fit with the spatial term it goes to cell 18223:
 
 ```python
@@ -37,13 +42,21 @@ obj.check_spot(1642419)
 
 The spot is given by its index in the spots table passed to `fit`.
 
-![check_spot score decomposition for spot 1642419](/explaining-the-calls/spot-1642419-mrf-scores.png)
+<figure class="diagram" id="fig-check-spot-scores">
+<img src="/explaining-the-calls/spot-1642419-mrf-scores.png" alt="check_spot score decomposition for spot 1642419">
+<figcaption><strong>Figure 3.4.</strong> The score of every candidate of spot 1642419,
+term by term.</figcaption>
+</figure>
 
 The bars are the score of each candidate, term by term, with the candidates ordered by
 distance and the background last. The black tick is the total. A taller total means a
 better explanation of the spot.
 
-![check_spot assignment probabilities for spot 1642419](/explaining-the-calls/spot-1642419-mrf-probs.png)
+<figure class="diagram" id="fig-check-spot-probs">
+<img src="/explaining-the-calls/spot-1642419-mrf-probs.png" alt="check_spot assignment probabilities for spot 1642419">
+<figcaption><strong>Figure 3.5.</strong> The assignment probabilities of the same spot,
+the softmax of the totals in Figure 3.4.</figcaption>
+</figure>
 
 The second chart is the softmax of those totals, which is the assignment the model uses:
 0.74 on cell 18223, 0.13 on cell 21574, 0.10 on cell 17371 and 0.01 on the background.
@@ -129,23 +142,53 @@ obj_nomrf.check_spot(1642419)
 
 <!--@include: ./_tables/spot-1642419-nomrf.md-->
 
-| term for cell 18223 | without MRF | with MRF |
-| --- | --- | --- |
-| Gaussian fit | -10.405 | -10.405 |
-| class expression | -2.203 | +0.943 |
-| sum | -14.149 | -10.590 |
-| prob | 0.06 | 0.74 |
+<div class="two-tables">
+<div>
+<table>
+<thead><tr><th>term for cell 18223</th><th>without MRF</th><th>with MRF</th></tr></thead>
+<tbody>
+<tr><td>Gaussian fit</td><td>-10.405</td><td>-10.405</td></tr>
+<tr><td>class expression</td><td>-2.203</td><td>+0.943</td></tr>
+<tr><td>sum</td><td>-14.149</td><td>-10.590</td></tr>
+<tr><td>prob</td><td>0.06</td><td>0.74</td></tr>
+</tbody>
+</table>
+<p class="table-note" id="table-3-1"><strong>Table 3.1.</strong> The terms of cell 18223
+that change between the two fits.</p>
+</div>
+<div>
+<table>
+<thead><tr><th>cell</th><th>Cplx2</th><th>Sema5a</th><th>Snca</th><th>Nrn1</th><th>Bcl11b</th><th>...</th><th>Synpr</th><th>total</th></tr></thead>
+<tbody>
+<tr><td>17371</td><td>3.3</td><td>10.8</td><td>3.8</td><td>0.5</td><td>4.3</td><td></td><td>0.5</td><td>60.0</td></tr>
+<tr><td>21574</td><td>13.0</td><td>10.9</td><td>4.7</td><td>4.4</td><td>2.3</td><td></td><td>3.0</td><td>98.8</td></tr>
+</tbody>
+</table>
+<p class="table-note" id="table-3-2"><strong>Table 3.2.</strong> What the two other
+<code>037 DG Glut</code> candidates hold in the fit without the spatial term. The five
+genes with the largest counts, then Synpr, then the cell total.</p>
+</div>
+</div>
 
-`Gaussian fit` is identical, as it must be. What changes is the class expression: `037 DG Glut`
-expresses Synpr and `030 L6 CT CTX Glut` does not, and the class expression term falls from +0.943
-(with mrf) to -2.203 (without mrf). The spot is now assigned to cell 18223 with probability 6%
-and its most likely parent cell is 21574 with prob 49.2%. It is worth noticing that cell 21574 is the
-third closest to the spot. It has the type `037 DG Glut`. Also cell 17371 is the second closest, also `037 DG Glut`
-. The spot however is not assigned to cell 17371 despite being closer because it holds
-fewer reads in total, 60.0 against 98.8, and expresses fewer Synpr, 0.5 against 3.0, than
-cell 21574.
+- **`Gaussian fit`**, -10.405 in both fits, it depends only on where the spot is.
+- **`class expression`**, +0.943 with the mrf, -2.203 without it. The term is high when the
+  cell's likely class expresses the gene strongly, and the cell is confidently of that
+  class. Cell 18223 is now classified as `030 L6 CT CTX Glut`, which does not express
+  Synpr, while `037 DG Glut` does.
 
-<figure class="diagram">
+The spot is now assigned to cell 18223 with probability 6%, against 73.7% with the mrf,
+and its most likely parent is cell 21574, a `037 DG Glut` cell, with 49.2%. Cell 21574 is
+only the third closest to the spot. Cell 17371 is the second closest and is `037 DG Glut`
+too, yet the spot does not go to it, because it holds fewer reads in total, 60.0 against
+98.8, and expresses fewer Synpr, 0.5 against 3.0, see [Table 3.2](#table-3-2).
+
+
+Cell 18223 here is the same cell as in
+[Figure 3.1](why-a-cell-got-its-type.md#fig-the-cell), the
+same fits and the same plane, 57. There it was panel **b**, outlined in red among its
+neighbours.
+
+<figure class="diagram" id="fig-spot-panels">
 <div class="two-panel">
   <div>
     <img src="/explaining-the-calls/spot-1642419-mrf-map.png" alt="the three candidate cells with the spatial term">
@@ -156,9 +199,9 @@ cell 21574.
     <p>without it</p>
   </div>
 </div>
-<figcaption>The same field at plane 57, with Synpr the only gene shown. Cells carry the
-colour of their class, and the line joins the spot to the cell it was assigned to. Cell
-18223 is <code>037 DG Glut</code> on the left and <code>030 L6 CT CTX Glut</code>, in
+<figcaption><strong>Figure 3.6.</strong> The same field at plane 57, with Synpr the only
+gene shown. Cells carry the colour of their class, and the line joins the spot to the
+cell it was assigned to. Cell 18223 is <code>037 DG Glut</code> on the left and <code>030 L6 CT CTX Glut</code>, in
 green, on the right, while cells 17371 and 21574 stay <code>037 DG Glut</code> in both.
 </figcaption>
 </figure>

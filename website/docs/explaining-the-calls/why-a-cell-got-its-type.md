@@ -28,7 +28,11 @@ cell, with its outline in red and, in blue, the nine nearest cells that the spat
 reads. Neighbours are taken in 3D, so one of the nine sits on another plane and is not
 drawn.
 
-![Cell 18223 in the section and up close](/explaining-the-calls/cell-18223-map.png)
+<figure class="diagram" id="fig-the-cell">
+<img src="/explaining-the-calls/cell-18223-map.png" alt="Cell 18223 in the section and up close">
+<figcaption><strong>Figure 3.1.</strong> Cell 18223 in the section, panel <strong>a</strong>,
+and up close with its nine nearest cells, panel <strong>b</strong>.</figcaption>
+</figure>
 
 Without the spatial term the cell is assigned `030 L6 CT CTX Glut`, a cortical class. With
 it, the cell is assigned `037 DG Glut`. The rest of this page examines the score of both
@@ -51,7 +55,11 @@ obj.check_cell(18223, '030 L6 CT CTX Glut')
 [the fitted model](overview.md#the-fitted-model).
 The cell is given by its label in the segmentation passed to `fit`.
 
-![check_cell output for cell 18223](/explaining-the-calls/cell-18223-mrf.png)
+<figure class="diagram" id="fig-check-cell-mrf">
+<img src="/explaining-the-calls/cell-18223-mrf.png" alt="check_cell output for cell 18223">
+<figcaption><strong>Figure 3.2.</strong> <code>check_cell</code> for cell 18223 in the fit
+with the spatial term.</figcaption>
+</figure>
 
 The figure has four panels.
 
@@ -187,7 +195,11 @@ obj_nomrf = pd.read_pickle('pciSeq_nomrf.pickle')
 obj_nomrf.check_cell(18223, '037 DG Glut')
 ```
 
-![check_cell output for cell 18223 without the MRF](/explaining-the-calls/cell-18223-nomrf.png)
+<figure class="diagram" id="fig-check-cell-nomrf">
+<img src="/explaining-the-calls/cell-18223-nomrf.png" alt="check_cell output for cell 18223 without the MRF">
+<figcaption><strong>Figure 3.3.</strong> The same cell in the fit without the spatial
+term.</figcaption>
+</figure>
 
 - **Top panels.** Neurod6, Rgs4 and Rprm favour `030 L6 CT CTX Glut` by 5.27, 3.54 and
   1.24. Pde1a, Trp53i11 and Sema5a favour `037 DG Glut` by 0.74, 0.66 and 0.48.
