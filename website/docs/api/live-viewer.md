@@ -13,6 +13,9 @@ changing class and how quickly a run settles.
 The viewer reads the class probabilities after each iteration and does not change them.
 A run gives the same result with the viewer on or off.
 
+It is not [pciSeq Viewer](../viewer/overview.md), the desktop application. That one is
+opened after a run, on the saved output.
+
 <figure class="diagram">
 <!-- the mp4 is hosted on github (issue #1, "docs assets") so it stays out of the repo -->
 <video src="https://github.com/user-attachments/assets/ab9867e4-866e-4f81-88e5-359bdf7d7a64"

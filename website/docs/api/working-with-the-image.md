@@ -16,9 +16,9 @@ stack, or `(Z, H, W, C)` for a stack with channels.
 
 An `.mbtiles` file is a single SQLite database that holds an image as a pyramid of small
 tiles at several zoom levels. A viewer asks only for the tiles on screen at the current
-zoom, so an image far too large to load at once can be panned and zoomed. The pciSeq viewer
-reads it as its background layer. It is written by [`stage_image`](#stage-image) and read
-back by [`read_tiles`](#read-tiles).
+zoom, so an image far too large to load at once can be panned and zoomed.
+[pciSeq Viewer](../viewer/overview.md) reads it as its background layer. It is written by
+[`stage_image`](#stage-image) and read back by [`read_tiles`](#read-tiles).
 
 The format is based on [MBTiles](https://github.com/mapbox/mbtiles-spec) by Mapbox, the
 format web maps use, and keeps its two tables, `tiles` and `metadata`. It departs from it in

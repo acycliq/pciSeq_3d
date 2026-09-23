@@ -127,9 +127,9 @@ data/
     debug/pciSeq.pickle
 ```
 
-`tsv/` holds the two DataFrames and the cell outlines. `viewer_data/` is what the viewer
-reads. `spatialdata.zarr` is described on the [SpatialData store](./spatialdata-store.md)
-page, and `debug/pciSeq.pickle` is the fitted model, see below.
+`tsv/` holds the two DataFrames and the cell outlines. `viewer_data/` is what
+[pciSeq Viewer](../viewer/overview.md) reads. `spatialdata.zarr` is described on the
+[SpatialData store](./spatialdata-store.md) page, and `debug/pciSeq.pickle` is the fitted model, see below.
 
 ## Inspecting the fitted model
 
