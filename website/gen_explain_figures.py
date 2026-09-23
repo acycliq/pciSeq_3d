@@ -109,14 +109,14 @@ def cell_table_html(ged, label):
             groups.append([t, 1])
     head_top = "".join(f'<th colspan="{n}">{t}</th>' if n > 1 else f"<th>{t}</th>" for t, n in groups)
     head_sub = "".join(f"<th>{b}</th>" for b in sub)
-    lines = ["<table>", "<thead>",
+    lines = ['<div class="wide-table">', "<table>", "<thead>",
              f"<tr><th></th>{head_top}</tr>",
              f"<tr><th>gene</th>{head_sub}</tr>",
              "</thead>", "<tbody>"]
     for gene, row in zip(ged.index, ged.values):
         cells = "".join(f"<td>{v:.2f}</td>" for v in row)
         lines.append(f"<tr><td>{gene}</td>{cells}</tr>")
-    lines += ["</tbody>", "</table>"]
+    lines += ["</tbody>", "</table>", "</div>"]
     return "\n".join(lines) + "\n"
 
 
@@ -307,8 +307,14 @@ def main():
             shown.clear()
             df = obj.check_spot(spot_id, show_plot=True)
             score_fig, prob_fig = shown  # same order as check_spot draws them
-            score_fig.write_image(FIG_DIR / f"{name}-scores.png", width=1000, height=550, scale=1)
-            prob_fig.write_image(FIG_DIR / f"{name}-probs.png", width=1000, height=450, scale=1)
+            # the charts are shown about 700px wide on the page, so the plotly defaults
+            # come out tiny. check_spot pins the tick fonts at 12, they need raising too.
+            for f in (score_fig, prob_fig):
+                f.update_layout(font=dict(size=16), legend=dict(font=dict(size=13)))
+                f.update_xaxes(tickfont=dict(size=15))
+                f.update_yaxes(tickfont=dict(size=15))
+            score_fig.write_image(FIG_DIR / f"{name}-scores.png", width=1000, height=550, scale=2)
+            prob_fig.write_image(FIG_DIR / f"{name}-probs.png", width=1000, height=450, scale=2)
             (TABLE_DIR / f"{name}.md").write_text(to_markdown(df))
             numbers["spots"][name] = {"gene": str(obj.spots.data.loc[spot_id].gene_name),
                                       "table": json.loads(df.to_json(orient="index"))}

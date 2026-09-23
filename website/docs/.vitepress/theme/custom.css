@@ -320,3 +320,9 @@
   margin-top: 0.4rem;
   max-width: 34ch;
 }
+
+/* the check_cell table carries long headers like "Cells typed as 030 L6 CT CTX Glut".
+   They have to wrap, otherwise one header sets the column width and the table scrolls. */
+.vp-doc .wide-table th {
+  white-space: normal;
+}

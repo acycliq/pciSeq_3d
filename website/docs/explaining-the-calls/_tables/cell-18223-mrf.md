@@ -1,3 +1,4 @@
+<div class="wide-table">
 <table>
 <thead>
 <tr><th></th><th>Cells typed as 037 DG Glut</th><th>Cells typed as 030 L6 CT CTX Glut</th><th colspan="2">Predicted counts for cell 18223</th><th>Cell 18223</th></tr>
@@ -26,3 +27,4 @@
 <tr><td>Lamp5</td><td>0.25</td><td>0.39</td><td>0.14</td><td>0.29</td><td>0.41</td></tr>
 </tbody>
 </table>
+</div>
