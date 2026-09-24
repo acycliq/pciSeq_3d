@@ -321,3 +321,80 @@ def test_queries_from_many_threads_at_once(fitted):
         futures = [pool.submit(run.cell, lab) for lab in LABELS * 5]
         for lab, fut in zip(LABELS * 5, futures):
             assert fut.result()['classes'][0]['class'] == want[lab]
+
+
+# --------------------------------------------------------- the narrative
+
+def test_narrative_tells_the_story_without_units(fitted):
+    """Every explain_cell answer carries a plain-words story built from its own
+    numbers. It names both classes, the top gene and what settled it, and it never
+    mentions a nat: the evidence comes out as odds or as a word, because the reader
+    it is written for has never heard of a log-likelihood."""
+    import re
+    run, _, _ = fitted
+    for lab in LABELS:
+        e = run.explain_cell(lab)
+        story = e['narrative']
+        assert e['assigned'] in story and e['compared_with'] in story
+        top = (e['genes_favouring_assigned'] or e['genes_favouring_compared'])[0]['gene']
+        assert top in story
+        assert re.search(r'So (the genes settled it|this call is the neighbourhood|'
+                         r'the neighbourhood settled it|the prior settled it)', story), lab
+        assert not re.search(r'\bnats?\b', story), lab
+        # probabilities like 1.00 and 0.01 are allowed; a negative number or anything
+        # 10 or more with a decimal point is a log-likelihood that leaked through
+        assert not re.search(r'-\d|\b\d{2,}\.\d', story), 'raw score leaked: %d' % lab
+        assert '\u2014' not in story and '\u2013' not in story
+
+
+def test_narrative_when_the_neighbourhood_overrules_the_genes():
+    """The fixture may not contain such a cell, so build the case by hand: genes
+    favour the other class by 4 (about 55 to one), the neighbourhood favours the
+    assigned one by 12. The story has to say the neighbourhood overruled the genes,
+    name the class the genes alone would have picked, and give the odds in words."""
+    from pciSeq.src.mcp.tools import narrate_cell
+    e = {
+        'cell': 4308, 'assigned': 'L5 ET', 'compared_with': 'L4/5 IT',
+        'prob_assigned': 0.999, 'prob_compared': 0.001,
+        'score': {'gene_loglik': {'assigned': -300.0, 'compared': -296.0},
+                  'log_prior': {'assigned': -4.3, 'compared': -4.3},
+                  'spatial': {'assigned': 12.5, 'compared': 0.5}},
+        'genes_favouring_assigned': [{'gene': 'Cpne7', 'counts': 9.0, 'diff': 8.2}],
+        'genes_favouring_compared': [{'gene': 'Car4', 'counts': 6.0, 'diff': -7.2}],
+    }
+    story = narrate_cell(e)
+    assert 'looks more like L4/5 IT, about 55 to one, mostly because of Car4' in story
+    assert 'neighbouring cells are overwhelmingly L5 ET, which is what carries the call' in story
+    assert 'neighbourhood overruling the genes' in story
+    assert 'would have been called L4/5 IT' in story
+    assert 'comes out for L5 ET, about 3,000 to one' in story
+
+
+def test_narrative_when_the_genes_decide():
+    from pciSeq.src.mcp.tools import narrate_cell
+    e = {
+        'cell': 1, 'assigned': 'A', 'compared_with': 'B',
+        'prob_assigned': 1.0, 'prob_compared': 0.0,
+        'score': {'gene_loglik': {'assigned': -100.0, 'compared': -133.6},
+                  'log_prior': {'assigned': -4.3, 'compared': -4.3},
+                  'spatial': {'assigned': 4.8, 'compared': 0.0}},
+        'genes_favouring_assigned': [{'gene': 'Ndnf', 'counts': 8.0, 'diff': 15.3},
+                                     {'gene': 'Rgs5', 'counts': 7.0, 'diff': 15.3}],
+        'genes_favouring_compared': [{'gene': 'Npy', 'counts': 3.0, 'diff': -7.6}],
+    }
+    story = narrate_cell(e)
+    assert 'The genes point to A, overwhelmingly, beyond any doubt.' in story
+    assert 'The strongest evidence comes from Ndnf and Rgs5' in story
+    assert 'at less than 0.01' in story
+    assert 'So the genes settled it, and the neighbourhood agreed.' in story
+
+
+def test_strength_wording():
+    """The odds bands, so a change in rounding shows up here and not in a doc."""
+    from pciSeq.src.mcp.tools import _strength
+    assert _strength(0.2) == 'only just'
+    assert _strength(0.8) == 'slightly'
+    assert _strength(2.0) == 'about 7 to one'
+    assert _strength(4.1) == 'about 60 to one'
+    assert _strength(8.4) == 'about 4,400 to one'
+    assert _strength(12.5) == 'overwhelmingly, beyond any doubt'

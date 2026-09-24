@@ -88,12 +88,26 @@ Every answer from either tool says which of the two it is.
 The run is a fit of the Espio section used throughout the documentation. The agent is
 asked in plain language; the tool calls and the substance of the answers are shown.
 
-**Why is cell 2413 `048 RHP-COA Ndnf Gaba`?** The agent calls `explain_cell(2413)`:
+**Why is cell 2413 `048 RHP-COA Ndnf Gaba`?** The agent calls `explain_cell(2413)`
+and answers in words. The tool returns a `narrative` alongside the numbers, built from
+them, so that the story is the same whoever asks:
+
+> Cell 2413 was called 048 RHP-COA Ndnf Gaba, with probability 1.00. The closest
+> alternative was 047 Sncg Gaba, at less than 0.01. pciSeq decides a cell's class from
+> three things: how well its gene counts match what each class typically expresses (the
+> gene log-likelihood), how common each class is to begin with (the prior), and what the
+> neighbouring cells were called (the spatial term). The class that comes out best
+> overall wins. The genes point to 048 RHP-COA Ndnf Gaba, overwhelmingly, beyond any
+> doubt. The strongest evidence comes from Ndnf, Rgs5 and Ttr: the cell holds these in
+> the amounts a 048 RHP-COA Ndnf Gaba cell typically does and a 047 Sncg Gaba cell does
+> not. A few genes, Npy, Kit and Rgs10, look more like 047 Sncg Gaba, but they are
+> outweighed. The prior treats the two classes alike. The neighbouring cells are mostly
+> 048 RHP-COA Ndnf Gaba, which strengthens the call. So the genes settled it, and the
+> neighbourhood agreed.
+
+The numbers behind it:
 
 ```
-assigned   048 RHP-COA Ndnf Gaba   p = 1.000
-compared   047 Sncg Gaba           p = 0.000
-
                     assigned   compared
 gene log-likelihood  -674.94    -708.54
 class prior            -4.33      -4.33
@@ -103,8 +117,11 @@ for the assigned class   Ndnf +15.3   Rgs5 +15.3   Ttr +10.7   Vip +4.9
 for the compared class   Npy   -7.6   Kit  -7.2   Rgs10 -3.9
 ```
 
-The gene log-likelihood decides it, by 34 nats. Ndnf and Rgs5 each contribute 15 nats
-in favour; Npy and Kit argue for `Sncg Gaba` but not by enough.
+The same tool tells the opposite story when it applies. Cell 4308 on this run is
+`022 L5 ET CTX Glut`, yet on its genes alone it looks more like `006 L4/5 IT CTX Glut`,
+about 60 to one; the neighbouring cells are overwhelmingly L5 ET, and they carry the
+call. The narrative says so: *this call is the neighbourhood overruling the genes*, and
+names the class the genes alone would have picked.
 
 **Why did spot 1642419 go to cell 18223?** The agent calls `explain_spot(1642419)`
 and reports the Synpr spot at 0.74 on cell 18223, 0.13 on cell 21574 and 0.10 on cell

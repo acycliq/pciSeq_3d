@@ -41,7 +41,11 @@ server = MCPServer(
         'Tools for inspecting a finished pciSeq run. Call open_run first with the run '
         'folder, then ask about cells and spots. Cell labels are always the labels of '
         'the segmentation the user knows, never internal indices. Counts are soft, '
-        'weighted by assignment probability, unless a tool says it is a hard count.'
+        'weighted by assignment probability, unless a tool says it is a hard count. '
+        'When you explain a result, explain it the way a teacher would: say what '
+        'happened and why in plain words, and use the numbers to support the story '
+        'rather than as the story. explain_cell returns a narrative field written that '
+        'way; build on it, do not just repeat the table.'
     ),
 )
 
@@ -107,7 +111,8 @@ def explain_cell(label: int, vs_class: Optional[str] = None, top_n: int = 10) ->
     Compares the assigned class against another (the runner up by default, or
     vs_class). Reports the three parts of the score for each, the gene
     log-likelihood, the class prior and the spatial term, and lists the genes that
-    pushed hardest for each side with their contribution in nats.
+    pushed hardest for each side. The narrative field tells the story in plain
+    words, with the evidence as odds rather than units.
 
     Use this for questions like 'why is cell 2413 Ndnf Gaba' or 'why is cell 18223
     not CA1'. label is the segmentation label.

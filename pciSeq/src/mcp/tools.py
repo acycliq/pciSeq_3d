@@ -247,7 +247,7 @@ class Run:
                      'diff': float(diff[g])}
                     for g in idx if keep(diff[g])]
 
-        return {
+        out = {
             'cell': int(label),
             'assigned': str(self.class_names[assigned]),
             'compared_with': str(self.class_names[other]),
@@ -265,6 +265,8 @@ class Run:
             'genes_favouring_compared': side(favours_other, lambda d: d < 0),
             'counts_are': 'soft, weighted by the spot assignment probabilities',
         }
+        out['narrative'] = narrate_cell(out)
+        return out
 
     def explain_spot(self, spot_id):
         """Why this spot went to the cell it did, term by term.
@@ -653,6 +655,117 @@ class Run:
         expected = np.einsum('gk,g,k->gk', c['scaled_means'], eta, c['theta_bar']) + spot_reg
         p = expected / (r_spot + expected)
         return c['gene_count'][:, None] * np.log(p) + r_spot * np.log(1 - p)
+
+
+def narrate_cell(e):
+    """The story behind an explain_cell result, in plain words.
+
+    Built from the numbers rather than left to the agent, so the story is the same
+    whoever asks and cannot get the sign of a log-likelihood the wrong way round.
+    Written for a reader who has never heard of a nat: the score differences are
+    turned into odds ('about sixty to one') or into words ('overwhelmingly'), and the
+    genes are ranked rather than numbered. The numbers themselves stay in the dict
+    for anyone who wants them.
+    """
+    a, o = e['assigned'], e['compared_with']
+    s = e['score']
+    d = {
+        'genes': s['gene_loglik']['assigned'] - s['gene_loglik']['compared'],
+        'prior': s['log_prior']['assigned'] - s['log_prior']['compared'],
+        'neighbours': s['spatial']['assigned'] - s['spatial']['compared'],
+    }
+    margin = sum(d.values())
+    decider = max(d, key=lambda k: abs(d[k]))
+    for_a = [g['gene'] for g in e['genes_favouring_assigned']]
+    for_o = [g['gene'] for g in e['genes_favouring_compared']]
+
+    def p(x):
+        return 'less than 0.01' if x < 0.005 else '%.2f' % x
+
+    def names(gs, n=3):
+        gs = gs[:n]
+        return gs[0] if len(gs) == 1 else ', '.join(gs[:-1]) + ' and ' + gs[-1]
+
+    out = []
+    out.append('Cell %d was called %s, with probability %s. The closest alternative was %s, '
+               'at %s.' % (e['cell'], a, p(e['prob_assigned']), o, p(e['prob_compared'])))
+    out.append('pciSeq decides a cell\'s class from three things: how well its gene counts '
+               'match what each class typically expresses (the gene log-likelihood), how '
+               'common each class is to begin with (the prior), and what the neighbouring '
+               'cells were called (the spatial term). The class that comes out best '
+               'overall wins.')
+
+    # the genes, ranked, no numbers
+    if d['genes'] > 0:
+        out.append('The genes point to %s, %s. The strongest evidence comes from %s: the '
+                   'cell holds these in the amounts a %s cell typically does and a %s cell '
+                   'does not.' % (a, _strength(d['genes']), names(for_a), a, o))
+        if for_o:
+            out.append('A few genes, %s, look more like %s, but they are outweighed.'
+                       % (names(for_o), o))
+    else:
+        out.append('On its genes alone the cell looks more like %s, %s, mostly because of '
+                   '%s.' % (o, _strength(-d['genes']), names(for_o)))
+        if for_a:
+            out.append('The genes arguing for %s are %s.' % (a, names(for_a)))
+
+    # the prior
+    if abs(d['prior']) < 0.05:
+        out.append('The prior treats the two classes alike.')
+    else:
+        who = a if d['prior'] > 0 else o
+        out.append('The prior favours %s, because that class is more common to begin with.'
+                   % who)
+
+    # the neighbourhood
+    if abs(d['neighbours']) < 0.4:
+        out.append('The neighbouring cells make no real difference either way.')
+    elif d['neighbours'] > 0:
+        out.append('The neighbouring cells are %s %s, which %s the call.'
+                   % (_mostly(d['neighbours']), a,
+                      'strengthens' if d['genes'] > 0 else 'is what carries'))
+    else:
+        out.append('The neighbouring cells lean towards %s, which counts against the call.'
+                   % o)
+
+    # what settled it
+    if decider == 'genes':
+        out.append('So the genes settled it%s.'
+                   % (', and the neighbourhood agreed' if d['neighbours'] > 0.4 else ''))
+    elif decider == 'neighbours' and d['genes'] <= 0:
+        out.append('So this call is the neighbourhood overruling the genes: on its genes '
+                   'alone the cell would have been called %s, but surrounded by %s cells '
+                   'the balance comes out for %s, %s.' % (o, a, a, _strength(margin)))
+    elif decider == 'neighbours':
+        out.append('So the neighbourhood settled it. The genes agreed, but only mildly; the '
+                   'surrounding cells made the difference.')
+    else:
+        out.append('So the prior settled it.')
+    return ' '.join(out)
+
+
+def _strength(d):
+    """A log-likelihood difference as something a reader can picture: the odds, e**d
+    to one, in round numbers while the number still means anything, and a word once
+    it does not. Meant to close a sentence: 'the genes point to X, about 60 to one'."""
+    import math
+    if d < 0.4:
+        return 'only just'
+    odds = math.exp(d)
+    if odds < 3:
+        return 'slightly'
+    if odds < 20:
+        return 'about %d to one' % round(odds)
+    if odds < 100:
+        return 'about %d to one' % (round(odds / 5) * 5)
+    if odds < 20000:
+        return 'about %s to one' % format(int(round(odds, -2)), ',')
+    return 'overwhelmingly, beyond any doubt'
+
+
+def _mostly(d):
+    """How much of the neighbourhood agrees, from the size of the spatial term."""
+    return 'overwhelmingly' if d > 8 else 'mostly' if d > 2 else 'somewhat more'
 
 
 def _tsv(v):
