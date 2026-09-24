@@ -81,6 +81,14 @@
         "link": "/api/reference#check-cell"
       },
       {
+        "text": "to_internal",
+        "link": "/api/reference#to-internal"
+      },
+      {
+        "text": "to_external",
+        "link": "/api/reference#to-external"
+      },
+      {
         "text": "read_tsv",
         "link": "/api/reference#read-tsv"
       },

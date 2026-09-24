@@ -2,12 +2,13 @@
 
 pciSeq has two numbers for the same cell. The segmentation label is whatever came
 in on the label image, which is what the user recognises and what every flat file
-reports. The internal label is 1..nC, which is what indexes the model arrays.
+reports. The internal label is the row index into the arrays in the pickle file, 1..nC-1,
+with row 0 the background.
 
 They are only different when the input labels were not already sequential, so a
 missing translation is correct on every tidy test dataset and wrong on a real
 segmentation with gaps in it. That is why these tests use labels 101..116: they
-do not overlap 1..nC at all, so a skipped translation cannot pass by luck.
+do not overlap the internal ones at all, so a skipped translation cannot pass by luck.
 """
 import numpy as np
 import pandas as pd
@@ -172,3 +173,54 @@ def test_inside_cell_reaches_the_arrow_shards(rng, tmp_path):
     table = feather.read_table(shards[0])
     assert 'inside_cell' in table.schema.names, 'missing, add it to _spots_arrow_table'
     assert set(table.column('inside_cell').to_pylist()) <= {0} | set(range(101, 117))
+
+
+# --------------------------------------------- the methods on the model
+
+def test_the_model_converts_both_ways(minimal_varbayes):
+    """obj.to_internal / obj.to_external, so a user holding the pickle needs no
+    import and does not have to dig label_map out of config themselves."""
+    obj = minimal_varbayes
+    obj.config['label_map'] = LABEL_MAP
+
+    assert obj.to_internal(102) == 2
+    assert obj.to_external(2) == 102
+    assert obj.to_external(obj.to_internal(103)) == 103
+    assert obj.to_internal([101, 102]) == [1, 2]
+
+
+def test_the_model_methods_are_a_no_op_without_a_map(minimal_varbayes):
+    obj = minimal_varbayes
+    obj.config['label_map'] = None
+    assert obj.to_internal(102) == 102
+    assert obj.to_external(102) == 102
+
+
+@pytest.mark.slow
+def test_nC_counts_the_background_row(rng, tmp_path):
+    """The docs quote the internal labels as 1..nC-1, so pin the off-by-one they are
+    quoting. nC counts the background at row 0, so 16 segmented cells give nC 17 and
+    the last real cell is 16, not 17."""
+    from pciSeq.app import cell_type
+    from pciSeq.src.validation import validate_inputs
+    from pciSeq.src.preprocess.main import stage_data
+
+    spots = pd.DataFrame({
+        'gene_name': rng.choice(GENES, 900),
+        'x': rng.uniform(0, 79, 900).astype(np.float32),
+        'y': rng.uniform(0, 79, 900).astype(np.float32),
+    })
+    scref = pd.DataFrame(rng.random((len(GENES), len(CLASSES))) * 50,
+                         index=GENES, columns=CLASSES)
+    scref.index.name = 'gene_name'
+    s, coo, scd, cfg = validate_inputs(
+        spots, coo_matrix(_label_image()), scref,
+        {'max_iter': 2, 'save_data': False, 'output_path': str(tmp_path)})
+    cells, _borders, sp, label_map = stage_data(s, coo, cfg)
+    _, _, obj = cell_type(cells, sp, scd, cfg)
+
+    n_real = len(set(label_map)) - 1          # the map carries the background 0 too
+    assert n_real == 16
+    assert obj.nC == n_real + 1
+    assert obj.cells.classProb.shape[0] == obj.nC
+    assert max(label_map.values()) == obj.nC - 1

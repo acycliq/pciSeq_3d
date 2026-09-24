@@ -516,6 +516,60 @@ types for the most likely ones.
 - **`ValueError`**
   If user_class is not a cell type, or is the assigned type of the cell.
 
+#### `to_internal`
+
+```python
+to_internal(label)
+```
+
+Convert a segmentation cell label to the internal one.
+
+The internal label is the cell's row index in the arrays in the pickle file,
+1 to nC - 1, with row 0 the background. It differs from the segmentation label only when the
+input labels were not sequential, which usually happens because `remove_flat_cells`
+dropped the cells that span a single plane.
+
+**Parameters**
+
+- **`label`** *(int or list of int)*
+  Cell label, as in the input segmentation.
+
+**Returns**
+
+- **`int or list of int`**
+  The row to index the arrays with. The same value back when no renumbering took place.
+
+**Raises**
+
+- **`KeyError`**
+  If the label is not in the segmentation.
+
+#### `to_external`
+
+```python
+to_external(label)
+```
+
+Convert an internal cell label to the segmentation one.
+
+The opposite of `to_internal`. Use it on a row index taken from an array in the
+pickle file or from diagnostics.db, to get the label the segmentation gave that cell.
+
+**Parameters**
+
+- **`label`** *(int or list of int)*
+  Row index into the arrays in the pickle file.
+
+**Returns**
+
+- **`int or list of int`**
+  The segmentation label. The same value back when no renumbering took place.
+
+**Raises**
+
+- **`KeyError`**
+  If the row index is out of range.
+
 #### `read_tsv`
 
 ```python

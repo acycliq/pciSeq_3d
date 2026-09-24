@@ -55,8 +55,9 @@ def recover_original_labels(cellData: pd.DataFrame,
                             ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, List[pd.DataFrame]]:
     """Put the segmentation labels back on the results.
 
-    The model works with internal labels, 1..nC. If the labels that came in were
-    already like that then nothing got renumbered and this is a no-op.
+    The model works with internal labels, 1..nC-1, with row 0 the background. If the
+    labels that came in were already sequential then nothing got renumbered and this
+    is a no-op.
 
     Args:
         cellData: the cell dataframe

@@ -154,6 +154,41 @@ The model holds the run dimensions and a small object graph: `obj.cells`,
 obj.nC, obj.nS, obj.nG, obj.nK   # cells, spots, genes, classes
 ```
 
+### Cell identifiers
+
+A cell can be identified by two numbers. The **segmentation label** is the one it carries in the label
+image passed to `fit`. The **internal label** is its row index in the arrays in the pickle
+file, `1` to `nC - 1`, with row `0` the background.
+
+The two are the same number unless the segmentation labels were not sequential, in which
+case pciSeq renumbers them. That is the usual case rather than the exception, since it
+happens whenever [`remove_flat_cells`](./configuration.md#remove-flat-cells), on by
+default, drops the cells that appear on a single plane.
+
+When pciSeq saves the data then the cell identifiers have been mapped back to the original
+segmentation label. Hence the rule to remember is:
+1. the pciSeq exported flatfiles (tsv, arrow etc) are in segmentation labels, and so is the viewer
+2. the arrays in the pickle file, and `diagnostics.db`, are indexed by the internal label
+
+::: warning Looking up a cell in the pickle arrays
+Suppose we are interested in cell 18223, the label the segmentation uses and the viewer
+shows. Its class probabilities are in `cells.classProb`, which is indexed by the internal
+label, so 18223 has to be converted first:
+
+```python
+obj.cells.classProb[obj.to_internal(18223)]   # correct
+obj.cells.classProb[18223]                    # a different cell, or IndexError
+```
+
+The methods of the model, such as [`check_cell`](./reference.md#check-cell), take the
+segmentation label and convert it themselves, so this applies only to indexing an array
+directly.
+:::
+
+[`to_internal`](./reference.md#to-internal) and
+[`to_external`](./reference.md#to-external) convert either way, and return what they were
+given when no renumbering took place.
+
 ### Class probabilities (`cells.classProb`)
 
 `cells.classProb` is a `(nC, nK)` array: one **row per cell**, one **column per
@@ -165,14 +200,10 @@ probs = pd.DataFrame(obj.cells.classProb, columns=obj.cells.class_names)
 probs.iloc[1:].idxmax(axis=1)   # most likely class for each real cell
 ```
 
-Rows follow pciSeq's internal cell labels. If the input labels were not sequential they
-were renumbered, and `obj.config['label_map']` maps each original label to its row; it is
-`None` when no renumbering took place.
+Rows follow the internal cell labels described above.
 
 ```python
-label_map = obj.config['label_map']
-row = label_map[18223] if label_map else 18223
-obj.cells.classProb[row]
+obj.cells.classProb[obj.to_internal(18223)]
 ```
 
 `cellData`'s `ClassName` and `Prob` columns are built from this array: for each

@@ -73,7 +73,7 @@ from .datatypes.singleCell import SingleCell
 from .datatypes.cellClass import CellClass
 from .summary import collect_data
 from .utils.elbo import calc_elbo
-from .utils import convergence, likelihood, gaussian_model, inspection, visualisation
+from .utils import convergence, likelihood, gaussian_model, inspection, visualisation, cell_utils
 from .io import read_tsv, run_metadata
 import joblib
 
@@ -926,6 +926,57 @@ class VarBayes:
             'misread', 'sum' and 'prob'.
         """
         return inspection.check_spot(self, spot_id, show_plot)
+
+    def to_internal(self, label):
+        """
+        Convert a segmentation cell label to the internal one.
+
+        The internal label is the cell's row index in the arrays in the pickle file,
+        1 to nC - 1, with row 0 the background. It differs from the segmentation label only when the
+        input labels were not sequential, which usually happens because `remove_flat_cells`
+        dropped the cells that span a single plane.
+
+        Parameters
+        ----------
+        label : int or list of int
+            Cell label, as in the input segmentation.
+
+        Returns
+        -------
+        int or list of int
+            The row to index the arrays with. The same value back when no renumbering
+            took place.
+
+        Raises
+        ------
+        KeyError
+            If the label is not in the segmentation.
+        """
+        return cell_utils.to_internal(label, self.config['label_map'])
+
+    def to_external(self, label):
+        """
+        Convert an internal cell label to the segmentation one.
+
+        The opposite of `to_internal`. Use it on a row index taken from an array in the
+        pickle file or from diagnostics.db, to get the label the segmentation gave that cell.
+
+        Parameters
+        ----------
+        label : int or list of int
+            Row index into the arrays in the pickle file.
+
+        Returns
+        -------
+        int or list of int
+            The segmentation label. The same value back when no renumbering took place.
+
+        Raises
+        ------
+        KeyError
+            If the row index is out of range.
+        """
+        return cell_utils.to_external(label, self.config['label_map'])
 
     def read_tsv(self, filepath):
         """

@@ -73,6 +73,8 @@ CLASS_MEMBERS = {
         "methods": [
             "check_spot",
             "check_cell",
+            "to_internal",
+            "to_external",
             "read_tsv",
             "heatmap_counts_per_class",
         ],
