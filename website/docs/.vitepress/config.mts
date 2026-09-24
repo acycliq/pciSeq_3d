@@ -50,6 +50,7 @@ export default defineConfig({
       { text: 'How it works', link: '/how-it-works/overview' },
       { text: 'Explaining the calls', link: '/explaining-the-calls/overview' },
       { text: 'Viewer', link: '/viewer/overview' },
+      { text: 'MCP server', link: '/api/mcp-server' },
       { text: 'The model', link: '/the-model/overview' },
       { text: 'API', link: '/api/reference' },
     ],
@@ -102,6 +103,13 @@ export default defineConfig({
         link: '/viewer/overview',
         items: [
           { text: 'Overview', link: '/viewer/overview' },
+        ],
+      },
+      {
+        text: 'MCP server',
+        link: '/api/mcp-server',
+        items: [
+          { text: 'Overview', link: '/api/mcp-server' },
         ],
       },
       {

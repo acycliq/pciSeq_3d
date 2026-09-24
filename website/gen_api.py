@@ -34,7 +34,12 @@ OUT = HERE / "docs" / "api"
 EXTRA_API = [
     ("pciSeq.src.tiling.stage_image", "stage_image"),
     ("pciSeq.src.tiling.stage_image", "tile_maker"),
+    # the agent tools. open_run is the entry point, Run is what it hands back.
+    # Documented from tools.py, not server.py, so generating the docs never
+    # imports mcp, which is an optional extra.
+    ("pciSeq.src.mcp.tools", "open_run"),
     ("pciSeq.src.core.main", "VarBayes"),
+    ("pciSeq.src.mcp.tools", "Run"),
 ]
 
 # numpydoc sections that list "name : type" entries we want as bullet lists.
@@ -93,6 +98,34 @@ CLASS_MEMBERS = {
                 "owner": "Cells",
                 "method": "mean_gene_reads_per_class",
             },
+        ],
+    },
+    "Run": {
+        "note": (
+            "::: tip Obtaining a Run\n"
+            "[`open_run`](#open-run) builds one from a run's output folder. The methods "
+            "below are the tools the [MCP server](./mcp-server) exposes to an agent, "
+            "under the same names and with the same arguments, so an answer obtained "
+            "through the agent can be reproduced here and the other way round.\n\n"
+            "```python\n"
+            "from pciSeq.src.mcp.tools import open_run\n\n"
+            "run = open_run('<output_path>')\n"
+            "run.explain_cell(2413)\n"
+            "```\n"
+            ":::"
+        ),
+        "methods": [
+            "summary",
+            "cell",
+            "explain_cell",
+            "explain_spot",
+            "cell_counts",
+            "spots_in_cell",
+            "spots_of_cell",
+            "cell_row",
+            "spot_row",
+            "to_internal",
+            "to_external",
         ],
     },
 }

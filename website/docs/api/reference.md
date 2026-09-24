@@ -394,6 +394,17 @@ Returns:
         - 'zoom_levels': the deepest zoom level, as passed in
 
 
+## `open_run`
+
+`pciSeq.src.mcp.tools.open_run`
+
+```python
+open_run(path)
+```
+
+Open a finished run. The entry point every other tool goes through.
+
+
 ## `VarBayes`
 
 `pciSeq.src.core.main.VarBayes`
@@ -631,3 +642,176 @@ Returns:
     np.ndarray: Shape (G, K), where:
         G = number of genes
         K = number of cell classes/types
+
+
+## `Run`
+
+`pciSeq.src.mcp.tools.Run`
+
+```python
+Run(path)
+```
+
+A finished pciSeq run, opened for questions.
+
+**Parameters**
+
+- **`path`** *(str or Path)*
+  The run folder, or the diagnostics.db itself. Anything above the database works, the file is searched for underneath.
+
+**Notes**
+
+diagnostics.db keeps `gamma_assigned`, the gamma of the winning class only, not
+the whole (nC, nG, nK) array. Questions about gamma under a different class need
+the pickle.
+
+::: tip Obtaining a Run
+[`open_run`](#open-run) builds one from a run's output folder. The methods below are the tools the [MCP server](./mcp-server) exposes to an agent, under the same names and with the same arguments, so an answer obtained through the agent can be reproduced here and the other way round.
+
+```python
+from pciSeq.src.mcp.tools import open_run
+
+run = open_run('<output_path>')
+run.explain_cell(2413)
+```
+:::
+
+### Methods
+
+#### `summary`
+
+```python
+summary()
+```
+
+What this run is: its size, the code that made it, and what it can answer.
+
+#### `cell`
+
+```python
+cell(label)
+```
+
+The headline facts about one cell.
+
+#### `explain_cell`
+
+```python
+explain_cell(label, vs_class=None, top_n=10)
+```
+
+Why this cell got its class, gene by gene.
+
+The class score is the sum of the per gene negative binomial contributions,
+plus the class prior, plus the spatial term. This recomputes those from the
+stored arrays and compares the assigned class against another one.
+
+The recomputation uses the final eta, and the loop updates eta after the last
+class update, so it reproduces the stored probabilities exactly only once the
+run has converged. On an unconverged run the argmax still agrees but the
+probabilities can be off in the second decimal.
+
+**Parameters**
+
+- **`label`** *(int)*
+  Cell label, as in your segmentation.
+- **`vs_class`** *(str, optional)*
+  The class to compare against. Defaults to the runner up.
+- **`top_n`** *(int, default 10)*
+  How many genes to report on each side.
+
+#### `explain_spot`
+
+```python
+explain_spot(spot_id)
+```
+
+Why this spot went to the cell it did, term by term.
+
+One row per candidate cell plus the background. The terms are the ones the
+model used in its last spot update, so the probabilities here are the ones
+in geneData, at full float32 precision rather than the 3 decimals the file
+keeps. Use this rather than spot_row when a probability below 0.0005 matters.
+
+#### `cell_counts`
+
+```python
+cell_counts(label, gene=None)
+```
+
+How many reads a cell holds. Soft, and the answer says so.
+
+#### `spots_in_cell`
+
+```python
+spots_in_cell(label, gene=None)
+```
+
+How many spots physically sit inside a cell's segmentation mask.
+
+Hard containment, no probabilities. A spot can sit outside every cell and
+still be assigned to one, so this is a different number from `cell_counts`.
+
+#### `spots_of_cell`
+
+```python
+spots_of_cell(label, min_prob=None)
+```
+
+Which spots belong to a cell, under one of two definitions.
+
+With `min_prob` unset: the spots whose most likely parent is this cell, the
+argmax. With `min_prob` set: every spot with a probability on this cell above
+it, which is what cellData.spot_id holds at 0.0001. The two are different
+lists, and the answer says which one it is. Either way every spot comes with
+its probability, sorted highest first.
+
+#### `cell_row`
+
+```python
+cell_row(label)
+```
+
+The cellData row of one cell, value for value.
+
+Everything the tsv has except the three drawing columns. Read straight out of
+cellData.tsv when it is there, which is both exact and fast, a targeted grep
+on a 250 MB file takes about 30 ms. Without the tsv the row is rebuilt from
+the viewer files, which matches on every column except the boundary cases of
+spot_id; see `_exact_spot_ids`.
+
+#### `spot_row`
+
+```python
+spot_row(spot_id)
+```
+
+The geneData row of one spot, value for value.
+
+Read out of geneData.tsv when it is there, otherwise rebuilt from the viewer
+files; `source` says which. Both give the same numbers, the viewer files are
+written from the same frame.
+
+neighbour_prob is rounded to 3 decimals here because that is how geneData
+stores it (summary.py:102), so a candidate holding 0.0004 shows up as 0.0 and
+you cannot tell it apart from one holding nothing at all. That is fine for
+reporting what the file says, and it is why cell_row's spot_id list can
+contain spots whose probability reads 0.0: the cut-off there is 0.0001,
+applied before the rounding. When the small probabilities matter use
+explain_spot, which recomputes them from diagnostics.db at full precision.
+
+#### `to_internal`
+
+```python
+to_internal(label)
+```
+
+Segmentation label to the row it occupies in the arrays.
+
+#### `to_external`
+
+```python
+to_external(row)
+```
+
+The row of an array back to the segmentation label.

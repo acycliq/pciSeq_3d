@@ -48,6 +48,10 @@
     "link": "/api/reference#tile-maker"
   },
   {
+    "text": "open_run",
+    "link": "/api/reference#open-run"
+  },
+  {
     "text": "VarBayes",
     "link": "/api/reference#varbayes",
     "collapsed": true,
@@ -103,6 +107,57 @@
       {
         "text": "cells.mean_gene_reads_per_class",
         "link": "/api/reference#cells-mean-gene-reads-per-class"
+      }
+    ]
+  },
+  {
+    "text": "Run",
+    "link": "/api/reference#run",
+    "collapsed": true,
+    "items": [
+      {
+        "text": "summary",
+        "link": "/api/reference#summary"
+      },
+      {
+        "text": "cell",
+        "link": "/api/reference#cell"
+      },
+      {
+        "text": "explain_cell",
+        "link": "/api/reference#explain-cell"
+      },
+      {
+        "text": "explain_spot",
+        "link": "/api/reference#explain-spot"
+      },
+      {
+        "text": "cell_counts",
+        "link": "/api/reference#cell-counts"
+      },
+      {
+        "text": "spots_in_cell",
+        "link": "/api/reference#spots-in-cell"
+      },
+      {
+        "text": "spots_of_cell",
+        "link": "/api/reference#spots-of-cell"
+      },
+      {
+        "text": "cell_row",
+        "link": "/api/reference#cell-row"
+      },
+      {
+        "text": "spot_row",
+        "link": "/api/reference#spot-row"
+      },
+      {
+        "text": "to_internal",
+        "link": "/api/reference#to-internal"
+      },
+      {
+        "text": "to_external",
+        "link": "/api/reference#to-external"
       }
     ]
   }
