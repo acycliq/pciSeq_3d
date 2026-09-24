@@ -87,7 +87,7 @@ def _label_image():
     return lab
 
 
-def _run(rng, tmp_path, save=False):
+def _run(rng, tmp_path, save=False, max_iter=2, tol=0.5):
     spots = pd.DataFrame({
         'gene_name': rng.choice(GENES, 900),
         'x': rng.uniform(0, 79, 900).astype(np.float32),
@@ -96,7 +96,7 @@ def _run(rng, tmp_path, save=False):
     scref = pd.DataFrame(rng.random((len(GENES), len(CLASSES))) * 50,
                          index=GENES, columns=CLASSES)
     scref.index.name = 'gene_name'
-    opts = {'max_iter': 2, 'save_data': save, 'CellCallTolerance': 0.5,
+    opts = {'max_iter': max_iter, 'save_data': save, 'CellCallTolerance': tol,
             'output_path': str(tmp_path)}
     return pciSeq.fit(spots=spots, coo=coo_matrix(_label_image()),
                       scRNAseq=scref, opts=opts)

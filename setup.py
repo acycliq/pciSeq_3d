@@ -86,6 +86,15 @@ install_deps = [
     "spatialdata",
 ]
 
+# Optional feature sets. mcp is out of the core deps on purpose: it brings a web
+# server, a jwt auth stack and a telemetry api, plus a pydantic floor, and pciSeq
+# types cells perfectly well without any of it. Keeping it here means a resolver
+# problem in that stack cannot stop somebody installing pciSeq.
+extras = {
+    "mcp": ["mcp>=2"],
+}
+extras["all"] = sorted({d for deps in extras.values() for d in deps})
+
 
 def get_version():
     """Get version from _version.py and append git commit hash if available."""
@@ -126,6 +135,8 @@ setup(
     entry_points={
         "console_scripts": [
             "pciseq = pciSeq.cli:main",
+            # needs the mcp extra, see extras above
+            "pciseq-mcp = pciSeq.src.mcp.server:main",
         ],
     },
     name="pciSeq_3d",
@@ -140,6 +151,7 @@ setup(
     packages=find_packages(),
     python_requires='>=3.10',
     install_requires=install_deps,
+    extras_require=extras,
     include_package_data=True,
     package_data={
         "pciSeq": get_static_files(os.path.join("pciSeq", "src", "realtime_viewer"))
