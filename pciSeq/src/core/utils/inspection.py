@@ -6,6 +6,7 @@ import pandas as pd
 from scipy.special import softmax
 import matplotlib.pyplot as plt
 
+from .cell_utils import to_internal, to_external
 from .visualisation import spot_to_cell_prob_plot, spot_to_cell_score_plot
 
 logger = logging.getLogger(__name__)
@@ -15,10 +16,7 @@ def check_cell(obj, label, user_class, top_n=10, show_plot=True, top_classes=5):
     """Implementation of VarBayes.check_cell. See that method for the full description."""
 
     # If original labels have been renumbered find the label it's been mapped to.
-    if obj.config['label_map']:
-        pciSeq_label = obj.config['label_map'][label]
-    else:
-        pciSeq_label = label
+    pciSeq_label = to_internal(label, obj.config['label_map'])
 
     # Step 1: per-gene log-likelihood contributions for this cell. Read the ones the model
     # kept from its last class update (cells.nb_contr), so the numbers match classProb and
@@ -222,9 +220,7 @@ def check_spot(self, spot_id, show_plot=True):
     probabilities = softmax(scores)
 
     # Create labels. If the segmentation has been relabelled, map the labels back to the original ones.
-    if self.config['label_map']:
-        reverse_map = {v:k for k, v in self.config['label_map'].items()}
-        cell_ids = [reverse_map[d] for d in cell_ids]
+    cell_ids = to_external(cell_ids, self.config['label_map'])
 
     labels = [f'Cell {cid}' for cid in cell_ids] + ['Misread']
 

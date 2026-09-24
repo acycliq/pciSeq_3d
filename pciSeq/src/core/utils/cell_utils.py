@@ -50,59 +50,100 @@ def read_image_objects(img_obj, cfg):
 def recover_original_labels(cellData: pd.DataFrame,
                             geneData: pd.DataFrame,
                             cellBoundaries: pd.DataFrame,
-                            cellBoundaries_list: pd.DataFrame,
-                            label_map: Optional[Dict[int, int]]) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Restore original cell labels using label mapping.
+                            cellBoundaries_list: List[pd.DataFrame],
+                            label_map: Optional[Dict[int, int]]
+                            ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, List[pd.DataFrame]]:
+    """Put the segmentation labels back on the results.
+
+    The model works with internal labels, 1..nC. If the labels that came in were
+    already like that then nothing got renumbered and this is a no-op.
 
     Args:
-        cellData: Cell data DataFrame
-        geneData: Gene data DataFrame
-        label_map: Dictionary mapping new labels to original labels
+        cellData: the cell dataframe
+        geneData: the spots dataframe
+        cellBoundaries: the boundaries dataframe
+        cellBoundaries_list: one boundaries dataframe per plane
+        label_map: segmentation label -> internal label, or None if nothing was renumbered
 
     Returns:
-        Tuple of (updated cellData, updated geneData)
+        The same four things, with segmentation labels in the id columns.
     """
-    if label_map is None:
-        return cellData, geneData, cellBoundaries
+    reverse_map = reversed_label_map(label_map)
+    if reverse_map is None:
+        return cellData, geneData, cellBoundaries, cellBoundaries_list
 
-    # Create reverse mapping
-    reverse_map = {v: k for k, v in label_map.items()}
-
-    # Update cell numbers
+    # Every column touched here holds a cell id. If you add another id column to the
+    # exports then add it here too, otherwise it goes out with internal labels sitting
+    # next to segmentation labels in the same row and nothing complains.
     cellData = cellData.assign(
-        Cell_Num=cellData.Cell_Num.map(lambda x: reverse_map.get(x))
+        Cell_Num=cellData.Cell_Num.map(lambda x: fetch_label(x, reverse_map))
     )
 
-    # Update gene data neighbors
     geneData = geneData.assign(
         neighbour=geneData.neighbour.map(lambda x: fetch_label(x, reverse_map)),
         neighbour_array=geneData.neighbour_array.map(lambda x: fetch_label(x, reverse_map))
     )
 
     cellBoundaries = cellBoundaries.assign(
-        cell_id=cellBoundaries.cell_id.map(lambda x: reverse_map.get(x))
+        cell_id=cellBoundaries.cell_id.map(lambda x: fetch_label(x, reverse_map))
     )
 
-    cellBoundaries_list = [d.assign(cell_id=d.cell_id.map(lambda x: reverse_map.get(x))) for d in cellBoundaries_list]
+    cellBoundaries_list = [
+        d.assign(cell_id=d.cell_id.map(lambda x: fetch_label(x, reverse_map)))
+        for d in cellBoundaries_list
+    ]
 
     logger.info("Restored original cell segmentation labels")
     return cellData, geneData, cellBoundaries, cellBoundaries_list
 
 
+def reversed_label_map(label_map: Optional[Dict[int, int]]) -> Optional[Dict[int, int]]:
+    """Flip label_map, so it goes internal label -> segmentation label.
+
+    None when nothing was renumbered. Build it once and hold on to it: flipping a
+    25k cell map takes about a millisecond, which is nothing once but hopeless if
+    you do it per row of geneData.
+    """
+    return {v: k for k, v in label_map.items()} if label_map else None
+
+
+def to_internal(x: Union[Number, List[Number]],
+                label_map: Optional[Dict[int, int]]) -> Union[int, List[int]]:
+    """Segmentation label to internal label, the row index the model uses.
+
+    Takes a single label or a list of them. Gives back what you gave it when no
+    renumbering happened, ie when label_map is None.
+    """
+    return fetch_label(x, label_map) if label_map else x
+
+
+def to_external(x: Union[Number, List[Number]],
+                label_map: Optional[Dict[int, int]]) -> Union[int, List[int]]:
+    """Internal label to segmentation label. The opposite of to_internal.
+
+    Use it on anything heading out to the user: a flat file, the viewer, a plot
+    axis. Flips the map every call, so do not put it in a loop over rows, use
+    reversed_label_map and fetch_label there instead.
+    """
+    reverse_map = reversed_label_map(label_map)
+    return fetch_label(x, reverse_map) if reverse_map else x
+
+
 def fetch_label(x: Union[Number, List[Number]],
                 d: Dict[int, int]) -> Union[int, List[int]]:
-    """Fetch original label(s) from mapping dictionary.
+    """Look up label(s) in a mapping dictionary, either direction.
 
     Args:
         x: Single label or list of labels
         d: Label mapping dictionary
 
     Returns:
-        Original label(s)
+        The mapped label, or a list of them if that is what went in. A one element
+        list comes back as a one element list, it does not collapse to a scalar.
     """
-    x = [x] if isinstance(x, Number) else x
-    out = [d[v] for v in x]
-    return out[0] if len(out) == 1 else out
+    if isinstance(x, Number):
+        return d[x]
+    return [d[v] for v in x]
 
 
 def keep_labels_unique(scdata: pd.DataFrame) -> pd.DataFrame:

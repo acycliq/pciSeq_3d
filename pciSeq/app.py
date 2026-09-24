@@ -94,9 +94,10 @@ def fit(*args, **kwargs) -> Tuple[pd.DataFrame, pd.DataFrame]:
         # 6. Resolve borders (blocks only if extraction hasn't finished yet)
         cellBoundaries, cellBoundaries_list = borders_future.result()
 
-        # 7 if labels have been remapped, switch to the original ones
-        if label_map is not None:
-            cellData, geneData, cellBoundaries, cellBoundaries_list = recover_original_labels(cellData, geneData, cellBoundaries, cellBoundaries_list, label_map)
+        # 7 if labels have been remapped, switch to the original ones. It is a no-op
+        # when there was no renumbering, ie when label_map is None.
+        cellData, geneData, cellBoundaries, cellBoundaries_list = recover_original_labels(
+            cellData, geneData, cellBoundaries, cellBoundaries_list, label_map)
 
         # 8. Save data
         if cfg['save_data']:

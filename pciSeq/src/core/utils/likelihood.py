@@ -7,6 +7,8 @@ import opt_einsum as oe
 from typing import Tuple
 from pandas import DataFrame, Series
 
+from .cell_utils import to_internal
+
 logger = logging.getLogger(__name__)
 
 
@@ -117,8 +119,7 @@ def calculate_genes_log_likelihood_contr(obj, label: int) -> Tuple[DataFrame, Se
             - scaled_means: The scaled expression values for the specified cell (shape: nG x nK).
     """
     # If original labels have been renumbered find the label it's been mapped to.
-    if obj.config['label_map']:
-        label = obj.config['label_map'][label]
+    label = to_internal(label, obj.config['label_map'])
 
     # Get the full log-likelihood matrix using shared computation
     contr = compute_gene_loglikelihood_matrix(obj)

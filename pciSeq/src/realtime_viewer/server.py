@@ -14,6 +14,7 @@ import logging
 import webbrowser
 from pathlib import Path
 from pciSeq._version import __version__
+from pciSeq.src.core.utils.cell_utils import to_internal, to_external
 
 logger = logging.getLogger(__name__)
 
@@ -226,15 +227,9 @@ class RealtimeViewerServer:
             # Row index in cells_classProb = seq_idx (0, 1, 2, ...)
             # We map these to original_label for the viewer
             nC = cells_classProb.shape[0]  # Total number of cells including background
-            label_map = varbayes.config.get('label_map')
-
-            if label_map:
-                # Reverse map: seq_idx -> original_label
-                reverse_map = {v: k for k, v in label_map.items()}
-                cell_ids = np.array([reverse_map[seq_idx] for seq_idx in range(nC)], dtype=np.int32)
-            else:
-                # No relabeling occurred, original_label == seq_idx
-                cell_ids = np.arange(nC, dtype=np.int32)
+            cell_ids = np.array(
+                to_external(list(range(nC)), varbayes.config.get('label_map')), dtype=np.int32
+            )
 
             # Extract argmax (assigned class per cell) - most efficient format
             # uint16, not uint8: a big taxonomy has more than 255 classes and the index
@@ -566,17 +561,16 @@ class RealtimeViewerServer:
 
             logger.info(f"Viewer sent original_label: {original_label}")
 
-            # Determine pciSeq-assigned class for this cell to validate request
-            label_map = self._varbayes_ref.config.get('label_map')
-            if label_map:
-                if original_label not in label_map:
-                    self.socketio.emit("check_cell_result", {
-                        "error": f"Cell label {original_label} not found in label map"
-                    }, namespace="/")
-                    return
-                seq_idx = label_map[original_label]
-            else:
-                seq_idx = original_label
+            # Determine pciSeq-assigned class for this cell to validate request.
+            # The click can carry a label that is not in the map, eg the user clicked a
+            # cell that got dropped in preprocessing, so say so instead of blowing up.
+            try:
+                seq_idx = to_internal(original_label, self._varbayes_ref.config.get('label_map'))
+            except KeyError:
+                self.socketio.emit("check_cell_result", {
+                    "error": f"Cell label {original_label} not found in label map"
+                }, namespace="/")
+                return
 
             pciseq_class = self._varbayes_ref.cells.class_names[
                 self._varbayes_ref.cells.classProb[seq_idx].argmax()
