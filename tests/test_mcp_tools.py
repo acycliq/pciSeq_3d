@@ -286,3 +286,38 @@ def test_cell_row_spot_ids_are_the_soft_count_decomposition(fitted):
         total = sum(next(c['prob'] for c in run.explain_spot(s)['candidates'] if c['cell'] == 105)
                     for s in sids)
         assert total == pytest.approx(count, abs=0.002), gene
+
+
+# --------------------------------------------------------- threads
+
+def test_a_run_opened_on_one_thread_answers_on_another(fitted):
+    """An MCP server runs each tool call on a worker thread and does not promise the
+    same one twice, so open_run and the next call can land on different threads.
+    sqlite refuses a connection used across threads unless told otherwise, and that
+    showed up as a one-in-four failure of the full suite before it was caught.
+    This forces the case every time."""
+    import concurrent.futures as cf
+    import threading
+
+    run, cellData, _ = fitted
+    here = threading.get_ident()
+    with cf.ThreadPoolExecutor(max_workers=1) as pool:
+        there = pool.submit(threading.get_ident).result()
+        assert there != here
+        got = pool.submit(run.cell_counts, 105).result()
+        spot = pool.submit(run.explain_spot, 0).result()
+    assert got['total_counts'] == pytest.approx(sum(cellData.loc[105, 'CellGeneCount']), abs=0.05)
+    assert sum(c['prob'] for c in spot['candidates']) == pytest.approx(1.0, abs=1e-5)
+
+
+def test_queries_from_many_threads_at_once(fitted):
+    """The lock in Run._query. Hammer one connection from several threads and every
+    answer has to be the right one, not a crash and not somebody else's row."""
+    import concurrent.futures as cf
+
+    run, _, _ = fitted
+    want = {lab: run.cell(lab)['classes'][0]['class'] for lab in LABELS}
+    with cf.ThreadPoolExecutor(max_workers=8) as pool:
+        futures = [pool.submit(run.cell, lab) for lab in LABELS * 5]
+        for lab, fut in zip(LABELS * 5, futures):
+            assert fut.result()['classes'][0]['class'] == want[lab]

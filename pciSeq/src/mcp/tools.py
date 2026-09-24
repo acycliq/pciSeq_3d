@@ -28,6 +28,7 @@ last digit of the two files is not arrived at the same way.
 import json
 import logging
 import sqlite3
+import threading
 from pathlib import Path
 
 import numpy as np
@@ -69,7 +70,16 @@ class Run:
 
     def __init__(self, path):
         self.path = _find_db(path)
-        self._con = sqlite3.connect('file:%s?mode=ro' % self.path, uri=True)
+        # check_same_thread=False because an MCP server runs each tool call on a
+        # worker thread, and the pool does not promise the same thread twice: open_run
+        # would build this connection on one thread and cell_counts hit it from
+        # another, which sqlite refuses by default. It only started showing up as a
+        # one-in-four failure in the full test suite. sqlite3.threadsafety is 1 in
+        # the usual build, meaning the module is safe but a shared connection is not,
+        # so every query also goes through _query, which holds a lock.
+        self._con = sqlite3.connect('file:%s?mode=ro' % self.path, uri=True,
+                                    check_same_thread=False)
+        self._lock = threading.Lock()
         self._meta_cache = {}
 
         self.nC = int(self._meta('nC'))
@@ -87,6 +97,11 @@ class Run:
 
     # ------------------------------------------------------------ plumbing
 
+    def _query(self, sql, params=()):
+        """One row from the db, under the lock. See __init__ for why the lock."""
+        with self._lock:
+            return self._con.execute(sql, params).fetchone()
+
     def _meta(self, key, parse=False, default=_MISSING):
         """One row of the metadata table.
 
@@ -94,8 +109,8 @@ class Run:
         absent, otherwise a missing key raises.
         """
         if key not in self._meta_cache:
-            row = self._con.execute(
-                "SELECT value FROM metadata WHERE key = ?", (key,)).fetchone()
+            row = self._query(
+                "SELECT value FROM metadata WHERE key = ?", (key,))
             self._meta_cache[key] = row[0] if row else None
         val = self._meta_cache[key]
         if val is None:
@@ -133,8 +148,8 @@ class Run:
         if row == 0:
             raise ValueError('cell 0 is the background pseudocell, not a cell')
         cols = list(_CELL_BLOBS) + ['theta', 'assigned_class_idx']
-        got = self._con.execute(
-            "SELECT %s FROM cells WHERE cell_id = ?" % ', '.join(cols), (row,)).fetchone()
+        got = self._query(
+            "SELECT %s FROM cells WHERE cell_id = ?" % ', '.join(cols), (row,))
         if got is None:
             raise KeyError('cell %s is not in diagnostics.db' % label)
 
@@ -265,10 +280,10 @@ class Run:
             spot_id = int(spot_id)
         except (TypeError, ValueError):
             raise ValueError('%r is not a spot id' % (spot_id,))
-        got = self._con.execute(
+        got = self._query(
             "SELECT gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, "
             "expr_fluct, cell_inefficiency, gene_inefficiency, bonus "
-            "FROM spots WHERE spot_id = ?", (spot_id,)).fetchone()
+            "FROM spots WHERE spot_id = ?", (spot_id,))
         if got is None:
             raise KeyError('no spot %s in this run' % spot_id)
 
@@ -548,10 +563,10 @@ class Run:
 
         per_gene = {}
         for sid in candidates:
-            got = self._con.execute(
+            got = self._query(
                 "SELECT gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, "
                 "expr_fluct, cell_inefficiency, gene_inefficiency, bonus "
-                "FROM spots WHERE spot_id = ?", (sid,)).fetchone()
+                "FROM spots WHERE spot_id = ?", (sid,))
             neighbours, _, _, _, prob = self._spot_scores(got)
             p = float(prob[neighbours.index(internal)])
             if p > tol:
