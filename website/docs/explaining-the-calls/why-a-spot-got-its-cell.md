@@ -91,8 +91,9 @@ for the background:
 <!--@include: ./_tables/spot-1642419-mrf.md-->
 
 - **Gaussian fit**. The log density of the spot's position under the cell's Gaussian
-  footprint. When several cells compete for the same spot and everything else is equal, it
-  goes to the nearest one. It does not depend on the gene.
+  distribution. Only the distance to the cell's centroid counts. In this example, the
+  Gaussian is assumed spherical, not elliptical, so the three axes are independent. The
+  distribution is the same for every cell and never updated.
 - **class expression, the alignment**. How well the cell's likely class matches the gene. When several cells
   compete for the same spot and everything else is equal, it goes to the cell whose likely
   class expresses that gene most. Two cells with the same class probabilities get the same
@@ -180,7 +181,9 @@ The spot is now assigned to cell 18223 with probability 6%, against 73.7% with t
 and its most likely parent is cell 21574, a `037 DG Glut` cell, with 49.2%. Cell 21574 is
 only the third closest to the spot. Cell 17371 is the second closest and is `037 DG Glut`
 too, yet the spot does not go to it, because it holds fewer reads in total, 60.0 against
-98.8, and expresses fewer Synpr, 0.5 against 3.0, see [Table 3.2](#table-3-2).
+98.8, and expresses fewer Synpr, 0.5 against 3.0, see [Table 3.2](#table-3-2). That is
+intuitively sensible: a spot is more likely to come from a cell that is bigger in
+terms of total reads and expresses more of the gene than from one that does not.
 
 
 Cell 18223 here is the same cell as in
@@ -196,7 +199,7 @@ neighbours.
   </div>
   <div>
     <img src="/explaining-the-calls/spot-1642419-nomrf-map.png" alt="the same cells without the spatial term">
-    <p>without it</p>
+    <p>without the spatial term</p>
   </div>
 </div>
 <figcaption><strong>Figure 3.6.</strong> The same field at plane 57, with Synpr the only
