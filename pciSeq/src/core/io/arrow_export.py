@@ -112,6 +112,11 @@ def _spots_arrow_table(df: pd.DataFrame) -> pa.Table:
     if "is_hard_misread" in df.columns:
         arrays["is_hard_misread"] = pa.array(df["is_hard_misread"].astype("uint8"))
 
+    # The cell the spot physically sits in, 0 for none. int32 to match neighbour_array,
+    # they hold the same kind of number.
+    if "inside_cell" in df.columns:
+        arrays["inside_cell"] = pa.array(df["inside_cell"].astype("int32"))
+
     # NOTE: gene_name and neighbour columns are excluded to match working converter
     return pa.table(arrays)
 

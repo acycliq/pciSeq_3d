@@ -88,6 +88,7 @@ One row per spot, recording where each spot was assigned.
 | `neighbour` | int | The most likely parent cell label (the top of `neighbour_array`). |
 | `neighbour_array` | list of int | The candidate parent cells, sorted by descending probability. The background cell `0` means a misread. |
 | `neighbour_prob` | list of float | Probability of each candidate, lined up with `neighbour_array`. |
+| `inside_cell` | int | The cell whose segmentation mask the spot falls in, as a `Cell_Num`, `0` for none. Physical containment, not an assignment: `neighbour` is the cell the model chose, and a spot can sit outside every cell and still be assigned to one. |
 | `omp_score`, `omp_intensity` | float | Spot detection score and intensity. 1.0 when the input spots had no such columns. |
 | `is_hard_misread` | uint8 | 1 when the argmax over the candidate probabilities is the background (`neighbour` is 0). In the saved files only, not in the returned DataFrame. |
 

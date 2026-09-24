@@ -81,7 +81,8 @@ def recover_original_labels(cellData: pd.DataFrame,
 
     geneData = geneData.assign(
         neighbour=geneData.neighbour.map(lambda x: fetch_label(x, reverse_map)),
-        neighbour_array=geneData.neighbour_array.map(lambda x: fetch_label(x, reverse_map))
+        neighbour_array=geneData.neighbour_array.map(lambda x: fetch_label(x, reverse_map)),
+        inside_cell=geneData.inside_cell.map(lambda x: fetch_label(x, reverse_map))
     )
 
     cellBoundaries = cellBoundaries.assign(

@@ -68,6 +68,9 @@ def _points(geneData: pd.DataFrame, varBayes, voxel_size):
         'gene_name': geneData.gene_name.values,
         'spot_id': geneData.spot_id.values,
         'neighbour': geneData.neighbour.values,
+        # the cell the spot physically sits in, 0 for none. Not the same as
+        # 'neighbour', which is the cell the model picked.
+        'inside_cell': geneData.inside_cell.values,
     })
     if is3D:
         df['z'] = geneData.plane_id.values.astype(np.float32)

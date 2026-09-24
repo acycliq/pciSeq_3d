@@ -86,7 +86,7 @@ def _label_image():
     return lab
 
 
-def _run(rng, tmp_path):
+def _run(rng, tmp_path, save=False):
     spots = pd.DataFrame({
         'gene_name': rng.choice(GENES, 900),
         'x': rng.uniform(0, 79, 900).astype(np.float32),
@@ -95,7 +95,7 @@ def _run(rng, tmp_path):
     scref = pd.DataFrame(rng.random((len(GENES), len(CLASSES))) * 50,
                          index=GENES, columns=CLASSES)
     scref.index.name = 'gene_name'
-    opts = {'max_iter': 2, 'save_data': False, 'CellCallTolerance': 0.5,
+    opts = {'max_iter': 2, 'save_data': save, 'CellCallTolerance': 0.5,
             'output_path': str(tmp_path)}
     return pciSeq.fit(spots=spots, coo=coo_matrix(_label_image()),
                       scRNAseq=scref, opts=opts)
@@ -126,3 +126,49 @@ def test_the_two_geneData_columns_agree(rng, tmp_path):
     _, geneData = _run(rng, tmp_path)
     for nbr, arr in zip(geneData.neighbour, geneData.neighbour_array):
         assert nbr in list(arr)
+
+
+# ------------------------------------------- the physical containment column
+
+@pytest.mark.slow
+def test_geneData_carries_the_cell_the_spot_sits_in(rng, tmp_path):
+    """geneData.inside_cell is the cell whose mask the spot falls in, 0 for none. It
+    goes through the same translation as the other two, so it is segmentation labels."""
+    _, geneData = _run(rng, tmp_path)
+    assert 'inside_cell' in geneData.columns
+    assert set(geneData.inside_cell) <= {0} | set(range(101, 117))
+
+
+@pytest.mark.slow
+def test_inside_cell_matches_the_label_image(rng, tmp_path):
+    """Exact, not approximate. Read the label image back at each spot's pixel and it
+    has to agree, otherwise the column is not worth having."""
+    _, geneData = _run(rng, tmp_path)
+    lab = _label_image()
+    from_image = lab[geneData.y.astype(int), geneData.x.astype(int)]
+    assert (geneData.inside_cell.values == from_image).all()
+
+
+@pytest.mark.slow
+def test_inside_cell_is_not_the_same_thing_as_neighbour(rng, tmp_path):
+    """The point of the column. neighbour is what the model decided, inside_cell is
+    where the segmentation put it, and on a real run they disagree for some spots. If
+    these two ever matched everywhere the column would be telling us nothing new."""
+    _, geneData = _run(rng, tmp_path)
+    assert (geneData.inside_cell.values != geneData.neighbour.values).any()
+
+
+@pytest.mark.slow
+def test_inside_cell_reaches_the_arrow_shards(rng, tmp_path):
+    """_spots_arrow_table lists its columns one by one, so a new one that is not in
+    that list is dropped without a word. The tsv would look right and the viewer
+    would see nothing."""
+    import pyarrow.feather as feather
+
+    _run(rng, tmp_path, save=True)
+    shards = list((tmp_path / 'pciSeq' / 'data' / 'viewer_data' / 'arrow_spots').glob('*.feather'))
+    assert shards
+
+    table = feather.read_table(shards[0])
+    assert 'inside_cell' in table.schema.names, 'missing, add it to _spots_arrow_table'
+    assert set(table.column('inside_cell').to_pylist()) <= {0} | set(range(101, 117))

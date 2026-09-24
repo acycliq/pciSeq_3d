@@ -84,6 +84,7 @@ pandas DataFrame.
 | `spot_id` | int | Spot id, same as `geneData.spot_id`. |
 | `neighbour` | int | `Cell_Num` of the most likely parent cell for this spot. |
 | `neighbour_prob` | float32 | Probability of that assignment. |
+| `inside_cell` | int | The cell whose segmentation mask the spot falls in, as a `Cell_Num`, `0` for none. Physical containment, not an assignment. |
 | `omp_score`, `omp_intensity` | float32 | Per-spot OMP diagnostics. 1.0 when the input spots had no such columns. |
 | `is_hard_misread` | bool | The spot's most likely parent is the background class. |
 

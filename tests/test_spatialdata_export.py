@@ -47,6 +47,9 @@ def _synthetic_run():
         'z': np.array([0.0, 4.0, 4.0, 4.0]),  # the scaled z the model uses
         'plane_id': np.array([0, 1, 1, 1]),
         'neighbour': [10, 20, 20, 30],
+        # the cell each spot physically sits in. Same as neighbour here because the
+        # spots were put in the middle of their cells, but it is a different thing.
+        'inside_cell': [10, 20, 20, 30],
         'omp_score': [0.9, 0.8, 0.7, 0.6],
         'omp_intensity': [1.0, 2.0, 3.0, 4.0],
     })
