@@ -45,6 +45,34 @@ A new session of the agent lists the server under its tools. The first call in a
 session is `open_run` with the run folder; every other tool refers to the run that is
 open.
 
+## Asking a question
+
+The question is typed to the agent, in plain language. Nothing is imported and no
+notebook is involved: the agent runs the tools and answers in prose.
+
+With Claude Code, open a terminal and start it:
+
+```bash
+claude
+```
+
+then type the question, naming the run the first time:
+
+```
+Open the run in <output_path> and tell me why spot 1642419 went to cell 18223.
+```
+
+The agent calls `open_run` on that folder, then `explain_spot`, and replies with the
+story and the numbers behind it. Later questions in the same session refer to the run
+that is open, so "how many Ndnf reads does cell 2413 have" is enough on its own.
+
+With Claude Desktop the same question goes into a chat. The server shows under
+**Connectors** once it is registered, and the agent asks for the run folder if the
+question does not name one.
+
+The functions behind the tools can also be called from Python directly, with no agent
+at all; see [Notes](#notes).
+
 ## Tools
 
 All tools take and return the cell labels of the input segmentation, the same numbers
