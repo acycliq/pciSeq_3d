@@ -95,6 +95,11 @@ class Run:
         self._reverse_map = ({v: k for k, v in self.label_map.items()}
                              if self.label_map else None)
 
+        # the resolved settings and the convergence record. Runs written before
+        # September 2026 have neither; the tools say so rather than guess.
+        self.config = self._meta('config', parse=True, default=None)
+        self.run_record = self._meta('run', parse=True, default=None)
+
     # ------------------------------------------------------------ plumbing
 
     def _query(self, sql, params=()):
@@ -178,7 +183,57 @@ class Run:
             'commit': prov.get('commit'),
             'labels_were_renumbered': self.label_map is not None,
             'has_containment': self._has_containment(),
+            'has_settings': self.config is not None,
+            'iterations': self.run_record['iterations'] if self.run_record else None,
+            'converged': self.run_record['converged'] if self.run_record else None,
         }
+
+    def run_info(self):
+        """What produced this run and how it ended: the pciSeq version and commit, the
+        resolved settings, the number of iterations and whether the loop converged.
+
+        Runs written before the settings were exported carry only the version and
+        commit; the answer says so.
+        """
+        prov = self._meta('pciSeq_provenance', parse=True, default={})
+        out = {
+            'path': str(self.path),
+            'pciSeq_version': prov.get('version'),
+            'commit': prov.get('commit'),
+            'branch': prov.get('branch'),
+            'cells': self.nC - 1, 'spots': self.nS, 'genes': self.nG, 'classes': self.nK,
+        }
+        if self.config is None:
+            out['settings'] = None
+            out['note'] = ('this run was written before pciSeq exported its settings and '
+                           'convergence record to diagnostics.db, so only the version and '
+                           'commit are known. Rerunning with the current pciSeq records them.')
+            return out
+        cfg = self.config
+        out['settings'] = cfg
+        out['is3D'] = cfg.get('is3D')
+        out['voxel_size'] = cfg.get('voxel_size')
+        if self.run_record:
+            out['iterations'] = self.run_record['iterations']
+            out['converged'] = self.run_record['converged']
+            delta = self.run_record.get('delta') or []
+            out['final_delta'] = delta[-1] if delta else None
+            out['tolerance'] = cfg.get('CellCallTolerance')
+            out['ended'] = ('converged after %d iterations, the largest change in a spot '
+                            'assignment fell below %s' % (out['iterations'], out['tolerance'])
+                            if out['converged'] else
+                            'stopped at max_iter, %d iterations, without converging: the '
+                            'largest change was still %.4f against a tolerance of %s'
+                            % (out['iterations'], out['final_delta'] or float('nan'),
+                               out['tolerance']))
+        return out
+
+    def _plane_of(self, z):
+        """The plane index a scaled z belongs to, or None without voxel_size."""
+        if not self.config or not self.config.get('voxel_size'):
+            return None
+        vx, _, vz = self.config['voxel_size']
+        return int(round(z * vx / vz))
 
     def cell(self, label):
         """The headline facts about one cell."""
@@ -314,9 +369,14 @@ class Run:
         out = {
             'spot': int(spot_id),
             'gene': gene,
-            'position': {'x': got[1], 'y': got[2], 'z': got[3],
-                         'z_is': 'the anisotropy scaled z the model works in, '
-                                 'not the plane index'},
+            'position': ({'x': got[1], 'y': got[2], 'z': got[3], 'plane': self._plane_of(got[3]),
+                          'z_is': 'the anisotropy scaled z the model works in; plane is '
+                                  'the plane index it sits on'}
+                         if self._plane_of(got[3]) is not None else
+                         {'x': got[1], 'y': got[2], 'z': got[3],
+                          'z_is': 'the anisotropy scaled z the model works in, not the '
+                                  'plane index. This run carries no voxel_size, so the '
+                                  'plane cannot be given'}),
             'candidates': rows,
             'assigned_to': rows[int(np.argmax(prob))]['cell'],
         }

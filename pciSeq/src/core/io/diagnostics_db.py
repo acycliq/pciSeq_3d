@@ -160,6 +160,18 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         # Shared
         ('gene_panel', json.dumps(gene_panel)),
         ('label_map', json.dumps(label_map)),
+
+        # The resolved settings and how the run ended, so a reader of this file can
+        # say what produced it without the pickle. label_map has its own row above.
+        # voxel_size rides inside config, which is what turns the scaled z of the
+        # spots table back into a plane number.
+        ('config', json.dumps({k: v for k, v in varBayes.config.items() if k != 'label_map'},
+                              default=str)),
+        ('run', json.dumps({
+            'iterations': int(varBayes.iter_num) + 1 if varBayes.iter_num is not None else None,
+            'converged': bool(varBayes.has_converged),
+            'delta': [float(d) for d in varBayes.iter_delta],
+        })),
     ]
 
     # Per-gene observed spot counts (for η scatter in dashboard)

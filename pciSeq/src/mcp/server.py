@@ -95,6 +95,16 @@ def open_run(path: str) -> dict:
 
 
 @_tool
+def run_info() -> dict:
+    """What produced the open run and how it ended: pciSeq version and commit, the
+    resolved settings (mrf_beta, rTheta, Inefficiency, nNeighbors, voxel_size and the
+    rest), the number of iterations, and whether the loop converged, with a sentence
+    saying so. Use it for 'what settings did this run use' and 'did it converge'.
+    Older runs carry only the version and commit and the answer says so."""
+    return _need_run().run_info()
+
+
+@_tool
 def cell(label: int) -> dict:
     """The headline facts about one cell: its class probabilities, its top genes, its
     total counts and its scale factor theta.

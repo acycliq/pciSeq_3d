@@ -82,6 +82,7 @@ never appear, see [Cell identifiers](./working-with-results.md#cell-identifiers)
 | Tool | Returns |
 | --- | --- |
 | `open_run(path)` | Opens a run and returns its size, the pciSeq version that made it, and whether it carries containment data. |
+| `run_info()` | What produced the run and how it ended: version and commit, the resolved settings, the number of iterations and whether the loop converged. |
 | `cell(label)` | The class probabilities, top genes, total counts and scale factor of one cell. |
 | `explain_cell(label, vs_class=None)` | The score of the assigned class against another, split into the gene log-likelihood, the class prior and the spatial term, with the genes that pushed hardest for each side. `vs_class` defaults to the runner up. |
 | `explain_spot(spot_id)` | One row per candidate cell plus the background: the six score terms, their sum and the resulting probability. |
@@ -215,7 +216,9 @@ checkout the folder itself is read.
 ## Notes
 
 Runs made before September 2026 have no `inside_cell` column, so `spots_in_cell`
-refuses with a message saying so. The other tools work on any run that has
+refuses with a message saying so, and carry no settings or convergence record in
+`diagnostics.db`, so `run_info` gives only the version and commit and `explain_spot`
+reports the scaled z without a plane. The other tools work on any run that has
 `diagnostics.db`.
 
 Probabilities in `cellData.tsv` and `geneData.tsv` are kept to three decimals, and

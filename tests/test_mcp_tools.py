@@ -9,6 +9,7 @@ Uses the 16 cell fixture from test_label_identifiers, labels 101..116, so the
 label translation is exercised too.
 """
 import numpy as np
+import pandas as pd
 import pytest
 from scipy.special import softmax
 
@@ -471,3 +472,67 @@ def test_spot_narrative_when_the_background_wins():
     assert 'takes it for a misread' in s
     assert 'cell 6482 is the nearest, and its class is VLMC' in s
     assert 'carries the call' not in s
+
+
+# ----------------------------------------- settings, convergence and planes
+
+def test_run_info_reports_the_settings_and_how_it_ended(fitted):
+    """The fixture is run with max_iter 40 and tolerance 0.001, so those two have to
+    come straight back, along with a convergence verdict in words."""
+    run, _, _ = fitted
+    info = run.run_info()
+    assert info['settings']['max_iter'] == 40
+    assert info['settings']['CellCallTolerance'] == 0.001
+    assert info['voxel_size'] == [1, 1, 1] and info['is3D'] is False
+    assert isinstance(info['converged'], bool) and info['iterations'] >= 1
+    assert ('converged after' in info['ended']) == info['converged']
+    assert 'label_map' not in info['settings']
+    s = run.summary()
+    assert s['has_settings'] and s['iterations'] == info['iterations']
+
+
+def test_run_info_on_a_run_without_settings(fitted):
+    """Runs written before the export carry no config row. The answer must say so
+    rather than invent settings."""
+    run, _, _ = fitted
+    saved = run.config, run.run_record
+    run.config, run.run_record = None, None
+    try:
+        info = run.run_info()
+        assert info['settings'] is None and 'before pciSeq exported' in info['note']
+        assert info['commit'] is not None
+        pos = run.explain_spot(0)['position']
+        assert 'plane' not in pos and 'no voxel_size' in pos['z_is']
+    finally:
+        run.config, run.run_record = saved
+
+
+def test_explain_spot_gives_the_plane_on_an_anisotropic_3d_run(rng, tmp_path):
+    """Three planes with voxel_size [1, 1, 4]: the model works in a z four times the
+    plane index, and the tool has to hand back the plane, not the scaled z."""
+    import pciSeq
+    from scipy.sparse import coo_matrix
+    from pciSeq.src.mcp.tools import open_run
+    from tests.test_label_identifiers import _label_image, GENES, CLASSES
+
+    spots = pd.DataFrame({
+        'gene_name': rng.choice(GENES, 900),
+        'x': rng.uniform(0, 79, 900).astype(np.float32),
+        'y': rng.uniform(0, 79, 900).astype(np.float32),
+        'z_plane': rng.integers(0, 3, 900).astype(np.float32),
+    })
+    scref = pd.DataFrame(rng.random((len(GENES), len(CLASSES))) * 50, index=GENES, columns=CLASSES)
+    scref.index.name = 'gene_name'
+    lab = _label_image()
+    # one matrix per plane: process_labels remaps each plane in place, so the same
+    # object three times would be renumbered on the first pass and fail on the second
+    _, geneData = pciSeq.fit(spots=spots, coo=[coo_matrix(lab) for _ in range(3)], scRNAseq=scref,
+                             opts={'max_iter': 3, 'save_data': True, 'output_path': str(tmp_path),
+                                   'voxel_size': [1, 1, 4], 'CellCallTolerance': 0.5})
+    run = open_run(tmp_path)
+    assert run.run_info()['voxel_size'] == [1, 1, 4] and run.run_info()['is3D'] is True
+    gd = geneData.set_index('spot_id')
+    for sid in gd.index[:150]:
+        pos = run.explain_spot(sid)['position']
+        assert pos['plane'] == gd.loc[sid, 'plane_id'], sid
+        assert pos['z'] == int(gd.loc[sid, 'z'])
