@@ -135,10 +135,13 @@
   text-align: right;
 }
 
-/* small print under a table, for the things the table leaves out */
+/* small print under a table, for the things the table leaves out. It spans the same width
+   as the table above it: capped at the body text width it wrapped short of the table edge,
+   which read as a crooked caption */
 .vp-doc .table-note {
   font-size: 0.85em;
   color: var(--vp-c-text-2);
+  max-width: none;
 }
 
 /* a table stays inside the column and wraps its headers rather than scrolling sideways */

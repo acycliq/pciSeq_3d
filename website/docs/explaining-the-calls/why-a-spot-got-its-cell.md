@@ -90,6 +90,9 @@ for the background:
 
 <!--@include: ./_tables/spot-1642419-mrf.md-->
 
+<p class="table-note" id="table-3-1"><strong>Table 3.1.</strong> The output of
+<code>check_spot</code> for spot 1642419, in the fit with the spatial term.</p>
+
 - **Gaussian fit**. The log density of the spot's position under the cell's Gaussian
   distribution. Only the distance to the cell's centroid counts. In this example, the
   Gaussian is assumed spherical, not elliptical, so the three axes are independent. The
@@ -143,6 +146,10 @@ obj_nomrf.check_spot(1642419)
 
 <!--@include: ./_tables/spot-1642419-nomrf.md-->
 
+<p class="table-note" id="table-3-2"><strong>Table 3.2.</strong> The same spot in the
+fit without the spatial term. The Gaussian fit column is identical to
+<a href="#table-3-1">Table 3.1</a>.</p>
+
 <div class="two-tables">
 <div>
 <table>
@@ -154,7 +161,7 @@ obj_nomrf.check_spot(1642419)
 <tr><td>prob</td><td>0.06</td><td>0.74</td></tr>
 </tbody>
 </table>
-<p class="table-note" id="table-3-1"><strong>Table 3.1.</strong> The terms of cell 18223
+<p class="table-note" id="table-3-3"><strong>Table 3.3.</strong> The terms of cell 18223
 that change between the two fits.</p>
 </div>
 <div>
@@ -165,7 +172,7 @@ that change between the two fits.</p>
 <tr><td>21574</td><td>13.0</td><td>10.9</td><td>4.7</td><td>4.4</td><td>2.3</td><td></td><td>3.0</td><td>98.8</td></tr>
 </tbody>
 </table>
-<p class="table-note" id="table-3-2"><strong>Table 3.2.</strong> What the two other
+<p class="table-note" id="table-3-4"><strong>Table 3.4.</strong> What the two other
 <code>037 DG Glut</code> candidates hold in the fit without the spatial term. The five
 genes with the largest counts, then Synpr, then the cell total.</p>
 </div>
@@ -181,7 +188,7 @@ The spot is now assigned to cell 18223 with probability 6%, against 73.7% with t
 and its most likely parent is cell 21574, a `037 DG Glut` cell, with 49.2%. Cell 21574 is
 only the third closest to the spot. Cell 17371 is the second closest and is `037 DG Glut`
 too, yet the spot does not go to it, because it holds fewer reads in total, 60.0 against
-98.8, and expresses fewer Synpr, 0.5 against 3.0, see [Table 3.2](#table-3-2). That is
+98.8, and expresses fewer Synpr, 0.5 against 3.0, see [Table 3.4](#table-3-4). That is
 intuitively sensible: a spot is more likely to come from a cell that is bigger in
 terms of total reads and expresses more of the gene than from one that does not.
 
