@@ -33,6 +33,7 @@ except ModuleNotFoundError as e:  # pragma: no cover
         '    pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"'
     ) from e
 
+from . import docs as _docs
 from .tools import Run, open_run as _open
 
 server = MCPServer(
@@ -189,6 +190,55 @@ def spot_row(spot_id: int) -> dict:
     neighbour, neighbour_array, neighbour_prob, omp_score, omp_intensity,
     is_hard_misread and, on runs from September 2026 on, inside_cell."""
     return _need_run().spot_row(spot_id)
+
+
+@_tool
+def docs(query: str, n: int = 5) -> dict:
+    """Search the pciSeq documentation and return the paragraphs that match.
+
+    Use it to check how something works before explaining it: what a term means,
+    what a config option does, how a file is laid out. Each hit names the page it
+    came from; read the whole page as the resource pciseq-docs://<page> when the
+    paragraph is not enough. Plain keyword search, no index.
+    """
+    hits = _docs.search_docs(query, n=n)
+    for h in hits:
+        h['resource'] = 'pciseq-docs://' + h['page']
+    return {'query': query, 'hits': hits,
+            'note': 'no docs pages found on this machine' if _docs.docs_root() is None else ''}
+
+
+@server.resource('pciseq-docs://index', name='pciSeq documentation index',
+                 description='Every documentation page, with its title. Read a page as '
+                             'pciseq-docs://<page>.', mime_type='text/markdown')
+def docs_index() -> str:
+    lines = ['# pciSeq documentation', '']
+    for page in _docs.list_pages():
+        lines.append('- pciseq-docs://%s  %s' % (page, _docs.page_title(_docs.read_page(page))))
+    return '\n'.join(lines) if len(lines) > 2 else 'no docs pages found on this machine'
+
+
+# One resource per page, registered at import. A URI template such as
+# pciseq-docs://{path} would be neater but matches a single path segment, so every
+# page inside a folder (api/, the-model/, ...) would be unreachable. Static URIs
+# also let the agent see every page with its title in list_resources.
+def _page_reader(page):
+    # a static resource's function must take no arguments, so the page is closed
+    # over here rather than passed in
+    def reader() -> str:
+        return _docs.read_page(page)
+    return reader
+
+
+def _register_pages():
+    for page in _docs.list_pages():
+        title = _docs.page_title(_docs.read_page(page)) or page
+        server.resource('pciseq-docs://' + page, name=title,
+                        description='pciSeq documentation, %s' % page,
+                        mime_type='text/markdown')(_page_reader(page))
+
+
+_register_pages()
 
 
 def main() -> None:

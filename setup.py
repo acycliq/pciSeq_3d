@@ -4,6 +4,7 @@
 #     python -m build                   # new way to build a package
 
 import os
+import shutil
 import subprocess
 import datetime
 from setuptools import setup, find_packages
@@ -61,6 +62,29 @@ def get_static_files(root):
         )
     ]
 
+
+# The documentation pages ride inside the wheel, so the MCP server can hand them to
+# an agent on a machine that has no repo checkout. Copied fresh at every build from
+# website/docs, the single source of truth; the copy itself is gitignored.
+def pack_docs():
+    src = os.path.join("website", "docs")
+    dst = os.path.join("pciSeq", "src", "mcp", "_docs")
+    if not os.path.isdir(src):
+        return
+    shutil.rmtree(dst, ignore_errors=True)
+    for root, dirs, files in os.walk(src):
+        dirs[:] = [d for d in dirs if d not in ("node_modules", ".vitepress")]
+        for f in files:
+            if f.endswith(".md"):
+                rel = os.path.relpath(os.path.join(root, f), src)
+                os.makedirs(os.path.dirname(os.path.join(dst, rel)), exist_ok=True)
+                shutil.copy2(os.path.join(root, f), os.path.join(dst, rel))
+
+
+if __name__ == "__main__":
+    # a real build (pip runs this file as __main__). Tests that import setup.py
+    # with setup() mocked must not scatter a copy of the docs into the tree.
+    pack_docs()
 
 install_deps = [
     "numpy_groupies",
@@ -155,6 +179,7 @@ setup(
     include_package_data=True,
     package_data={
         "pciSeq": get_static_files(os.path.join("pciSeq", "src", "realtime_viewer"))
+                  + ["src/mcp/_docs/**/*.md", "src/mcp/_docs/*.md"],
     },
     classifiers=[
         "Programming Language :: Python :: 3",

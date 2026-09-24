@@ -62,6 +62,7 @@ never appear, see [Cell identifiers](./working-with-results.md#cell-identifiers)
 | `spots_of_cell(label, min_prob=None)` | The spots whose most likely parent is the cell, each with its probability. With `min_prob`, every spot with probability above it. |
 | `cell_row(label)` | The `cellData.tsv` row of one cell, value for value. |
 | `spot_row(spot_id)` | The `geneData.tsv` row of one spot, value for value. |
+| `docs(query, n=5)` | The paragraphs of this documentation that match a keyword query, each naming its page. |
 
 `explain_cell` and `explain_spot` return the same numbers as
 [`check_cell`](./reference.md#check-cell) and [`check_spot`](./reference.md#check-spot),
@@ -168,6 +169,20 @@ notes that the lowest is well under one half: the cell is those spots' best gues
 not a certainty. `cell_row(18223)` lists 542 spots under `spot_id`, every spot with
 probability above 0.0001 on the cell. Their probabilities sum to the cell's 38.5
 counts. The two lists answer different questions.
+
+## Documentation
+
+The server also carries this documentation, so that an agent without a browser can
+check how something works before explaining it. Every page is a resource named
+`pciseq-docs://<page>`, for instance `pciseq-docs://api/working-with-results.md`, and
+`pciseq-docs://index` lists them all with their titles. The `docs` tool searches them by
+keyword and returns the matching paragraphs, each with the resource to read for the
+whole page. It is a plain text search over 33 pages, with no index to build or keep
+current.
+
+The pages are packed into the wheel at build time from the `website/docs` folder, so an
+installed pciSeq has the same pages as the site it was built from. In a repository
+checkout the folder itself is read.
 
 ## Notes
 

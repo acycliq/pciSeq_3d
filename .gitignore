@@ -27,3 +27,5 @@ __pycache__/
 .cursor/
 CLAUDE.md
 AGENTS.md
+# packed by setup.py from website/docs, never committed
+pciSeq/src/mcp/_docs/
