@@ -117,7 +117,6 @@ install_deps = [
 extras = {
     "mcp": ["mcp>=2"],
 }
-extras["all"] = sorted({d for deps in extras.values() for d in deps})
 
 
 def get_version():

@@ -8,7 +8,7 @@ It is an optional extra, so a plain pciSeq install does not pull in a web server
 
     pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
 
-or [all] for every extra at once. Either puts a `pciseq-mcp` command on the path. Point Claude Code, Claude Desktop or any
+That puts a `pciseq-mcp` command on the path. Point Claude Code, Claude Desktop or any
 other MCP client at it over stdio, for example in ~/.claude.json:
 
     "mcpServers": {"pciSeq": {"type": "stdio", "command": "pciseq-mcp", "args": []}}

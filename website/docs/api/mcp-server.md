@@ -23,7 +23,7 @@ of pciSeq does not need:
 pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
 ```
 
-This adds a `pciseq-mcp` command to the path. `pciSeq_3d[all]` installs every extra.
+This adds a `pciseq-mcp` command to the path.
 
 ## Registering the server
 
@@ -43,7 +43,26 @@ prints it.
 
 A new session of the agent lists the server under its tools. The first call in a
 session is `open_run` with the run folder; every other tool refers to the run that is
-open.
+open. If `pciseq-mcp` exits saying the mcp library is missing, the extra was not
+installed; see [Installation](#installation) above.
+
+The server is not tied to Claude. It speaks the Model Context Protocol over stdio, so
+any client that supports MCP can use it. Each client reads its own file and nothing
+else, so `~/.claude.json` is for Claude Code only; the entry inside is the same
+everywhere, the `pciseq-mcp` command with no arguments, under the key the client
+expects:
+
+| Client | File | Key |
+| --- | --- | --- |
+| Claude Code | `~/.claude.json` | `mcpServers` |
+| Claude Desktop | `claude_desktop_config.json` in `~/Library/Application Support/Claude` on macOS, `%APPDATA%\Claude` on Windows, `~/.config/Claude` on Linux | `mcpServers` |
+| Cursor | `~/.cursor/mcp.json`, or `.cursor/mcp.json` in the project | `mcpServers` |
+| VS Code with Copilot | `.vscode/mcp.json` in the workspace | `servers` |
+| Windsurf | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
+| Zed | the settings file, `zed: open settings file` | `context_servers` |
+
+These locations are the clients' as of September 2026; their own documentation is the
+reference if one has moved.
 
 ## Asking a question
 

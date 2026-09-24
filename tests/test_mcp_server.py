@@ -111,7 +111,7 @@ def test_the_module_is_shipped_and_launchable():
 def test_mcp_is_an_extra_not_a_core_dependency():
     """A plain install must not drag in a web server, a jwt stack and a pydantic
     floor for the sake of a feature most users never touch. Same call spikelab
-    makes. [all] rolls the extras up so nobody has to know their names."""
+    makes."""
     import pathlib
     import runpy
     import unittest.mock as mock
@@ -126,7 +126,9 @@ def test_mcp_is_an_extra_not_a_core_dependency():
 
     extras = kwargs['extras_require']
     assert extras['mcp'] == ['mcp>=2']
-    assert 'mcp>=2' in extras['all']
+    # no [all] while mcp is the only extra: it would mean the same thing under a
+    # second name, which only confuses. Bring it back with the second extra.
+    assert 'all' not in extras
 
 
 def test_missing_mcp_still_says_something_useful():
