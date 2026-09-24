@@ -398,3 +398,76 @@ def test_strength_wording():
     assert _strength(4.1) == 'about 60 to one'
     assert _strength(8.4) == 'about 4,400 to one'
     assert _strength(12.5) == 'overwhelmingly, beyond any doubt'
+
+
+# ---------------------------------------------------- the spot narrative
+
+def test_spot_narrative_tells_the_story_without_units(fitted):
+    import re
+    run, _, geneData = fitted
+    for sid in list(geneData.index[:40]) + list(geneData.index[-10:]):
+        e = run.explain_spot(sid)
+        story = e['narrative']
+        assert e['gene'] in story
+        if e['assigned_to'] == 'background':
+            assert 'assigned to the background' in story
+        else:
+            assert 'assigned to cell %d' % e['assigned_to'] in story
+            assert re.search(r'carries the call|the call is clear|a narrow one', story), sid
+        assert not re.search(r'\bnats?\b', story)
+        assert not re.search(r'-\d|\b\d{2,}\.\d', story), 'raw score leaked: %d' % sid
+        assert '\u2014' not in story and '\u2013' not in story
+
+
+def test_spot_candidates_carry_their_class(fitted):
+    run, cellData, _ = fitted
+    e = run.explain_spot(0)
+    for c in e['candidates']:
+        if c['cell'] != 'background':
+            assert c['class'] == cellData.loc[c['cell'], 'ClassName'][0]
+
+
+def _spot(assigned, cands, bg_prob, bg_misread=-14.0):
+    rows = []
+    for cell, cls, gauss, cx, sc, cg, prob in cands:
+        rows.append({'cell': cell, 'class': cls, 'Gaussian fit': gauss, 'class expression': cx,
+                     'cell scale': sc, 'cell-gene scale': cg, 'gene efficiency': -0.35,
+                     'bonus': 0.0, 'sum': gauss + cx + sc + cg - 0.35, 'prob': prob})
+    rows.append({'cell': 'background', 'misread': bg_misread, 'sum': bg_misread, 'prob': bg_prob})
+    return {'spot': 7, 'gene': 'Synpr', 'position': {}, 'candidates': rows, 'assigned_to': assigned}
+
+
+def test_spot_narrative_when_distance_carries_it():
+    """The docs spot: nearest by a clear margin, every candidate the same class, the
+    runner up holds more reads. Distance wins."""
+    from pciSeq.src.mcp.tools import narrate_spot
+    e = _spot(18223, [(18223, 'DG', -10.4, 0.94, -0.66, 0.18, 0.74),
+                      (21574, 'DG', -12.8, 0.94, 0.10, 0.07, 0.13),
+                      (17371, 'DG', -12.1, 0.94, -0.30, -0.54, 0.10)], 0.01)
+    s = narrate_spot(e)
+    assert 'assigned to cell 18223, fairly confidently, with probability 0.74' in s
+    assert 'Cell 18223 is the nearest candidate: about 5 to one over cell 17371 and about 11 to one over cell 21574' in s
+    assert 'Every candidate is a DG cell' in s
+    assert 'cell 21574 holds more reads overall than its class predicts' in s
+    assert 'distance carries the call' in s
+
+
+def test_spot_narrative_when_expression_carries_it():
+    from pciSeq.src.mcp.tools import narrate_spot
+    e = _spot(2, [(2, 'CA2', -11.0, 0.9, 0.5, 0.6, 0.66),
+                  (1, 'CA1', -10.6, -1.2, 0.0, 0.0, 0.32)], 0.01)
+    s = narrate_spot(e)
+    assert 'Cell 2 is not the nearest: cell 1 is closer' in s
+    assert 'Cell 2 is a CA2 cell, and that class expresses Synpr' in s
+    assert 'Cell 1 is a CA1 cell, which does not' in s
+    assert 'expression carries the call' in s
+
+
+def test_spot_narrative_when_the_background_wins():
+    from pciSeq.src.mcp.tools import narrate_spot
+    e = _spot('background', [(6482, 'VLMC', -15.6, -1.3, 0.6, -0.36, 0.02)], 0.95)
+    s = narrate_spot(e)
+    assert 'assigned to the background, with probability 0.95' in s
+    assert 'takes it for a misread' in s
+    assert 'cell 6482 is the nearest, and its class is VLMC' in s
+    assert 'carries the call' not in s

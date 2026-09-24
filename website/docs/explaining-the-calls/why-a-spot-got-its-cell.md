@@ -130,9 +130,11 @@ cell explains. A gene can be well detected and still produce many misreads.</p>
 in these runs, so the column was empty. When it is set, a spot whose pixel falls inside the
 cell's segmentation gets that bonus added to its score.</p>
 
-Cell 18223 is not the only candidate close to the spot: its Gaussian fit is 1.7 above cell
-17371 and 2.4 above cell 21574. It wins on the expression terms, where it has the largest
-cell-gene scale, 0.18 against 0.07 for cell 21574 and negative values for the rest.
+Cell 18223 is the nearest candidate: its Gaussian fit is 1.7 above cell 17371 and 2.4
+above cell 21574. It does not win on the expression terms. It has the largest cell-gene
+scale, 0.18 against 0.07 for cell 21574 and negative values for the rest, but a lower
+cell scale, -0.66 against 0.10, and over the three expression terms together cell 21574
+is ahead, 1.11 against 0.47. Distance carries the call.
 
 ## The same spot without the spatial term
 

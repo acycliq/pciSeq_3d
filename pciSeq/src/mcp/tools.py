@@ -294,8 +294,11 @@ class Run:
 
         rows = []
         for i, internal in enumerate(neighbours[:-1]):
+            cls_idx = self._query("SELECT assigned_class_idx FROM cells WHERE cell_id = ?",
+                                  (internal,))
             rows.append({
                 'cell': self.to_external(internal),
+                'class': str(self.class_names[cls_idx[0]]) if cls_idx else None,
                 'Gaussian fit': float(terms['mvn_loglik'][i]),
                 'class expression': float(terms['attention'][i]),
                 'cell scale': float(terms['cell_inefficiency'][i]),
@@ -308,7 +311,7 @@ class Run:
         rows.append({'cell': 'background', 'misread': misread,
                      'sum': misread, 'prob': float(prob[-1])})
 
-        return {
+        out = {
             'spot': int(spot_id),
             'gene': gene,
             'position': {'x': got[1], 'y': got[2], 'z': got[3],
@@ -317,6 +320,8 @@ class Run:
             'candidates': rows,
             'assigned_to': rows[int(np.argmax(prob))]['cell'],
         }
+        out['narrative'] = narrate_spot(out)
+        return out
 
     def cell_counts(self, label, gene=None):
         """How many reads a cell holds. Soft, and the answer says so."""
@@ -741,6 +746,134 @@ def narrate_cell(e):
                    'surrounding cells made the difference.')
     else:
         out.append('So the prior settled it.')
+    return ' '.join(out)
+
+
+def narrate_spot(e):
+    """The story behind an explain_spot result, in plain words.
+
+    Same idea as narrate_cell: computed from the numbers so it is the same whoever
+    asks, no units in the output, differences said as odds or as a word. The shape
+    follows the spot page of the docs: where the spot is against how well its gene
+    fits each cell, and which of the two carried the call.
+    """
+    gene, spot = e['gene'], e['spot']
+    cells = [c for c in e['candidates'] if c['cell'] != 'background']
+    bg = next(c for c in e['candidates'] if c['cell'] == 'background')
+    by_prob = sorted(cells, key=lambda c: -c['prob'])
+    winner = by_prob[0]
+    to_bg = e['assigned_to'] == 'background'
+
+    def expr(c):
+        return c['class expression'] + c['cell scale'] + c['cell-gene scale']
+
+    def p(x):
+        return 'less than 0.01' if x < 0.005 else '%.2f' % x
+
+    def sure(x):
+        return ('confidently' if x > 0.9 else 'fairly confidently' if x > 0.6
+                else 'narrowly' if x > 0.4 else 'with no clear winner')
+
+    out = []
+    # the call
+    if to_bg:
+        out.append('Spot %d is a %s spot. It was assigned to the background, with probability '
+                   '%s, meaning the model takes it for a misread rather than a read from any '
+                   'cell. The nearest cell, %d, gets %s.'
+                   % (spot, gene, p(bg['prob']), winner['cell'], p(winner['prob'])))
+    else:
+        others = ', '.join('cell %d (%s)' % (c['cell'], p(c['prob'])) for c in by_prob[1:3])
+        out.append('Spot %d is a %s spot. It was assigned to cell %d, %s, with probability %s. '
+                   'The next candidates are %s, and the chance it is a misread is %s.'
+                   % (spot, gene, winner['cell'], sure(winner['prob']), p(winner['prob']),
+                      others, p(bg['prob'])))
+
+    # how a spot is scored
+    out.append('pciSeq weighs each nearby cell on two things: how close the spot is to the '
+               'cell\'s centre (the Gaussian fit), and how well a %s spot fits that cell, '
+               'which combines whether the cell\'s class expresses %s (class expression), '
+               'whether the cell holds more reads overall than its class predicts (cell '
+               'scale), and whether it already holds more %s than its class predicts '
+               '(cell-gene scale). The background is scored on how often %s spots turn out '
+               'to be misreads. The best total wins.' % (gene, gene, gene, gene))
+
+    if to_bg:
+        out.append('Here no cell scores well enough: cell %d is the nearest, and its class '
+                   'is %s, but %s does not fit it well, and %s misreads are common enough in '
+                   'this run for the background to win.'
+                   % (winner['cell'], winner['class'], gene, gene))
+        return ' '.join(out)
+
+    # position
+    by_dist = sorted(cells, key=lambda c: -c['Gaussian fit'])
+    nearest = by_dist[0]
+    if nearest['cell'] == winner['cell']:
+        rivals = [c for c in by_dist[1:3]]
+        out.append('Cell %d is the nearest candidate: %s on position alone.'
+                   % (winner['cell'], ' and '.join(
+                       '%s over cell %d' % (_strength(winner['Gaussian fit'] - c['Gaussian fit']), c['cell'])
+                       for c in rivals)))
+    else:
+        out.append('Cell %d is not the nearest: cell %d is closer, %s on position alone.'
+                   % (winner['cell'], nearest['cell'],
+                      _strength(nearest['Gaussian fit'] - winner['Gaussian fit'])))
+
+    # expression
+    runner = by_prob[1] if len(by_prob) > 1 else None
+    classes = {c['class'] for c in cells}
+    if len(classes) == 1:
+        out.append('Every candidate is a %s cell, so on class alone %s fits them all equally; '
+                   'what separates them is how much each already holds.' % (winner['class'], gene))
+    else:
+        out.append('Cell %d is a %s cell, and that class %s %s.'
+                   % (winner['cell'], winner['class'],
+                      'expresses' if winner['class expression'] > 0 else 'barely expresses', gene))
+        if runner and runner['class'] != winner['class']:
+            out.append('Cell %d is a %s cell, which %s.'
+                       % (runner['cell'], runner['class'],
+                          'does too' if runner['class expression'] > 0 else 'does not'))
+        elif runner:
+            out.append('Cell %d is a %s cell too.' % (runner['cell'], runner['class']))
+    if runner:
+        pieces = []
+        d_sc = winner['cell scale'] - runner['cell scale']
+        d_cg = winner['cell-gene scale'] - runner['cell-gene scale']
+        if abs(d_sc) > 0.2:
+            pieces.append('cell %d holds more reads overall than its class predicts'
+                          % (winner['cell'] if d_sc > 0 else runner['cell']))
+        if abs(d_cg) > 0.2:
+            pieces.append('cell %d already holds more %s than its class predicts'
+                          % (winner['cell'] if d_cg > 0 else runner['cell'], gene))
+        if pieces:
+            out.append('Between the top two, %s.' % ' and '.join(pieces))
+
+    # the inside cell bonus, when it is switched on
+    bonus = [c for c in cells if c.get('bonus', 0)]
+    if bonus:
+        out.append('The spot\'s pixel lies inside the mask of cell %d, which adds a bonus for '
+                   'it.' % bonus[0]['cell'])
+
+    # verdict, winner against the runner up
+    if runner:
+        d_pos = winner['Gaussian fit'] - runner['Gaussian fit']
+        d_exp = expr(winner) - expr(runner)
+        if d_pos > 0.4 and d_exp > 0.4:
+            out.append('So cell %d is both the nearer and the better fit for the gene, and '
+                       'the call is clear.' % winner['cell'])
+        elif d_pos > 0.4:
+            out.append('So cell %d is the better fit for the gene, %s, but cell %d is closer, '
+                       '%s, and distance carries the call.'
+                       % (runner['cell'], _strength(-d_exp) if d_exp < -0.4 else 'slightly',
+                          winner['cell'], _strength(d_pos)))
+        elif d_exp > 0.4:
+            out.append('So cell %d is closer, %s, but cell %d fits the gene better, %s, and '
+                       'expression carries the call.'
+                       % (runner['cell'], _strength(-d_pos) if d_pos < -0.4 else 'slightly',
+                          winner['cell'], _strength(d_exp)))
+        else:
+            out.append('So the two are close on both counts, and the call is a narrow one.')
+    if bg['prob'] > 0.1:
+        out.append('There is a real chance, %s, that the spot is a misread.' % p(bg['prob']))
     return ' '.join(out)
 
 

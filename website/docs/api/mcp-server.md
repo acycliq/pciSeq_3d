@@ -123,10 +123,40 @@ about 60 to one; the neighbouring cells are overwhelmingly L5 ET, and they carry
 call. The narrative says so: *this call is the neighbourhood overruling the genes*, and
 names the class the genes alone would have picked.
 
-**Why did spot 1642419 go to cell 18223?** The agent calls `explain_spot(1642419)`
-and reports the Synpr spot at 0.74 on cell 18223, 0.13 on cell 21574 and 0.10 on cell
-17371, matching [Table 3.1](../explaining-the-calls/why-a-spot-got-its-cell.md#table-3-1),
-with the six score terms behind each number.
+**Why did spot 1642419 go to cell 18223?** The agent calls `explain_spot(1642419)`.
+The probabilities match [Table 3.1](../explaining-the-calls/why-a-spot-got-its-cell.md#table-3-1),
+and the `narrative` tells the story:
+
+> Spot 1642419 is a Synpr spot. It was assigned to cell 18223, fairly confidently, with
+> probability 0.74. The next candidates are cell 21574 (0.13), cell 17371 (0.10), and
+> the chance it is a misread is 0.01. pciSeq weighs each nearby cell on two things: how
+> close the spot is to the cell's centre (the Gaussian fit), and how well a Synpr spot
+> fits that cell, which combines whether the cell's class expresses Synpr (class
+> expression), whether the cell holds more reads overall than its class predicts (cell
+> scale), and whether it already holds more Synpr than its class predicts (cell-gene
+> scale). The background is scored on how often Synpr spots turn out to be misreads. The
+> best total wins. Cell 18223 is the nearest candidate: about 5 to one over cell 17371
+> and about 11 to one over cell 21574 on position alone. Every candidate is a 037 DG
+> Glut cell, so on class alone Synpr fits them all equally; what separates them is how
+> much each already holds. Between the top two, cell 21574 holds more reads overall than
+> its class predicts. So cell 21574 is the better fit for the gene, slightly, but cell
+> 18223 is closer, about 11 to one, and distance carries the call.
+
+The numbers behind it, for the top three candidates:
+
+```
+cell         class          Gaussian fit    class expr.  cell scale   cell-gene   prob
+18223        037 DG Glut          -10.41           0.94       -0.66        0.18   0.74
+21574        037 DG Glut          -12.81           0.94        0.10        0.07   0.13
+17371        037 DG Glut          -12.07           0.94       -0.30       -0.54   0.10
+background                                                                        0.01   misread -14.92
+```
+
+Cell 18223 wins on distance. Every candidate here is `037 DG Glut`, so the class term
+cannot separate them, and cell 21574 holds more reads than its class predicts, which
+is why it takes some of the probability. When the balance goes the other way, a spot
+going to a cell that is not the nearest because that cell's class expresses the gene
+and the nearer one does not, the narrative says *expression carries the call*.
 
 **How many Ndnf reads does cell 2413 have?** `cell_counts(2413, gene='Ndnf')` returns
 7.77, with the note that this is a soft count, the sum of the assignment probabilities
