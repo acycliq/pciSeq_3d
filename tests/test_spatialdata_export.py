@@ -102,7 +102,7 @@ def _synthetic_run():
         single_cell=types.SimpleNamespace(raw_data=ref),
         tie_freezer=freezer,
         metadata={'version': '0.0.66.dev3', 'branch': 'test', 'commit': 'abc123',
-                  'build_date': 'today', 'created_at': 'now'},
+                  'commit_date': 'today', 'created_at': 'now'},
     )
 
     cfg = {'voxel_size': VOXEL, 'label_map': label_map, 'is3D': True,

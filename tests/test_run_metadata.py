@@ -15,7 +15,7 @@ import pickle
 
 from pciSeq.src.core.io import run_metadata
 
-KEYS = {'version', 'branch', 'commit', 'build_date', 'created_at',
+KEYS = {'version', 'branch', 'commit', 'commit_date', 'created_at',
         'python_version', 'os', 'package_versions'}
 
 
@@ -24,9 +24,19 @@ def test_the_stamp_has_the_keys_the_docs_list():
 
 
 def test_the_old_keys_are_still_there_under_the_same_names():
-    # the db and the store have been writing these five out for a while, anything
-    # reading them has to keep working
-    assert {'version', 'branch', 'commit', 'build_date', 'created_at'} <= set(run_metadata())
+    # the db and the store have been writing these out for a while, anything reading
+    # them has to keep working. build_date was dropped in September 2026 on purpose,
+    # it was misleading from a checkout; old runs still carry it and the viewer's
+    # About box falls back to it
+    assert {'version', 'branch', 'commit', 'created_at'} <= set(run_metadata())
+
+
+def test_commit_date_is_the_date_of_the_commit():
+    import subprocess
+    from pathlib import Path
+    repo = Path(__file__).resolve().parents[1]
+    want = subprocess.check_output(['git', 'log', '-1', '--format=%cI'], cwd=repo, text=True).strip()
+    assert run_metadata()['commit_date'] == want
 
 
 def test_it_goes_to_json_as_it_is():

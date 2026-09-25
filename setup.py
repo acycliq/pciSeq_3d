@@ -6,7 +6,6 @@
 import os
 import shutil
 import subprocess
-import datetime
 from setuptools import setup, find_packages
 
 
@@ -30,12 +29,13 @@ def write_build_info():
     """
     commit = _git(['rev-parse', '--short', 'HEAD'])
     branch = _git(['rev-parse', '--abbrev-ref', 'HEAD'])
-    build_date = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    # when that commit was made, not when this build ran
+    commit_date = _git(['log', '-1', '--format=%cI'])
     path = os.path.join('pciSeq', '_build_info.py')
     with open(path, 'w') as f:
         f.write(f'__commit__ = {commit!r}\n')
         f.write(f'__branch__ = {branch!r}\n')
-        f.write(f'__build_date__ = {build_date!r}\n')
+        f.write(f'__commit_date__ = {commit_date!r}\n')
 
 
 write_build_info()

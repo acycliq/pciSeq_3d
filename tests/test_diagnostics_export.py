@@ -75,7 +75,7 @@ def test_provenance_says_which_code_made_it(exported_db):
     (val,) = exported_db.execute(
         "select value from metadata where key='pciSeq_provenance'").fetchone()
     prov = json.loads(val)
-    for k in ('version', 'branch', 'commit', 'build_date', 'created_at'):
+    for k in ('version', 'branch', 'commit', 'commit_date', 'created_at'):
         assert k in prov, k
 
 

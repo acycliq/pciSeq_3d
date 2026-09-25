@@ -38,12 +38,12 @@ import pciSeq
 pciSeq.__version__     # '0.0.66.dev0'
 pciSeq.__commit__      # short git hash, eg '6db6dc8'
 pciSeq.__branch__      # 'dev_3d'
-pciSeq.__build_date__  # 'unknown' on a source checkout
+pciSeq.__commit_date__  # when that commit was made, eg '2026-09-25T15:02:11+01:00'
 ```
 
-The version string lives in `pciSeq/_version.py`. `__commit__` and `__branch__` are read
-from git when the package is imported from a checkout, otherwise from the values baked in
-when it was built. On the command line, `pciseq --version` prints the version string.
+The version string lives in `pciSeq/_version.py`. `__commit__`, `__branch__` and
+`__commit_date__` are read from git when the package is imported from a checkout,
+otherwise from the values baked in when it was built. On the command line, `pciseq --version` prints the version string.
 
 The model changes between commits. Two results are directly comparable only when the
 commit matches, or when the changes in between are known. Every run records it, see below.
@@ -58,7 +58,7 @@ varBayes.metadata
 # {'version':          '0.0.66.dev0',
 #  'branch':           'dev_3d',
 #  'commit':           '6db6dc8',
-#  'build_date':       'unknown',
+#  'commit_date':      '2026-09-04T11:30:02+01:00',
 #  'created_at':       '2026-09-04T12:47:51Z',
 #  'python_version':   '3.10.18',
 #  'os':               'Linux 6.8.0-138-generic',

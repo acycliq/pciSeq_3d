@@ -4,8 +4,12 @@ from pciSeq._version import __version__
 
 
 def _resolve_git_info():
-    """Return (commit, branch). Try live git first, fall back to values
-    baked at build time, fall back to 'unknown'."""
+    """Return (commit, branch, commit_date). Try live git first, fall back to
+    values baked at build time, fall back to 'unknown'.
+
+    commit_date is when that commit was made, so how old the code is. There used to
+    be a build_date as well, but from a source checkout it was just the last time
+    setup.py ran, which had nothing to do with the commit, so it was dropped."""
     pkg_dir = os.path.dirname(__file__)
 
     def _git(args):
@@ -22,28 +26,20 @@ def _resolve_git_info():
     commit = _git(['rev-parse', '--short', 'HEAD'])
     branch = _git(['rev-parse', '--abbrev-ref', 'HEAD'])
     if commit and branch:
-        return commit, branch
+        return commit, branch, _git(['log', '-1', '--format=%cI']) or 'unknown'
 
+    # a pip install has no .git, so read what setup.py baked in when it was built.
+    # getattr because a _build_info.py from before commit_date will not have it
     try:
-        from pciSeq._build_info import __commit__ as c, __branch__ as b
-        return c or 'unknown', b or 'unknown'
+        from pciSeq import _build_info as bi
+        return (getattr(bi, '__commit__', '') or 'unknown',
+                getattr(bi, '__branch__', '') or 'unknown',
+                getattr(bi, '__commit_date__', '') or 'unknown')
     except ImportError:
-        return 'unknown', 'unknown'
+        return 'unknown', 'unknown', 'unknown'
 
 
-def _resolve_build_date():
-    """Date setup.py was last run (write time of _build_info.py).
-    'unknown' if the package was imported from a source checkout that
-    has never been built."""
-    try:
-        from pciSeq._build_info import __build_date__
-        return __build_date__ or 'unknown'
-    except ImportError:
-        return 'unknown'
-
-
-__commit__, __branch__ = _resolve_git_info()
-__build_date__ = _resolve_build_date()
+__commit__, __branch__, __commit_date__ = _resolve_git_info()
 
 
 from pciSeq.app import fit

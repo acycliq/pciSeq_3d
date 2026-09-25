@@ -31,7 +31,7 @@ def run_metadata() -> Dict:
 
     # imported here and not at the top: pciSeq/__init__.py is still half way through
     # its own imports when this module gets loaded
-    from pciSeq import __version__, __branch__, __commit__, __build_date__
+    from pciSeq import __version__, __branch__, __commit__, __commit_date__
 
     # the libraries the numbers depend on. numba is in because spots_to_cell runs
     # through a numba kernel.
@@ -46,7 +46,7 @@ def run_metadata() -> Dict:
         'version': __version__,
         'branch': __branch__,
         'commit': __commit__,
-        'build_date': __build_date__,
+        'commit_date': __commit_date__,
         'created_at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
         'python_version': sys.version.split()[0],
         'os': f'{platform.system()} {platform.release()}',

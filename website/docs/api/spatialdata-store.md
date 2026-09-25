@@ -129,7 +129,7 @@ genes as columns: `X[i, j]` is the reference expression of gene `j` in class `i`
 ## Provenance
 
 `sdata.attrs['pciseq']` records what produced the store: the code (`branch`,
-`commit`, `build_date`, `version`), the environment (`python_version`, `os`,
+`commit`, `commit_date`, `version`), the environment (`python_version`, `os`,
 `package_versions`), when the run was created (`created_at`), the
 `spatialdata_version`, and the resolved run `config`, without `label_map`.
 
