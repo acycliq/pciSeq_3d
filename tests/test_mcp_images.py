@@ -204,3 +204,36 @@ def test_one_background_is_used_whatever_channel_says(run):
         assert 'only one background image' in info['background_note']
     _, info = run.cell_image(106, channel='GCaMP', width=300)
     assert 'only one background image' in info['background_note']
+
+
+# ------------------------------------------------------- the mrf neighbours
+
+def test_neighbours_are_saved_nearest_first(run):
+    """On the 4 x 4 grid, cells 18 px apart, 106 has 102 above, 105 and 107 beside
+    it and 110 below, all at 18 px, before any diagonal at 25 px. The labels have to
+    come out as segmentation labels, not internal rows."""
+    nb = run.cell(106)['neighbours']
+    assert set(nb[:4]) == {102, 105, 107, 110}
+    assert 106 not in nb and all(101 <= n <= 116 for n in nb)
+    assert len(nb) == run.run_info()['settings']['nNeighbors']
+
+
+def test_close_up_can_outline_only_the_neighbours(run):
+    _, info = run.cell_image(106, neighbours=True)
+    assert info['neighbours'] == run.cell(106)['neighbours']
+    # a 2D run, so every neighbour has an outline on the one plane
+    assert info['neighbours_not_on_this_plane'] == []
+    assert info['other_cells_outlined'] == len(info['neighbours'])
+    _, every = run.cell_image(106)
+    assert 'neighbours' not in every
+
+
+def test_old_run_without_neighbours_says_so(tmp_path):
+    _run(np.random.default_rng(7), tmp_path, save=True)
+    r = open_run(tmp_path)
+    _grey_mbtiles(r.path.parent.parent / 'dapi_test.mbtiles')
+    r._has_nbrs = False           # what a run from before the column looks like
+    assert r.cell(106)['neighbours'] is None
+    _, info = r.cell_image(106, neighbours=True)
+    assert 'before diagnostics.db kept' in info['neighbours_note']
+    assert info['other_cells_outlined'] > 0

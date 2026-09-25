@@ -102,7 +102,7 @@ never appear, see [Cell identifiers](./working-with-results.md#cell-identifiers)
 | --- | --- |
 | `open_run(path)` | Opens a run and returns its size, the pciSeq version that made it, and whether it carries containment data. |
 | `run_info()` | What produced the run and how it ended: version and commit, the resolved settings, the number of iterations and whether the loop converged. |
-| `cell(label)` | The class probabilities, top genes, total counts and scale factor of one cell. |
+| `cell(label)` | The class probabilities, top genes, total counts and scale factor of one cell, and the neighbours its spatial term listens to. |
 | `explain_cell(label, vs_class=None)` | The score of the assigned class against another, split into the gene log-likelihood, the class prior and the spatial term, with the genes that pushed hardest for each side. `vs_class` defaults to the runner up. |
 | `explain_spot(spot_id)` | One row per candidate cell plus the background: the six score terms, their sum and the resulting probability. |
 | `cell_counts(label, gene=None)` | The reads a cell holds, in total or for one gene. |
@@ -110,7 +110,7 @@ never appear, see [Cell identifiers](./working-with-results.md#cell-identifiers)
 | `spots_of_cell(label, min_prob=None)` | The spots whose most likely parent is the cell, each with its probability. With `min_prob`, every spot with probability above it. |
 | `cell_row(label)` | The `cellData.tsv` row of one cell, value for value. |
 | `spot_row(spot_id)` | The `geneData.tsv` row of one spot, value for value. |
-| `cell_image(label, context=False, plane=None, width=1200, channel=None, save_as=None, mbtiles=None)` | A picture of the cell on the tissue image, stitched from the viewer's `.mbtiles`: a close-up with the cell outlined in red and the other cells of that plane in blue, or with `context=True` the whole plane with a ring round the cell. `save_as` also writes the png to a file. |
+| `cell_image(label, context=False, plane=None, width=1200, channel=None, neighbours=False, save_as=None, mbtiles=None)` | A picture of the cell on the tissue image, stitched from the viewer's `.mbtiles`: a close-up with the cell outlined in red and the other cells of that plane in blue, or with `context=True` the whole plane with a ring round the cell. `neighbours=True` outlines only the cells the spatial term listens to. `save_as` also writes the png to a file. |
 | `plane_image(plane=None, bbox=None, width=1200, channel=None, save_as=None, mbtiles=None)` | The tissue image of one plane with nothing drawn on it: the whole plane, or with `bbox` a region of it in image pixels. The plane defaults to the middle of the stack. When the run has more than one background image (one `.mbtiles` each, e.g. DAPI and GCaMP), `channel` picks one by name, here and in `cell_image`; without it the tool lists the images so the agent can ask which. A run with a single background image always uses it, since its name cannot say which stain it is. |
 | `docs(query, n=5)` | The paragraphs of this documentation that match a keyword query, each naming its page. |
 
@@ -239,8 +239,10 @@ checkout the folder itself is read.
 Runs made before September 2026 have no `inside_cell` column, so `spots_in_cell`
 refuses with a message saying so, and carry no settings or convergence record in
 `diagnostics.db`, so `run_info` gives only the version and commit and `explain_spot`
-reports the scaled z without a plane. The other tools work on any run that has
-`diagnostics.db`.
+reports the scaled z without a plane. Runs made before the spatial term's neighbours
+were saved return no neighbours from `cell`, and `cell_image` with `neighbours=True`
+outlines every cell near the one asked about instead. The other tools work on any run
+that has `diagnostics.db`.
 
 Probabilities in `cellData.tsv` and `geneData.tsv` are kept to three decimals, and
 `cell_row` and `spot_row` return what the files hold. `explain_spot` recomputes them

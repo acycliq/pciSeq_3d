@@ -803,7 +803,7 @@ explain_spot, which recomputes them from diagnostics.db at full precision.
 #### `cell_image`
 
 ```python
-cell_image(label, context=False, plane=None, width=1200, channel=None, mbtiles=None)
+cell_image(label, context=False, plane=None, width=1200, channel=None, neighbours=False, mbtiles=None)
 ```
 
 A picture of one cell on the background image of the run.
@@ -814,7 +814,9 @@ kinds of picture:
 
 * close-up (context=False): the cell outlined in red and every other cell on
   that plane in blue, in a 3:2 window about four and a half times the size of
-  the cell.
+  the cell. With neighbours=True only the cells the mrf term listens to are
+  outlined, the picture for 'why did its neighbours make it this class'. Those
+  on another plane have no outline here and the answer lists them.
 * context (context=True): the whole plane trimmed to 3:2 with a ring round the
   cell, to show where in the tissue it sits.
 

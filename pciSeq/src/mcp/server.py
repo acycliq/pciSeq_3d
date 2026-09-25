@@ -207,7 +207,7 @@ def spot_row(spot_id: int) -> dict:
 
 @_tool
 def cell_image(label: int, context: bool = False, plane: Optional[int] = None,
-               width: int = 1200, channel: Optional[str] = None,
+               width: int = 1200, channel: Optional[str] = None, neighbours: bool = False,
                save_as: Optional[str] = None, mbtiles: Optional[str] = None) -> list:
     """A picture of a cell on the background image (DAPI or another stain), for 'show
     me cell 18223', 'show me cell 18223 on the DAPI' or 'where is cell 18223 in the
@@ -218,6 +218,12 @@ def cell_image(label: int, context: bool = False, plane: Optional[int] = None,
     with a ring round the cell, to show where it sits in the tissue. Ask for both
     when the user wants to see a cell; that is the pair on the why-a-cell-got-its-type
     docs page.
+
+    Which cells are outlined depends on the question. neighbours=False, every cell
+    near it, is right for 'show me the cell' or 'is it segmented properly'.
+    neighbours=True outlines only the cells the spatial term of the model listened
+    to, which is what 'why did its neighbours make it this class' or 'show me its
+    neighbours' needs; the answer lists them and says which sit on another plane.
 
     The image is stitched from the viewer's tile pyramid (the .mbtiles in
     viewer_data), so it is a close visual copy, not the raw pixels. One plane at a
@@ -236,7 +242,8 @@ def cell_image(label: int, context: bool = False, plane: Optional[int] = None,
     answer says so, pass that on to the user.
     """
     im, info = _need_run().cell_image(label, context=context, plane=plane, width=width,
-                                      channel=channel, mbtiles=mbtiles)
+                                      channel=channel, neighbours=neighbours,
+                                      mbtiles=mbtiles)
     return _picture(im, info, save_as)
 
 

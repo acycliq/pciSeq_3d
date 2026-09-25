@@ -48,7 +48,8 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             theta REAL,
             assigned_class_idx INTEGER,
             gamma_assigned BLOB,
-            mrf BLOB
+            mrf BLOB,
+            neighbours BLOB
         )
     ''')
 
@@ -212,6 +213,13 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     mrf_f32 = (cells.mrf.astype(np.float32) if cells.mrf is not None
                else np.zeros((nC, nK), dtype=np.float32))
 
+    # the cells the mrf term listens to, nNeighbors per cell, nearest first, the cell
+    # itself left out. Internal rows like cell_id, so a reader has to go through
+    # label_map to get segmentation labels. Only in the pickle before, which is far
+    # too big to open just for these.
+    nbrs = cells.nbrs['indices'] if cells.nbrs is not None else np.zeros((nC, 0))
+    nbrs_i32 = np.ascontiguousarray(nbrs, dtype=np.int32)
+
     batch_size = 10000
     for batch_start in range(0, nC, batch_size):
         batch_end = min(batch_start + batch_size, nC)
@@ -227,8 +235,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                 int(assigned_class_idx[c]),
                 gamma_assigned[c].tobytes(),
                 mrf_f32[c].tobytes(),
+                nbrs_i32[c].tobytes(),
             ))
-        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', batch_data)
+        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', batch_data)
         # if (batch_end % 10000 == 0) or (batch_end == nC):
         #     logger.info('Inserted %d/%d cells', batch_end, nC)
 

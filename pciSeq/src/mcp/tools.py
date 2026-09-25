@@ -252,6 +252,9 @@ class Run:
             'theta': c['theta'],
             'theta_is': 'the soft scalar, averaged over the class probabilities, '
                         'not theta_bar of the assigned class',
+            # None on runs written before diagnostics.db kept them
+            'neighbours': self._neighbours(label),
+            'neighbours_are': 'the cells the spatial (mrf) term listens to, nearest first',
         }
 
     def explain_cell(self, label, vs_class=None, top_n=10):
@@ -767,8 +770,21 @@ class Run:
             raise FileNotFoundError('no arrow_boundaries in %s' % d.parent)
         return pa.concat_tables([feather.read_table(f) for f in files])
 
+    def _neighbours(self, label):
+        """The cells the mrf term of this cell listens to, as segmentation labels,
+        nearest first. None on runs written before diagnostics.db kept them."""
+        row = self.to_internal(label)
+        if not hasattr(self, '_has_nbrs'):
+            with self._lock:
+                cols = [r[1] for r in self._con.execute('PRAGMA table_info(cells)')]
+            self._has_nbrs = 'neighbours' in cols
+        if not self._has_nbrs:
+            return None
+        got = self._query('SELECT neighbours FROM cells WHERE cell_id = ?', (row,))
+        return [self.to_external(r) for r in np.frombuffer(got[0], dtype=np.int32)]
+
     def cell_image(self, label, context=False, plane=None, width=1200, channel=None,
-                   mbtiles=None):
+                   neighbours=False, mbtiles=None):
         """A picture of one cell on the background image of the run.
 
         The background is stitched from the viewer's tile pyramid with read_tiles, so
@@ -777,7 +793,9 @@ class Run:
 
         * close-up (context=False): the cell outlined in red and every other cell on
           that plane in blue, in a 3:2 window about four and a half times the size of
-          the cell.
+          the cell. With neighbours=True only the cells the mrf term listens to are
+          outlined, the picture for 'why did its neighbours make it this class'. Those
+          on another plane have no outline here and the answer lists them.
         * context (context=True): the whole plane trimmed to 3:2 with a ring round the
           cell, to show where in the tissue it sits.
 
@@ -857,19 +875,39 @@ class Run:
             im, scale = read_tiles(str(mbtiles), plane=plane, bbox=box, width=width)
 
             on_plane = self._outlines(plane).to_pylist()
-            near = [r for r in on_plane if r['label'] != label
-                    and max(r['x_list']) >= box[0] and min(r['x_list']) <= box[2]
-                    and max(r['y_list']) >= box[1] and min(r['y_list']) <= box[3]]
+            nbrs = self._neighbours(label) if neighbours else None
+            if nbrs is not None:
+                near = [r for r in on_plane if r['label'] in nbrs]
+            else:
+                near = [r for r in on_plane if r['label'] != label
+                        and max(r['x_list']) >= box[0] and min(r['x_list']) <= box[2]
+                        and max(r['y_list']) >= box[1] and min(r['y_list']) <= box[3]]
             thin = max(2, width // 300)
             _draw_outlines(im, scale, box, near, blue, thin, 0.15)
             if outline:
                 _draw_outlines(im, scale, box, [outline], red, thin + 2, 0.3)
             others = len(near)
 
+        if context:
+            picture = 'context, the whole plane with the cell ringed'
+        elif neighbours and nbrs is not None:
+            picture = 'close-up, the cell in red and its mrf neighbours in blue'
+        else:
+            picture = 'close-up, the cell in red and the other cells on the plane in blue'
+        extra = {}
+        if neighbours and not context:
+            if nbrs is None:
+                extra['neighbours_note'] = (
+                    'this run was written before diagnostics.db kept the mrf '
+                    'neighbours, so every cell in the window is outlined instead. '
+                    'Rerunning with the current pciSeq records them')
+            else:
+                drawn = {r['label'] for r in near}
+                extra['neighbours'] = nbrs
+                extra['neighbours_not_on_this_plane'] = [n for n in nbrs if n not in drawn]
         info = {
             'cell': label,
-            'picture': 'context, the whole plane with the cell ringed' if context
-                       else 'close-up, the cell in red and the other cells on the plane in blue',
+            'picture': picture,
             'plane': plane,
             'plane_is': why,
             'planes_with_an_outline': [min(area), max(area)],
@@ -878,6 +916,7 @@ class Run:
             'bbox': [round(float(v), 1) for v in box],
             'scale': round(float(scale), 3),
             'other_cells_outlined': others,
+            **extra,
             'background': channel,
             'backgrounds_in_this_run': channels,
             **({'background_note': note} if note else {}),
