@@ -40,7 +40,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
 
     cursor.execute('''
         CREATE TABLE cells (
-            cell_id INTEGER PRIMARY KEY,
+            internal_label INTEGER PRIMARY KEY,
             scaled_means BLOB,
             theta_bar BLOB,
             gene_count BLOB,
@@ -214,7 +214,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                else np.zeros((nC, nK), dtype=np.float32))
 
     # the cells the mrf term listens to, nNeighbors per cell, nearest first, the cell
-    # itself left out. Internal rows like cell_id, so a reader has to go through
+    # itself left out. Internal labels like the key column, so a reader has to go through
     # label_map to get segmentation labels. Only in the pickle before, which is far
     # too big to open just for these.
     nbrs = cells.nbrs['indices'] if cells.nbrs is not None else np.zeros((nC, 0))

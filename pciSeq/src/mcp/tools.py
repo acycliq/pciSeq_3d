@@ -95,6 +95,15 @@ class Run:
         self._reverse_map = ({v: k for k, v in self.label_map.items()}
                              if self.label_map else None)
 
+        # the key column of the cells table. It was cell_id before September 2026,
+        # which clashed with cell_id in the other outputs, where it is the
+        # segmentation label. Here it has always been the internal label.
+        # old runs: remove the cell_id fallback with the next version bump, see cz1.3
+        with self._lock:
+            cols = [r[1] for r in self._con.execute('PRAGMA table_info(cells)')]
+        self._cell_key = 'internal_label' if 'internal_label' in cols else 'cell_id'
+        self._has_nbrs = 'neighbours' in cols
+
         # the resolved settings and the convergence record. Runs written before
         # September 2026 have neither; the tools say so rather than guess.
         self.config = self._meta('config', parse=True, default=None)
@@ -154,7 +163,7 @@ class Run:
             raise ValueError('cell 0 is the background pseudocell, not a cell')
         cols = list(_CELL_BLOBS) + ['theta', 'assigned_class_idx']
         got = self._query(
-            "SELECT %s FROM cells WHERE cell_id = ?" % ', '.join(cols), (row,))
+            "SELECT %s FROM cells WHERE %s = ?" % (', '.join(cols), self._cell_key), (row,))
         if got is None:
             raise KeyError('cell %s is not in diagnostics.db' % label)
 
@@ -352,7 +361,7 @@ class Run:
 
         rows = []
         for i, internal in enumerate(neighbours[:-1]):
-            cls_idx = self._query("SELECT assigned_class_idx FROM cells WHERE cell_id = ?",
+            cls_idx = self._query("SELECT assigned_class_idx FROM cells WHERE %s = ?" % self._cell_key,
                                   (internal,))
             rows.append({
                 'cell': self.to_external(internal),
@@ -774,13 +783,10 @@ class Run:
         """The cells the mrf term of this cell listens to, as segmentation labels,
         nearest first. None on runs written before diagnostics.db kept them."""
         row = self.to_internal(label)
-        if not hasattr(self, '_has_nbrs'):
-            with self._lock:
-                cols = [r[1] for r in self._con.execute('PRAGMA table_info(cells)')]
-            self._has_nbrs = 'neighbours' in cols
         if not self._has_nbrs:
             return None
-        got = self._query('SELECT neighbours FROM cells WHERE cell_id = ?', (row,))
+        got = self._query('SELECT neighbours FROM cells WHERE %s = ?' % self._cell_key,
+                          (row,))
         return [self.to_external(r) for r in np.frombuffer(got[0], dtype=np.int32)]
 
     def cell_image(self, label, context=False, plane=None, width=1200, channel=None,

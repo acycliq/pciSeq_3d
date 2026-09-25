@@ -23,7 +23,7 @@ EXPECTED_METADATA = {
 }
 
 EXPECTED_CELL_COLUMNS = {
-    'cell_id', 'scaled_means', 'theta_bar', 'gene_count', 'class_prob',
+    'internal_label', 'scaled_means', 'theta_bar', 'gene_count', 'class_prob',
     'theta', 'assigned_class_idx', 'gamma_assigned', 'mrf',
 }
 

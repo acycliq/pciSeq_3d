@@ -168,7 +168,8 @@ default, drops the cells that appear on a single plane.
 When pciSeq saves the data then the cell identifiers have been mapped back to the original
 segmentation label. Hence the rule to remember is:
 1. the pciSeq exported flatfiles (tsv, arrow etc) are in segmentation labels, and so is the viewer
-2. the arrays in the pickle file, and `diagnostics.db`, are indexed by the internal label
+2. the arrays in the pickle file, and `diagnostics.db`, are indexed by the internal label;
+   in `diagnostics.db` the column is called `internal_label`
 
 ::: warning Looking up a cell in the pickle arrays
 Suppose we are interested in cell 18223, the label the segmentation uses and the viewer
