@@ -20,6 +20,11 @@ zoom, so an image far too large to load at once can be panned and zoomed.
 [pciSeq Viewer](../viewer/overview.md) reads it as its background layer. It is written by
 [`stage_image`](#stage-image) and read back by [`read_tiles`](#read-tiles).
 
+One file holds one image. To give the viewer more than one, for example DAPI and GCaMP,
+call `stage_image` once for each with a different `name`; the viewer offers them as
+channels to switch between, see
+[Background channels](https://acycliq.github.io/pciSeq_viewer/docs/using-the-viewer/layers-and-export.html#background-channels).
+
 The format is based on [MBTiles](https://github.com/mapbox/mbtiles-spec) by Mapbox, the
 format web maps use, and keeps its two tables, `tiles` and `metadata`. It departs from it in
 three ways, so it is not a drop-in MBTiles file and a generic MBTiles reader will not
