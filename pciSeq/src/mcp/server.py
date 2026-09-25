@@ -207,10 +207,11 @@ def spot_row(spot_id: int) -> dict:
 
 @_tool
 def cell_image(label: int, context: bool = False, plane: Optional[int] = None,
-               width: int = 1200, save_as: Optional[str] = None,
-               mbtiles: Optional[str] = None) -> list:
-    """A picture of a cell on the tissue image, for 'show me cell 18223' or 'where is
-    cell 18223 in the section'.
+               width: int = 1200, channel: Optional[str] = None,
+               save_as: Optional[str] = None, mbtiles: Optional[str] = None) -> list:
+    """A picture of a cell on the background image (DAPI or another stain), for 'show
+    me cell 18223', 'show me cell 18223 on the DAPI' or 'where is cell 18223 in the
+    section'.
 
     context=False gives a close-up: the cell outlined in red, every other cell on
     that plane in blue, the nuclei underneath. context=True gives the whole section
@@ -225,19 +226,27 @@ def cell_image(label: int, context: bool = False, plane: Optional[int] = None,
     centroid's when the run knows its voxel size, else the one where the cell is
     biggest; pass plane to choose. save_as writes the png to that path as well,
     which is how a user in a terminal gets to see it.
+
+    A run can have more than one background image, for example DAPI and GCaMP, one
+    .mbtiles each. channel picks one by its name ('DAPI', 'GCaMP'); part of the name
+    is enough. If the user did not say which image and the run has several, do not
+    guess: the tool refuses and lists them, so ask the user which one they want.
+    If the run has only one background image it is always used, whatever channel
+    says, because the file cannot tell which stain it is; background_note in the
+    answer says so, pass that on to the user.
     """
-    im, info = _need_run().cell_image(label, context=context, plane=plane,
-                                      width=width, mbtiles=mbtiles)
+    im, info = _need_run().cell_image(label, context=context, plane=plane, width=width,
+                                      channel=channel, mbtiles=mbtiles)
     return _picture(im, info, save_as)
 
 
 @_tool
 def plane_image(plane: Optional[int] = None, bbox: Optional[list] = None,
-                width: int = 1200, save_as: Optional[str] = None,
-                mbtiles: Optional[str] = None) -> list:
-    """The tissue image of one plane with nothing drawn on it, for 'show me the
-    whole image', 'show me plane 40' or 'show me the region around x 5000 to 6000,
-    y 500 to 1200'.
+                width: int = 1200, channel: Optional[str] = None,
+                save_as: Optional[str] = None, mbtiles: Optional[str] = None) -> list:
+    """The background image (DAPI or another stain) of one plane with nothing drawn
+    on it, for 'show me the whole image', 'show me the DAPI of plane 54' or 'show me
+    the region around x 5000 to 6000, y 500 to 1200'.
 
     With no bbox it is the whole plane, untrimmed. bbox is [x0, y0, x1, y1] in image
     pixels, the same coordinates as the cells and spots. The plane defaults to the
@@ -248,8 +257,17 @@ def plane_image(plane: Optional[int] = None, bbox: Optional[list] = None,
     a close visual copy, not the raw pixels. The answer says the scale, so a point
     of the image can be placed on the picture. save_as writes the png to that path
     as well, which is how a user in a terminal gets to see it.
+
+    A run can have more than one background image, for example DAPI and GCaMP, one
+    .mbtiles each. channel picks one by its name ('DAPI', 'GCaMP'); part of the name
+    is enough. If the user did not say which image and the run has several, do not
+    guess: the tool refuses and lists them, so ask the user which one they want.
+    If the run has only one background image it is always used, whatever channel
+    says, because the file cannot tell which stain it is; background_note in the
+    answer says so, pass that on to the user.
     """
-    im, info = _need_run().plane_image(plane=plane, bbox=bbox, width=width, mbtiles=mbtiles)
+    im, info = _need_run().plane_image(plane=plane, bbox=bbox, width=width,
+                                       channel=channel, mbtiles=mbtiles)
     return _picture(im, info, save_as)
 
 

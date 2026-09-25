@@ -97,6 +97,21 @@ def test_the_image_tools_come_back_as_pictures(run_folder, tmp_path):
     assert json.loads(res.content[1].text)['bbox'] == [0.0, 0.0, 80.0, 80.0]
 
 
+def test_the_agent_is_told_to_ask_which_background(tmp_path):
+    """Two backgrounds and no channel: the agent must get the names and the
+    instruction to ask, not a bare 'Error executing tool'."""
+    from tests.test_mcp_images import _grey_mbtiles
+    _run(np.random.default_rng(3), tmp_path, save=True)
+    call('open_run', path=str(tmp_path))
+    vd = next(tmp_path.rglob('diagnostics.db')).parent.parent
+    _grey_mbtiles(vd / 'dapi.mbtiles', name='DAPI')
+    _grey_mbtiles(vd / 'gcamp.mbtiles', name='GCaMP')
+    msg = error_of('plane_image')
+    assert 'DAPI' in msg and 'GCaMP' in msg and 'Ask the user' in msg
+    res = asyncio.run(srv.server.call_tool('plane_image', {'channel': 'GCaMP', 'width': 50}))
+    assert json.loads(res.content[1].text)['background'] == 'GCaMP'
+
+
 def test_the_message_survives_when_a_tool_refuses(run_folder):
     """The whole reason server.py wraps the tools."""
     call('open_run', path=str(run_folder))

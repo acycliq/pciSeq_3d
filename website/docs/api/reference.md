@@ -803,7 +803,7 @@ explain_spot, which recomputes them from diagnostics.db at full precision.
 #### `cell_image`
 
 ```python
-cell_image(label, context=False, plane=None, width=1200, mbtiles=None)
+cell_image(label, context=False, plane=None, width=1200, channel=None, mbtiles=None)
 ```
 
 A picture of one cell on the background image of the run.
@@ -823,10 +823,14 @@ carries voxel_size, else the plane where the cell outline is biggest. Returns
 the image (PIL) and a dict of what was drawn. The MCP tool also takes
 save_as; here just call .save on the image.
 
+channel picks the background image when the run has more than one (DAPI,
+GCaMP, ...); with several and no channel it refuses and lists them. With one
+image channel is not checked, the one image is used.
+
 #### `plane_image`
 
 ```python
-plane_image(plane=None, bbox=None, width=1200, mbtiles=None)
+plane_image(plane=None, bbox=None, width=1200, channel=None, mbtiles=None)
 ```
 
 The background image of one plane, whole or a part of it, with nothing
@@ -838,7 +842,7 @@ the middle one of the stack. bbox is (x0, y0, x1, y1) in image pixels, the
 same coordinates as the cells and spots, and is clamped to the image; leave
 it out for the whole plane, untrimmed. Returns the image (PIL) and a dict of
 what was read. The MCP tool also takes save_as; here just call .save on the
-image.
+image. channel works as in cell_image.
 
 #### `to_internal`
 

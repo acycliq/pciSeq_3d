@@ -697,9 +697,25 @@ class Run:
         for f in sorted(shard_dir.glob('*.feather')):
             yield feather.read_table(f, columns=columns), gene_of
 
-    def _find_mbtiles(self):
-        """The background tiles of this run, looked up the way the viewer does it: an
-        .mbtiles file sitting in viewer_data."""
+    def _background(self, channel=None, mbtiles=None):
+        """Which background image to draw on, as (path, its name, every name there is,
+        a note for the answer or None).
+
+        Looked up the way the viewer does it: every .mbtiles in viewer_data is one
+        background image, named by the 'name' in its metadata, or by its file name if
+        it has none. `channel` picks one by that name or by the file name, ignoring
+        case; a part of the name is enough if it fits only one image ('dapi' finds
+        'dapi_Espio'). When there are several images and no channel we do not guess,
+        we refuse and list them, so the agent asks the user.
+
+        With only one image the name is not checked at all. Name and description are
+        free text, often empty, so they cannot tell us whether it is DAPI or GCaMP;
+        refusing 'show me it on the DAPI' because the file is called 'Espio' would
+        be wrong. We draw on it and say so in the note.
+        """
+        if mbtiles:
+            path = Path(mbtiles).expanduser()
+            return path, _channel_name(path), [_channel_name(path)], None
         viewer_data = self.path.parent.parent
         found = sorted(viewer_data.glob('*.mbtiles'))
         if not found:
@@ -707,13 +723,30 @@ class Run:
                 'no .mbtiles in %s, so there is no image to draw on. The viewer tiles are '
                 'made by pciSeq.stage_image; copy the file into viewer_data or pass its '
                 'path as mbtiles' % viewer_data)
-        if len(found) > 1:
-            dapi = [f for f in found if 'dapi' in f.name.lower()]
-            if len(dapi) == 1:
-                return dapi[0]
-            raise ValueError('%d .mbtiles files in %s, pass the one you want as mbtiles: %s'
-                             % (len(found), viewer_data, ', '.join(f.name for f in found)))
-        return found[0]
+        names = [_channel_name(f) for f in found]
+        listing = ', '.join('%s (%s)' % (n, f.name) for n, f in zip(names, found))
+
+        if len(found) == 1:
+            note = None
+            if channel is not None:
+                note = ('asked for %r, but this run has only one background image, '
+                        'called %r, so that is the one drawn. Which stain it is cannot be '
+                        'told from the file, only whoever made it knows'
+                        % (channel, names[0]))
+            return found[0], names[0], names, note
+        if channel is None:
+            raise ValueError('this run has %d background images: %s. Ask the user which '
+                             'one they want and pass it as channel' % (len(found), listing))
+
+        want = str(channel).strip().lower()
+        keys = [(n.lower(), f.stem.lower()) for n, f in zip(names, found)]
+        hits = [i for i, k in enumerate(keys) if want in k]
+        if not hits:
+            hits = [i for i, k in enumerate(keys) if any(want in s for s in k)]
+        if len(hits) != 1:
+            raise ValueError('%s background image matching %r. This run has: %s'
+                             % ('no' if not hits else 'more than one', channel, listing))
+        return found[hits[0]], names[hits[0]], names, None
 
     def _outlines(self, plane=None):
         """The cell outlines, from the viewer's per plane boundary files.
@@ -734,7 +767,8 @@ class Run:
             raise FileNotFoundError('no arrow_boundaries in %s' % d.parent)
         return pa.concat_tables([feather.read_table(f) for f in files])
 
-    def cell_image(self, label, context=False, plane=None, width=1200, mbtiles=None):
+    def cell_image(self, label, context=False, plane=None, width=1200, channel=None,
+                   mbtiles=None):
         """A picture of one cell on the background image of the run.
 
         The background is stitched from the viewer's tile pyramid with read_tiles, so
@@ -751,6 +785,10 @@ class Run:
         carries voxel_size, else the plane where the cell outline is biggest. Returns
         the image (PIL) and a dict of what was drawn. The MCP tool also takes
         save_as; here just call .save on the image.
+
+        channel picks the background image when the run has more than one (DAPI,
+        GCaMP, ...); with several and no channel it refuses and lists them. With one
+        image channel is not checked, the one image is used.
         """
         import pyarrow.compute as pc
         from PIL import ImageDraw, ImageOps
@@ -759,7 +797,7 @@ class Run:
         label = int(label)
         if self.to_internal(label) == 0:
             raise ValueError('cell 0 is the background pseudocell, not a cell')
-        mbtiles = Path(mbtiles).expanduser() if mbtiles else self._find_mbtiles()
+        mbtiles, channel, channels, note = self._background(channel, mbtiles)
 
         allb = self._outlines()
         mine = allb.filter(pc.equal(allb['label'], label)).to_pylist()
@@ -840,13 +878,16 @@ class Run:
             'bbox': [round(float(v), 1) for v in box],
             'scale': round(float(scale), 3),
             'other_cells_outlined': others,
+            'background': channel,
+            'backgrounds_in_this_run': channels,
+            **({'background_note': note} if note else {}),
             'mbtiles': str(mbtiles),
             'image_is': 'stitched from the jpeg tile pyramid, a close visual copy of the '
                         'image, not the raw pixels. Fine to look at, not to measure',
         }
         return im, info
 
-    def plane_image(self, plane=None, bbox=None, width=1200, mbtiles=None):
+    def plane_image(self, plane=None, bbox=None, width=1200, channel=None, mbtiles=None):
         """The background image of one plane, whole or a part of it, with nothing
         drawn on top.
 
@@ -856,11 +897,11 @@ class Run:
         same coordinates as the cells and spots, and is clamped to the image; leave
         it out for the whole plane, untrimmed. Returns the image (PIL) and a dict of
         what was read. The MCP tool also takes save_as; here just call .save on the
-        image.
+        image. channel works as in cell_image.
         """
         from ..tiling.read_tiles import read_tiles
 
-        mbtiles = Path(mbtiles).expanduser() if mbtiles else self._find_mbtiles()
+        mbtiles, channel, channels, note = self._background(channel, mbtiles)
         img_w, img_h, planes = _mbtiles_meta(mbtiles)
         if plane is None:
             plane, why = planes[len(planes) // 2], 'the middle plane of the stack'
@@ -883,6 +924,9 @@ class Run:
             'scale': round(float(scale), 3),
             'to_place_a_point': 'a point (x, y) of the image is at ((x - bbox[0]) * scale, '
                                 '(y - bbox[1]) * scale) in this picture',
+            'background': channel,
+            'backgrounds_in_this_run': channels,
+            **({'background_note': note} if note else {}),
             'mbtiles': str(mbtiles),
             'image_is': 'stitched from the jpeg tile pyramid, a close visual copy of the '
                         'image, not the raw pixels. Fine to look at, not to measure',
@@ -1161,6 +1205,18 @@ def _tsv(v):
     row cannot come out with more digits than the real file would have had.
     """
     return round(float(v), 3)
+
+
+def _channel_name(mbtiles):
+    """The name a background image goes by: the 'name' in its metadata, as the viewer
+    labels its radio buttons, or the file name when there is none."""
+    from ..tiling.read_tiles import _metadata
+    con = sqlite3.connect('file:%s?mode=ro' % mbtiles, uri=True)
+    try:
+        name = (_metadata(con).get('name') or '').strip()
+    finally:
+        con.close()
+    return name or Path(mbtiles).stem
 
 
 def _mbtiles_meta(mbtiles):

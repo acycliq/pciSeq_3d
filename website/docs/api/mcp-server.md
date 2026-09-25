@@ -110,8 +110,8 @@ never appear, see [Cell identifiers](./working-with-results.md#cell-identifiers)
 | `spots_of_cell(label, min_prob=None)` | The spots whose most likely parent is the cell, each with its probability. With `min_prob`, every spot with probability above it. |
 | `cell_row(label)` | The `cellData.tsv` row of one cell, value for value. |
 | `spot_row(spot_id)` | The `geneData.tsv` row of one spot, value for value. |
-| `cell_image(label, context=False, plane=None, width=1200, save_as=None, mbtiles=None)` | A picture of the cell on the tissue image, stitched from the viewer's `.mbtiles`: a close-up with the cell outlined in red and the other cells of that plane in blue, or with `context=True` the whole plane with a ring round the cell. `save_as` also writes the png to a file. |
-| `plane_image(plane=None, bbox=None, width=1200, save_as=None, mbtiles=None)` | The tissue image of one plane with nothing drawn on it: the whole plane, or with `bbox` a region of it in image pixels. The plane defaults to the middle of the stack. |
+| `cell_image(label, context=False, plane=None, width=1200, channel=None, save_as=None, mbtiles=None)` | A picture of the cell on the tissue image, stitched from the viewer's `.mbtiles`: a close-up with the cell outlined in red and the other cells of that plane in blue, or with `context=True` the whole plane with a ring round the cell. `save_as` also writes the png to a file. |
+| `plane_image(plane=None, bbox=None, width=1200, channel=None, save_as=None, mbtiles=None)` | The tissue image of one plane with nothing drawn on it: the whole plane, or with `bbox` a region of it in image pixels. The plane defaults to the middle of the stack. When the run has more than one background image (one `.mbtiles` each, e.g. DAPI and GCaMP), `channel` picks one by name, here and in `cell_image`; without it the tool lists the images so the agent can ask which. A run with a single background image always uses it, since its name cannot say which stain it is. |
 | `docs(query, n=5)` | The paragraphs of this documentation that match a keyword query, each naming its page. |
 
 `explain_cell` and `explain_spot` return the same numbers as
