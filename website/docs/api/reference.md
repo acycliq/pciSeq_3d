@@ -800,6 +800,46 @@ contain spots whose probability reads 0.0: the cut-off there is 0.0001,
 applied before the rounding. When the small probabilities matter use
 explain_spot, which recomputes them from diagnostics.db at full precision.
 
+#### `cell_image`
+
+```python
+cell_image(label, context=False, plane=None, width=1200, mbtiles=None)
+```
+
+A picture of one cell on the background image of the run.
+
+The background is stitched from the viewer's tile pyramid with read_tiles, so
+it is a close copy of the image, not the raw pixels (the tiles are jpeg). Two
+kinds of picture:
+
+* close-up (context=False): the cell outlined in red and every other cell on
+  that plane in blue, in a 3:2 window about four and a half times the size of
+  the cell.
+* context (context=True): the whole plane trimmed to 3:2 with a ring round the
+  cell, to show where in the tissue it sits.
+
+The plane is the one given, else the plane of the cell centroid when the run
+carries voxel_size, else the plane where the cell outline is biggest. Returns
+the image (PIL) and a dict of what was drawn. The MCP tool also takes
+save_as; here just call .save on the image.
+
+#### `plane_image`
+
+```python
+plane_image(plane=None, bbox=None, width=1200, mbtiles=None)
+```
+
+The background image of one plane, whole or a part of it, with nothing
+drawn on top.
+
+Stitched from the viewer's tile pyramid with read_tiles, so like cell_image
+it is a close copy of the image, not the raw pixels. The plane defaults to
+the middle one of the stack. bbox is (x0, y0, x1, y1) in image pixels, the
+same coordinates as the cells and spots, and is clamped to the image; leave
+it out for the whole plane, untrimmed. Returns the image (PIL) and a dict of
+what was read. The MCP tool also takes save_as; here just call .save on the
+image.
+
 #### `to_internal`
 
 ```python

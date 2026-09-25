@@ -697,6 +697,198 @@ class Run:
         for f in sorted(shard_dir.glob('*.feather')):
             yield feather.read_table(f, columns=columns), gene_of
 
+    def _find_mbtiles(self):
+        """The background tiles of this run, looked up the way the viewer does it: an
+        .mbtiles file sitting in viewer_data."""
+        viewer_data = self.path.parent.parent
+        found = sorted(viewer_data.glob('*.mbtiles'))
+        if not found:
+            raise FileNotFoundError(
+                'no .mbtiles in %s, so there is no image to draw on. The viewer tiles are '
+                'made by pciSeq.stage_image; copy the file into viewer_data or pass its '
+                'path as mbtiles' % viewer_data)
+        if len(found) > 1:
+            dapi = [f for f in found if 'dapi' in f.name.lower()]
+            if len(dapi) == 1:
+                return dapi[0]
+            raise ValueError('%d .mbtiles files in %s, pass the one you want as mbtiles: %s'
+                             % (len(found), viewer_data, ', '.join(f.name for f in found)))
+        return found[0]
+
+    def _outlines(self, plane=None):
+        """The cell outlines, from the viewer's per plane boundary files.
+
+        With a plane, every outline on that plane as a table. Without one, the whole
+        folder, which is what you need to find which planes a cell is on.
+        """
+        import pyarrow as pa
+        import pyarrow.feather as feather
+        d = self.path.parent.parent / 'arrow_boundaries'
+        if plane is not None:
+            f = d / ('boundaries_plane_%02d.feather' % plane)
+            if not f.exists():
+                raise ValueError('no outlines for plane %s in this run' % plane)
+            return feather.read_table(f)
+        files = sorted(d.glob('boundaries_plane_*.feather'))
+        if not files:
+            raise FileNotFoundError('no arrow_boundaries in %s' % d.parent)
+        return pa.concat_tables([feather.read_table(f) for f in files])
+
+    def cell_image(self, label, context=False, plane=None, width=1200, mbtiles=None):
+        """A picture of one cell on the background image of the run.
+
+        The background is stitched from the viewer's tile pyramid with read_tiles, so
+        it is a close copy of the image, not the raw pixels (the tiles are jpeg). Two
+        kinds of picture:
+
+        * close-up (context=False): the cell outlined in red and every other cell on
+          that plane in blue, in a 3:2 window about four and a half times the size of
+          the cell.
+        * context (context=True): the whole plane trimmed to 3:2 with a ring round the
+          cell, to show where in the tissue it sits.
+
+        The plane is the one given, else the plane of the cell centroid when the run
+        carries voxel_size, else the plane where the cell outline is biggest. Returns
+        the image (PIL) and a dict of what was drawn. The MCP tool also takes
+        save_as; here just call .save on the image.
+        """
+        import pyarrow.compute as pc
+        from PIL import ImageDraw, ImageOps
+        from ..tiling.read_tiles import read_tiles
+
+        label = int(label)
+        if self.to_internal(label) == 0:
+            raise ValueError('cell 0 is the background pseudocell, not a cell')
+        mbtiles = Path(mbtiles).expanduser() if mbtiles else self._find_mbtiles()
+
+        allb = self._outlines()
+        mine = allb.filter(pc.equal(allb['label'], label)).to_pylist()
+        if not mine:
+            raise KeyError('cell %s has no outline in arrow_boundaries' % label)
+        area = {r['plane_id']: _polygon_area(r['x_list'], r['y_list']) for r in mine}
+
+        cells = self._arrow_cells()
+        hit = cells.filter(pc.equal(cells['cell_id'], label)).to_pylist()
+        cx, cy, cz = (hit[0]['X'], hit[0]['Y'], hit[0]['Z']) if hit else (None, None, None)
+
+        if plane is not None:
+            plane, why = int(plane), 'asked for'
+        else:
+            plane = self._plane_of(cz) if cz is not None else None
+            why = 'the plane of the cell centroid'
+            if plane not in area:
+                # old runs have no voxel_size, so take the biggest slice through the cell
+                plane = max(area, key=area.get)
+                why = 'the plane where the cell outline is biggest'
+        outline = next((r for r in mine if r['plane_id'] == plane), None)
+
+        img_w, img_h, _ = _mbtiles_meta(mbtiles)
+
+        # the centre is the centroid, or the middle of the outline if the cell is not in
+        # arrow_cells for some reason
+        if cx is None:
+            cx, cy = np.mean(mine[0]['x_list']), np.mean(mine[0]['y_list'])
+        red, blue = (255, 96, 80), (120, 210, 255)
+
+        if context:
+            # whole plane cut down to 3:2, trimming whichever side is too long
+            if img_w / img_h > 1.5:
+                bw, bh = img_h * 1.5, img_h
+            else:
+                bw, bh = img_w, img_w / 1.5
+            box = ((img_w - bw) / 2, (img_h - bh) / 2, (img_w + bw) / 2, (img_h + bh) / 2)
+            im, scale = read_tiles(str(mbtiles), plane=plane, bbox=box, width=width)
+            im = ImageOps.autocontrast(im, cutoff=(0.2, 0.05))  # whole plane is dark
+            ax, ay = (cx - box[0]) * scale, (cy - box[1]) * scale
+            r = 0.022 * max(im.size)
+            ImageDraw.Draw(im).ellipse([ax - r, ay - r, ax + r, ay + r], outline=red,
+                                       width=max(2, width // 200))
+            others = 0
+        else:
+            # window 4.5 times the cell, 3:2. For cell 18223 on espio that is the
+            # 210 x 140 of the docs figure
+            ref = outline or max(mine, key=lambda r: area[r['plane_id']])
+            ext = max(np.ptp(ref['x_list']), np.ptp(ref['y_list']), 10)
+            bh = min(4.5 * ext, img_h)
+            bw = min(1.5 * bh, img_w)
+            # keep the box inside the image rather than letting read_tiles clip it, so
+            # the origin used for the outlines below stays right
+            x0 = min(max(cx - bw / 2, 0), img_w - bw)
+            y0 = min(max(cy - bh / 2, 0), img_h - bh)
+            box = (x0, y0, x0 + bw, y0 + bh)
+            im, scale = read_tiles(str(mbtiles), plane=plane, bbox=box, width=width)
+
+            on_plane = self._outlines(plane).to_pylist()
+            near = [r for r in on_plane if r['label'] != label
+                    and max(r['x_list']) >= box[0] and min(r['x_list']) <= box[2]
+                    and max(r['y_list']) >= box[1] and min(r['y_list']) <= box[3]]
+            thin = max(2, width // 300)
+            _draw_outlines(im, scale, box, near, blue, thin, 0.15)
+            if outline:
+                _draw_outlines(im, scale, box, [outline], red, thin + 2, 0.3)
+            others = len(near)
+
+        info = {
+            'cell': label,
+            'picture': 'context, the whole plane with the cell ringed' if context
+                       else 'close-up, the cell in red and the other cells on the plane in blue',
+            'plane': plane,
+            'plane_is': why,
+            'planes_with_an_outline': [min(area), max(area)],
+            'cell_has_outline_on_this_plane': outline is not None,
+            'centroid_xy': [float(cx), float(cy)],
+            'bbox': [round(float(v), 1) for v in box],
+            'scale': round(float(scale), 3),
+            'other_cells_outlined': others,
+            'mbtiles': str(mbtiles),
+            'image_is': 'stitched from the jpeg tile pyramid, a close visual copy of the '
+                        'image, not the raw pixels. Fine to look at, not to measure',
+        }
+        return im, info
+
+    def plane_image(self, plane=None, bbox=None, width=1200, mbtiles=None):
+        """The background image of one plane, whole or a part of it, with nothing
+        drawn on top.
+
+        Stitched from the viewer's tile pyramid with read_tiles, so like cell_image
+        it is a close copy of the image, not the raw pixels. The plane defaults to
+        the middle one of the stack. bbox is (x0, y0, x1, y1) in image pixels, the
+        same coordinates as the cells and spots, and is clamped to the image; leave
+        it out for the whole plane, untrimmed. Returns the image (PIL) and a dict of
+        what was read. The MCP tool also takes save_as; here just call .save on the
+        image.
+        """
+        from ..tiling.read_tiles import read_tiles
+
+        mbtiles = Path(mbtiles).expanduser() if mbtiles else self._find_mbtiles()
+        img_w, img_h, planes = _mbtiles_meta(mbtiles)
+        if plane is None:
+            plane, why = planes[len(planes) // 2], 'the middle plane of the stack'
+        else:
+            plane, why = int(plane), 'asked for'
+            if plane not in planes:
+                raise ValueError('no plane %s in %s, it has planes %s to %s'
+                                 % (plane, mbtiles.name, planes[0], planes[-1]))
+        if bbox is not None:
+            x0, y0, x1, y1 = map(float, bbox)
+            bbox = (max(x0, 0.0), max(y0, 0.0), min(x1, img_w), min(y1, img_h))
+        im, scale = read_tiles(str(mbtiles), plane=plane, bbox=bbox, width=width)
+        box = bbox or (0.0, 0.0, float(img_w), float(img_h))
+        info = {
+            'plane': plane,
+            'plane_is': why,
+            'planes_in_the_stack': [planes[0], planes[-1]],
+            'image_size': [img_w, img_h],
+            'bbox': [round(float(v), 1) for v in box],
+            'scale': round(float(scale), 3),
+            'to_place_a_point': 'a point (x, y) of the image is at ((x - bbox[0]) * scale, '
+                                '(y - bbox[1]) * scale) in this picture',
+            'mbtiles': str(mbtiles),
+            'image_is': 'stitched from the jpeg tile pyramid, a close visual copy of the '
+                        'image, not the raw pixels. Fine to look at, not to measure',
+        }
+        return im, info
+
     def _has_containment(self):
         """Whether this run carries the inside_cell column, added Sept 2026."""
         shard = self.path.parent.parent / 'arrow_spots'
@@ -969,6 +1161,44 @@ def _tsv(v):
     row cannot come out with more digits than the real file would have had.
     """
     return round(float(v), 3)
+
+
+def _mbtiles_meta(mbtiles):
+    """Width and height of the original image and the planes, off the mbtiles
+    metadata. Older files may have only plane_count, or neither for a 2D image."""
+    from ..tiling.read_tiles import _metadata
+    con = sqlite3.connect('file:%s?mode=ro' % mbtiles, uri=True)
+    try:
+        meta = _metadata(con)
+    finally:
+        con.close()
+    if meta.get('planes'):
+        planes = sorted(int(p) for p in meta['planes'].split(','))
+    else:
+        planes = list(range(int(meta.get('plane_count', 1))))
+    return int(meta['width']), int(meta['height']), planes
+
+
+def _polygon_area(xs, ys):
+    """Shoelace area of a closed polygon, in pixels."""
+    x, y = np.asarray(xs, dtype=float), np.asarray(ys, dtype=float)
+    return 0.5 * abs(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1)))
+
+
+def _draw_outlines(im, scale, box, rows, colour, width, fill_alpha):
+    """Draw outline rows (x_list, y_list in image pixels) onto a read_tiles window,
+    filled see-through so the nuclei still show."""
+    from PIL import Image, ImageDraw
+    over = Image.new('RGBA', im.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(over)
+    for r in rows:
+        pts = [((x - box[0]) * scale, (y - box[1]) * scale)
+               for x, y in zip(r['x_list'], r['y_list'])]
+        if len(pts) < 3:
+            continue
+        d.polygon(pts, fill=colour + (int(255 * fill_alpha),))
+        d.line(pts + [pts[0]], fill=colour + (255,), width=width, joint='curve')
+    im.paste(Image.alpha_composite(im.convert('RGBA'), over).convert('RGB'), (0, 0))
 
 
 def _find_db(path):

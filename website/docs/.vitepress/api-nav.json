@@ -152,6 +152,14 @@
         "link": "/api/reference#spot-row"
       },
       {
+        "text": "cell_image",
+        "link": "/api/reference#cell-image"
+      },
+      {
+        "text": "plane_image",
+        "link": "/api/reference#plane-image"
+      },
+      {
         "text": "to_internal",
         "link": "/api/reference#to-internal"
       },

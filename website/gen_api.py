@@ -124,6 +124,8 @@ CLASS_MEMBERS = {
             "spots_of_cell",
             "cell_row",
             "spot_row",
+            "cell_image",
+            "plane_image",
             "to_internal",
             "to_external",
         ],

@@ -20,7 +20,8 @@ from pciSeq.src.mcp import server as srv
 from tests.test_label_identifiers import _run
 
 TOOLS = {'open_run', 'cell', 'explain_cell', 'explain_spot', 'cell_counts', 'spots_in_cell',
-         'spots_of_cell', 'cell_row', 'spot_row', 'docs', 'run_info'}
+         'spots_of_cell', 'cell_row', 'spot_row', 'docs', 'run_info', 'cell_image',
+         'plane_image'}
 
 
 def call(name, **args):
@@ -71,6 +72,29 @@ def test_calls_go_through(run_folder):
     a = call('spots_of_cell', label=105)
     b = call('spots_of_cell', label=105, min_prob=0.0001)
     assert a['n_spots'] <= b['n_spots']
+
+
+def test_the_image_tools_come_back_as_pictures(run_folder, tmp_path):
+    """The agent has to get an actual png it can look at, plus the facts as text."""
+    import base64
+    from tests.test_mcp_images import _grey_mbtiles
+    mb = tmp_path / 'grey.mbtiles'
+    _grey_mbtiles(mb)
+    call('open_run', path=str(run_folder))
+    out = tmp_path / 'cell105.png'
+    res = asyncio.run(srv.server.call_tool(
+        'cell_image', {'label': 105, 'mbtiles': str(mb), 'width': 300, 'save_as': str(out)}))
+    assert not res.is_error
+    assert [c.type for c in res.content] == ['image', 'text']
+    png = base64.b64decode(res.content[0].data)
+    assert res.content[0].mime_type == 'image/png' and png[:4] == b'\x89PNG'
+    info = json.loads(res.content[1].text)
+    assert info['cell'] == 105 and info['saved_as'] == str(out)
+    assert out.read_bytes() == png
+
+    res = asyncio.run(srv.server.call_tool('plane_image', {'mbtiles': str(mb), 'width': 100}))
+    assert [c.type for c in res.content] == ['image', 'text']
+    assert json.loads(res.content[1].text)['bbox'] == [0.0, 0.0, 80.0, 80.0]
 
 
 def test_the_message_survives_when_a_tool_refuses(run_folder):
