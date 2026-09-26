@@ -536,3 +536,33 @@ def test_explain_spot_gives_the_plane_on_an_anisotropic_3d_run(rng, tmp_path):
         pos = run.explain_spot(sid)['position']
         assert pos['plane'] == gd.loc[sid, 'plane_id'], sid
         assert pos['z'] == int(gd.loc[sid, 'z'])
+
+
+def test_narrative_says_when_a_gene_counts_by_absence():
+    """Cell 16609 on espio: Pcp4 is the second strongest gene for CA3 with 0.00002
+    counts, because a CA2 cell would hold some. Listed as 'the cell holds these in
+    the amounts a CA3 cell does' that reads as a mistake, and the viewer's agent
+    quietly dropped it. The story has to say absence is the evidence."""
+    from pciSeq.src.mcp.tools import narrate_cell
+    e = {
+        'cell': 16609, 'assigned': 'CA3', 'compared_with': 'CA2',
+        'prob_assigned': 1.0, 'prob_compared': 0.0,
+        'score': {'gene_loglik': {'assigned': -200.0, 'compared': -220.0},
+                  'log_prior': {'assigned': -4.3, 'compared': -4.3},
+                  'spatial': {'assigned': 3.0, 'compared': 0.0}},
+        'genes_favouring_assigned': [{'gene': 'Cdh9', 'counts': 6.1, 'diff': 9.8},
+                                     {'gene': 'Pcp4', 'counts': 0.00002, 'diff': 2.55},
+                                     {'gene': 'Tnfaip8l3', 'counts': 3.5, 'diff': 2.2}],
+        'genes_favouring_compared': [{'gene': 'Amigo2', 'counts': 1.2, 'diff': -0.9},
+                                     {'gene': 'Kcnq5', 'counts': 0.01, 'diff': -0.4}],
+    }
+    s = narrate_cell(e)
+    assert 'The strongest evidence comes from Cdh9 and Tnfaip8l3' in s
+    assert 'Pcp4 counts the same way by its absence: the cell holds almost none, and a CA2 cell would.' in s
+    assert 'A few genes, Amigo2, look more like CA2, but they are outweighed.' in s
+    assert 'The near absence of Kcnq5 also leans towards CA2, since a CA3 cell would hold some' in s
+
+    # absence as the only evidence
+    e['genes_favouring_assigned'] = [{'gene': 'Pcp4', 'counts': 0.0, 'diff': 2.55}]
+    s = narrate_cell(e)
+    assert 'The strongest evidence is absence: the cell holds almost no Pcp4, and a CA2 cell would.' in s

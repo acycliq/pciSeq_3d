@@ -1003,6 +1003,20 @@ class Run:
         return c['gene_count'][:, None] * np.log(p) + r_spot * np.log(1 - p)
 
 
+# below this many soft counts a gene is taken as absent from the cell. Such a gene
+# can still be strong evidence: a class that expresses it is penalised for the
+# cell not holding any. The story must say so, or a reader (or an agent) sees a
+# gene with zero counts listed as evidence and takes it for a mistake.
+_ABSENT = 0.1
+
+
+def _present_absent(rows, n=3):
+    """The top genes split into those the cell holds and those it lacks."""
+    top = rows[:n]
+    return ([g['gene'] for g in top if g['counts'] >= _ABSENT],
+            [g['gene'] for g in top if g['counts'] < _ABSENT])
+
+
 def narrate_cell(e):
     """The story behind an explain_cell result, in plain words.
 
@@ -1024,6 +1038,8 @@ def narrate_cell(e):
     decider = max(d, key=lambda k: abs(d[k]))
     for_a = [g['gene'] for g in e['genes_favouring_assigned']]
     for_o = [g['gene'] for g in e['genes_favouring_compared']]
+    a_present, a_absent = _present_absent(e['genes_favouring_assigned'])
+    o_present, o_absent = _present_absent(e['genes_favouring_compared'])
 
     def p(x):
         return 'less than 0.01' if x < 0.005 else '%.2f' % x
@@ -1043,17 +1059,39 @@ def narrate_cell(e):
 
     # the genes, ranked, no numbers
     if d['genes'] > 0:
-        out.append('The genes point to %s, %s. The strongest evidence comes from %s: the '
-                   'cell holds these in the amounts a %s cell typically does and a %s cell '
-                   'does not.' % (a, _strength(d['genes']), names(for_a), a, o))
-        if for_o:
+        if a_present:
+            out.append('The genes point to %s, %s. The strongest evidence comes from %s: the '
+                       'cell holds these in the amounts a %s cell typically does and a %s cell '
+                       'does not.' % (a, _strength(d['genes']), names(a_present), a, o))
+            if a_absent:
+                out.append('%s counts the same way by its absence: the cell holds almost none, '
+                           'and a %s cell would.' % (names(a_absent), o))
+        else:
+            out.append('The genes point to %s, %s. The strongest evidence is absence: the cell '
+                       'holds almost no %s, and a %s cell would.'
+                       % (a, _strength(d['genes']), names(a_absent), o))
+        if o_present:
             out.append('A few genes, %s, look more like %s, but they are outweighed.'
-                       % (names(for_o), o))
+                       % (names(o_present), o))
+        if o_absent:
+            out.append('The near absence of %s also leans towards %s, since a %s cell would '
+                       'hold some, but not by enough.' % (names(o_absent), o, a))
     else:
-        out.append('On its genes alone the cell looks more like %s, %s, mostly because of '
-                   '%s.' % (o, _strength(-d['genes']), names(for_o)))
-        if for_a:
-            out.append('The genes arguing for %s are %s.' % (a, names(for_a)))
+        if o_present:
+            out.append('On its genes alone the cell looks more like %s, %s, mostly because of '
+                       '%s.' % (o, _strength(-d['genes']), names(o_present)))
+            if o_absent:
+                out.append('The near absence of %s says the same: a %s cell would hold some.'
+                           % (names(o_absent), a))
+        else:
+            out.append('On its genes alone the cell looks more like %s, %s, mostly through '
+                       'absence: it holds almost no %s, and a %s cell would.'
+                       % (o, _strength(-d['genes']), names(o_absent), a))
+        if a_present:
+            out.append('The genes arguing for %s are %s.' % (a, names(a_present)))
+        if a_absent:
+            out.append('The near absence of %s argues for %s too, since a %s cell would hold '
+                       'some.' % (names(a_absent), a, o))
 
     # the prior
     if abs(d['prior']) < 0.05:
