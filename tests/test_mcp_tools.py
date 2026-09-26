@@ -135,6 +135,20 @@ def test_cell_counts_for_one_gene(fitted):
         run.cell_counts(105, gene='NoSuchGene')
 
 
+def test_explain_cell_sums_are_the_sums_of_the_listed_diffs(fitted):
+    """The two totals are the chart titles in the viewer's cell diagnostics. They
+    are given so the agent does not add the diffs up itself, so they had better be
+    exactly that sum."""
+    run, _, _ = fitted
+    for lab in LABELS:
+        e = run.explain_cell(lab)
+        got_a = sum(g['diff'] for g in e['genes_favouring_assigned'])
+        got_o = sum(g['diff'] for g in e['genes_favouring_compared'])
+        assert e['sum_favouring_assigned'] == pytest.approx(got_a, abs=1e-4), lab
+        assert e['sum_favouring_compared'] == pytest.approx(got_o, abs=1e-4), lab
+        assert e['sum_favouring_assigned'] > 0 >= e['sum_favouring_compared']
+
+
 def test_explain_cell_counts_are_the_cell_counts(fitted):
     """The counts explain_cell quotes per gene must be the ones cell_counts gives
     for the same gene, so the two tools cannot show the user different numbers."""

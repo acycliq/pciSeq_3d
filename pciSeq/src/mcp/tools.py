@@ -322,6 +322,8 @@ class Run:
                      'diff': float(diff[g])}
                     for g in idx if keep(diff[g])]
 
+        for_a = side(favours_assigned, lambda d: d > 0)
+        for_o = side(favours_other, lambda d: d < 0)
         out = {
             'cell': int(label),
             'assigned': str(self.class_names[assigned]),
@@ -336,8 +338,13 @@ class Run:
                 'spatial': {'assigned': float(c['mrf'][assigned]),
                             'compared': float(c['mrf'][other])},
             },
-            'genes_favouring_assigned': side(favours_assigned, lambda d: d > 0),
-            'genes_favouring_compared': side(favours_other, lambda d: d < 0),
+            'genes_favouring_assigned': for_a,
+            'genes_favouring_compared': for_o,
+            # the totals of the two lists, the sums in the chart titles of the viewer's
+            # cell diagnostics. Given so the agent quotes them rather than adds up the
+            # diffs itself, which it does badly.
+            'sum_favouring_assigned': float(sum(g['diff'] for g in for_a)),
+            'sum_favouring_compared': float(sum(g['diff'] for g in for_o)),
             'counts_are': 'soft, weighted by the spot assignment probabilities',
             'means_are': 'the average count over the cells of this run, each weighted by '
                          'its probability of being that class. An after the fact summary '
