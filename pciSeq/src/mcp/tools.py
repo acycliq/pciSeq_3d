@@ -307,10 +307,18 @@ class Run:
         favours_assigned = np.argsort(-diff)[:top_n]
         favours_other = np.argsort(diff)[:top_n]
         log_prior = np.asarray(self._meta('log_prior', parse=True), dtype=np.float32)
+        # (nG, nK): the average count of each gene over this run's cells, weighted by
+        # their probability of being each class. The same numbers as the Gene
+        # Expression table of the viewer's Cell Inspector, and the figure behind 'a
+        # CA2 cell would hold some'. Not what the likelihood scores against, that is
+        # the scRNAseq profile times the scale factors; this is a summary of the run.
+        means = np.asarray(self._meta('mean_gene_reads_per_class', parse=True), dtype=np.float32)
 
         def side(idx, keep):
             return [{'gene': str(self.gene_panel[g]),
                      'counts': float(c['gene_count'][g]),
+                     'mean_in_assigned': float(means[g, assigned]),
+                     'mean_in_compared': float(means[g, other]),
                      'diff': float(diff[g])}
                     for g in idx if keep(diff[g])]
 
@@ -331,6 +339,9 @@ class Run:
             'genes_favouring_assigned': side(favours_assigned, lambda d: d > 0),
             'genes_favouring_compared': side(favours_other, lambda d: d < 0),
             'counts_are': 'soft, weighted by the spot assignment probabilities',
+            'means_are': 'the average count over the cells of this run, each weighted by '
+                         'its probability of being that class. An after the fact summary '
+                         'of the run, not the scRNAseq profile the likelihood scores against',
         }
         out['narrative'] = narrate_cell(out)
         return out
@@ -1011,10 +1022,19 @@ _ABSENT = 0.1
 
 
 def _present_absent(rows, n=3):
-    """The top genes split into those the cell holds and those it lacks."""
+    """The top genes split into those the cell holds and those it lacks.
+
+    Names for the present ones, whole rows for the absent ones, since the story
+    quotes what a cell of the other class typically holds.
+    """
     top = rows[:n]
     return ([g['gene'] for g in top if g['counts'] >= _ABSENT],
-            [g['gene'] for g in top if g['counts'] < _ABSENT])
+            [g for g in top if g['counts'] < _ABSENT])
+
+
+def _about(x):
+    """One decimal, rounded first so the JS port gets the same digits."""
+    return '%.1f' % (round(x * 10) / 10)
 
 
 def narrate_cell(e):
@@ -1048,6 +1068,11 @@ def narrate_cell(e):
         gs = gs[:n]
         return gs[0] if len(gs) == 1 else ', '.join(gs[:-1]) + ' and ' + gs[-1]
 
+    # the absent genes and, in the same order, what a cell of the class that does
+    # express them typically holds: 'Pcp4' and '3.6', 'Pcp4 and Car2' and '3.6 and 1.2'
+    def absent(rows, key):
+        return names([g['gene'] for g in rows]), names([_about(g[key]) for g in rows])
+
     out = []
     out.append('Cell %d was called %s, with probability %s. The closest alternative was %s, '
                'at %s.' % (e['cell'], a, p(e['prob_assigned']), o, p(e['prob_compared'])))
@@ -1064,34 +1089,43 @@ def narrate_cell(e):
                        'cell holds these in the amounts a %s cell typically does and a %s cell '
                        'does not.' % (a, _strength(d['genes']), names(a_present), a, o))
             if a_absent:
-                out.append('%s counts the same way by its absence: the cell holds almost none, '
-                           'and a %s cell would.' % (names(a_absent), o))
+                gs, ms = absent(a_absent, 'mean_in_compared')
+                out.append('%s %s the same way by %s absence: the cell holds almost none, '
+                           'where cells this run called %s hold about %s on average.'
+                           % (gs, 'counts' if len(a_absent) == 1 else 'count',
+                              'its' if len(a_absent) == 1 else 'their', o, ms))
         else:
+            gs, ms = absent(a_absent, 'mean_in_compared')
             out.append('The genes point to %s, %s. The strongest evidence is absence: the cell '
-                       'holds almost no %s, and a %s cell would.'
-                       % (a, _strength(d['genes']), names(a_absent), o))
+                       'holds almost no %s, where cells this run called %s hold about %s on '
+                       'average.'
+                       % (a, _strength(d['genes']), gs, o, ms))
         if o_present:
             out.append('A few genes, %s, look more like %s, but they are outweighed.'
                        % (names(o_present), o))
         if o_absent:
-            out.append('The near absence of %s also leans towards %s, since a %s cell would '
-                       'hold some, but not by enough.' % (names(o_absent), o, a))
+            gs, ms = absent(o_absent, 'mean_in_assigned')
+            out.append('The near absence of %s also leans towards %s, since cells this run '
+                       'called %s hold about %s on average, but not by enough.' % (gs, o, a, ms))
     else:
         if o_present:
             out.append('On its genes alone the cell looks more like %s, %s, mostly because of '
                        '%s.' % (o, _strength(-d['genes']), names(o_present)))
             if o_absent:
-                out.append('The near absence of %s says the same: a %s cell would hold some.'
-                           % (names(o_absent), a))
+                gs, ms = absent(o_absent, 'mean_in_assigned')
+                out.append('The near absence of %s says the same: cells this run called %s '
+                           'hold about %s on average.' % (gs, a, ms))
         else:
+            gs, ms = absent(o_absent, 'mean_in_assigned')
             out.append('On its genes alone the cell looks more like %s, %s, mostly through '
-                       'absence: it holds almost no %s, and a %s cell would.'
-                       % (o, _strength(-d['genes']), names(o_absent), a))
+                       'absence: it holds almost no %s, where cells this run called %s hold '
+                       'about %s on average.' % (o, _strength(-d['genes']), gs, a, ms))
         if a_present:
             out.append('The genes arguing for %s are %s.' % (a, names(a_present)))
         if a_absent:
-            out.append('The near absence of %s argues for %s too, since a %s cell would hold '
-                       'some.' % (names(a_absent), a, o))
+            gs, ms = absent(a_absent, 'mean_in_compared')
+            out.append('The near absence of %s argues for %s too, since cells this run '
+                       'called %s hold about %s on average.' % (gs, a, o, ms))
 
     # the prior
     if abs(d['prior']) < 0.05:

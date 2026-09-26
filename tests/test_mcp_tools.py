@@ -135,6 +135,16 @@ def test_cell_counts_for_one_gene(fitted):
         run.cell_counts(105, gene='NoSuchGene')
 
 
+def test_explain_cell_counts_are_the_cell_counts(fitted):
+    """The counts explain_cell quotes per gene must be the ones cell_counts gives
+    for the same gene, so the two tools cannot show the user different numbers."""
+    run, _, _ = fitted
+    for lab in LABELS:
+        e = run.explain_cell(lab)
+        for g in e['genes_favouring_assigned'] + e['genes_favouring_compared']:
+            assert g['counts'] == pytest.approx(run.cell_counts(lab, gene=g['gene'])['counts']), (lab, g['gene'])
+
+
 # --------------------------------------------------------- spots_in_cell
 
 def test_spots_in_cell_matches_geneData_and_says_it_is_hard(fitted):
@@ -550,19 +560,48 @@ def test_narrative_says_when_a_gene_counts_by_absence():
         'score': {'gene_loglik': {'assigned': -200.0, 'compared': -220.0},
                   'log_prior': {'assigned': -4.3, 'compared': -4.3},
                   'spatial': {'assigned': 3.0, 'compared': 0.0}},
-        'genes_favouring_assigned': [{'gene': 'Cdh9', 'counts': 6.1, 'diff': 9.8},
-                                     {'gene': 'Pcp4', 'counts': 0.00002, 'diff': 2.55},
-                                     {'gene': 'Tnfaip8l3', 'counts': 3.5, 'diff': 2.2}],
-        'genes_favouring_compared': [{'gene': 'Amigo2', 'counts': 1.2, 'diff': -0.9},
-                                     {'gene': 'Kcnq5', 'counts': 0.01, 'diff': -0.4}],
+        'genes_favouring_assigned': [{'gene': 'Cdh9', 'counts': 6.1, 'diff': 9.8,
+                                      'mean_in_assigned': 5.8, 'mean_in_compared': 0.3},
+                                     {'gene': 'Pcp4', 'counts': 0.00002, 'diff': 2.55,
+                                      'mean_in_assigned': 0.66, 'mean_in_compared': 3.6},
+                                     {'gene': 'Tnfaip8l3', 'counts': 3.5, 'diff': 2.2,
+                                      'mean_in_assigned': 3.1, 'mean_in_compared': 0.4}],
+        'genes_favouring_compared': [{'gene': 'Amigo2', 'counts': 1.2, 'diff': -0.9,
+                                      'mean_in_assigned': 0.5, 'mean_in_compared': 2.9},
+                                     {'gene': 'Kcnq5', 'counts': 0.01, 'diff': -0.4,
+                                      'mean_in_assigned': 1.25, 'mean_in_compared': 0.2}],
     }
     s = narrate_cell(e)
     assert 'The strongest evidence comes from Cdh9 and Tnfaip8l3' in s
-    assert 'Pcp4 counts the same way by its absence: the cell holds almost none, and a CA2 cell would.' in s
+    assert ('Pcp4 counts the same way by its absence: the cell holds almost none, where '
+            'cells this run called CA2 hold about 3.6 on average.') in s
     assert 'A few genes, Amigo2, look more like CA2, but they are outweighed.' in s
-    assert 'The near absence of Kcnq5 also leans towards CA2, since a CA3 cell would hold some' in s
+    # 1.25 rounds half to even, 1.2, and the JS port must agree
+    assert ('The near absence of Kcnq5 also leans towards CA2, since cells this run called '
+            'CA3 hold about 1.2 on average, but not by enough.') in s
 
-    # absence as the only evidence
-    e['genes_favouring_assigned'] = [{'gene': 'Pcp4', 'counts': 0.0, 'diff': 2.55}]
+    # absence as the only evidence, two genes
+    e['genes_favouring_assigned'] = [{'gene': 'Pcp4', 'counts': 0.0, 'diff': 2.55,
+                                      'mean_in_assigned': 0.66, 'mean_in_compared': 3.6},
+                                     {'gene': 'Car2', 'counts': 0.05, 'diff': 1.1,
+                                      'mean_in_assigned': 0.1, 'mean_in_compared': 1.2}]
     s = narrate_cell(e)
-    assert 'The strongest evidence is absence: the cell holds almost no Pcp4, and a CA2 cell would.' in s
+    assert ('The strongest evidence is absence: the cell holds almost no Pcp4 and Car2, '
+            'where cells this run called CA2 hold about 3.6 and 1.2 on average.') in s
+
+
+def test_explain_cell_reports_the_class_means(fitted):
+    """The Cell Inspector's Gene Expression table shows what a cell of each class
+    typically holds. explain_cell has to carry the same two numbers, or the story
+    cannot back 'a CA2 cell would hold some' with a figure."""
+    run, _, _ = fitted
+    means = np.asarray(run._meta('mean_gene_reads_per_class', parse=True), dtype=np.float32)
+    names = list(run.class_names)
+    e = run.explain_cell(101)
+    rows = e['genes_favouring_assigned'] + e['genes_favouring_compared']
+    assert rows
+    for g in rows:
+        gi = list(run.gene_panel).index(g['gene'])
+        assert g['mean_in_assigned'] == pytest.approx(means[gi, names.index(e['assigned'])])
+        assert g['mean_in_compared'] == pytest.approx(means[gi, names.index(e['compared_with'])])
+    assert 'not the scRNAseq profile' in e['means_are']

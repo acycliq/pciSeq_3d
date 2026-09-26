@@ -103,7 +103,7 @@ never appear, see [Cell identifiers](./working-with-results.md#cell-identifiers)
 | `open_run(path)` | Opens a run and returns its size, the pciSeq version that made it, and whether it carries containment data. |
 | `run_info()` | What produced the run and how it ended: version and commit, the resolved settings, the number of iterations and whether the loop converged. |
 | `cell(label)` | The class probabilities, top genes, total counts and scale factor of one cell, and the neighbours its spatial term listens to. |
-| `explain_cell(label, vs_class=None)` | The score of the assigned class against another, split into the gene log-likelihood, the class prior and the spatial term, with the genes that pushed hardest for each side. `vs_class` defaults to the runner up. |
+| `explain_cell(label, vs_class=None)` | The score of the assigned class against another, split into the gene log-likelihood, the class prior and the spatial term, with the genes that pushed hardest for each side, each with the cell's count and the mean count of cells typed as either class. `vs_class` defaults to the runner up. |
 | `explain_spot(spot_id)` | One row per candidate cell plus the background: the six score terms, their sum and the resulting probability. |
 | `cell_counts(label, gene=None)` | The reads a cell holds, in total or for one gene. |
 | `spots_in_cell(label, gene=None)` | The spots whose pixel falls inside the cell's segmentation mask. |

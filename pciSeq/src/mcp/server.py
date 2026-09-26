@@ -132,8 +132,10 @@ def explain_cell(label: int, vs_class: Optional[str] = None, top_n: int = 10) ->
     Compares the assigned class against another (the runner up by default, or
     vs_class). Reports the three parts of the score for each, the gene
     log-likelihood, the class prior and the spatial term, and lists the genes that
-    pushed hardest for each side. The narrative field tells the story in plain
-    words, with the evidence as odds rather than units.
+    pushed hardest for each side, each with the cell's count and what a cell of
+    either class typically holds. A gene the cell lacks can count against the class
+    that expresses it. The narrative field tells the story in plain words, with the
+    evidence as odds rather than units.
 
     Use this for questions like 'why is cell 2413 Ndnf Gaba' or 'why is cell 18223
     not CA1'. label is the segmentation label.
