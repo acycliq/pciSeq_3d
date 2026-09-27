@@ -505,6 +505,9 @@ def test_run_info_reports_the_settings_and_how_it_ended(fitted):
     come straight back, along with a convergence verdict in words."""
     run, _, _ = fitted
     info = run.run_info()
+    # the run date is the one thing everybody asks for first
+    assert info['run_date'].endswith('Z') and info['run_date'].startswith('20')
+    assert info['python_version'] and 'numpy' in info['package_versions']
     assert info['settings']['max_iter'] == 40
     assert info['settings']['CellCallTolerance'] == 0.001
     assert info['voxel_size'] == [1, 1, 1] and info['is3D'] is False

@@ -114,11 +114,12 @@ def open_run(path: str) -> dict:
 
 @_tool
 def run_info() -> dict:
-    """What produced the open run and how it ended: pciSeq version and commit, the
+    """What produced the open run and how it ended: pciSeq version, commit and its
+    date, when the run was made (run_date), python and package versions, the
     resolved settings (mrf_beta, rTheta, Inefficiency, nNeighbors, voxel_size and the
     rest), the number of iterations, and whether the loop converged, with a sentence
-    saying so. Use it for 'what settings did this run use' and 'did it converge'.
-    Older runs carry only the version and commit and the answer says so."""
+    saying so. Use it for 'when was this run made', 'what settings did it use' and
+    'did it converge'. Older runs carry only the provenance and the answer says so."""
     return _need_run().run_info()
 
 

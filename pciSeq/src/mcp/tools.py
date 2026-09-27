@@ -201,22 +201,28 @@ class Run:
         """What produced this run and how it ended: the pciSeq version and commit, the
         resolved settings, the number of iterations and whether the loop converged.
 
-        Runs written before the settings were exported carry only the version and
-        commit; the answer says so.
+        The provenance (version, commit, its date, when the run was made, python
+        and the package versions) is always there. Runs written before the
+        settings were exported carry nothing else; the answer says so.
         """
         prov = self._meta('pciSeq_provenance', parse=True, default={})
         out = {
             'path': str(self.path),
             'pciSeq_version': prov.get('version'),
             'commit': prov.get('commit'),
+            'commit_date': prov.get('commit_date'),
             'branch': prov.get('branch'),
+            'run_date': prov.get('created_at'),
+            'python_version': prov.get('python_version'),
+            'os': prov.get('os'),
+            'package_versions': prov.get('package_versions'),
             'cells': self.nC - 1, 'spots': self.nS, 'genes': self.nG, 'classes': self.nK,
         }
         if self.config is None:
             out['settings'] = None
             out['note'] = ('this run was written before pciSeq exported its settings and '
-                           'convergence record to diagnostics.db, so only the version and '
-                           'commit are known. Rerunning with the current pciSeq records them.')
+                           'convergence record to diagnostics.db, so only the provenance '
+                           'above is known. Rerunning with the current pciSeq records them.')
             return out
         cfg = self.config
         out['settings'] = cfg
