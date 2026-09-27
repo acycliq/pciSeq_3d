@@ -43,7 +43,9 @@ jobs:
       # doesn't import the package), so plain python on the runner is enough.
       - name: Regenerate API docs
         working-directory: website
-        run: python3 gen_api.py
+        run: |
+          python3 gen_api.py
+          python3 gen_code_map.py
 
       - name: Build VitePress
         working-directory: website

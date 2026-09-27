@@ -137,6 +137,7 @@ export default defineConfig({
             items: apiFunctions,
           },
           { text: 'Configuration (opts)', link: '/api/configuration' },
+          { text: 'Code map', link: '/api/code-map' },
         ],
       },
     ],

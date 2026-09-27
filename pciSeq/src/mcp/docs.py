@@ -58,7 +58,10 @@ def page_title(text):
 
 def _paragraphs(text):
     """(heading, paragraph) pairs, heading being the nearest one above. Frontmatter
-    is dropped; code blocks are kept, config keys live in them."""
+    is dropped; code blocks are kept, config keys live in them. A table is split
+    into its rows, one paragraph each: a row is the unit a reader wants back (a
+    setting, a function and its line), and a long table would otherwise outrank
+    the prose that explains the term."""
     text = re.sub(r'\A---.*?---\s*', '', text, count=1, flags=re.S)
     heading = ''
     out = []
@@ -73,6 +76,10 @@ def _paragraphs(text):
             if rest:
                 out.append((heading, rest))
             continue
+        if block.startswith('|'):
+            out.extend((heading, row) for row in block.splitlines()
+                       if not re.match(r'^\|[\s\-:|]*\|$', row))
+            continue
         out.append((heading, block))
     return out
 
@@ -81,8 +88,10 @@ def search_docs(query, n=5):
     """Paragraphs matching a query, best first.
 
     Words are matched case-insensitively. A paragraph holding every word of the
-    query outranks one holding some of them; ties go to the paragraph with more
-    hits. Returns dicts with the page, its title, the nearest heading and the text.
+    query outranks one holding some of them; among those, prose comes before a
+    table row, since a paragraph explains and a row only points; then the one
+    with more hits. Returns dicts with the page, its title, the nearest heading
+    and the text.
     """
     words = [w for w in re.findall(r'[A-Za-z0-9_]+', query.lower()) if len(w) > 1]
     if not words:
@@ -97,6 +106,6 @@ def search_docs(query, n=5):
             if not present:
                 continue
             count = sum(low.count(w) for w in present)
-            hits.append((len(present), count, page, title, heading, para))
-    hits.sort(key=lambda h: (-h[0], -h[1], h[2]))
-    return [{'page': h[2], 'title': h[3], 'heading': h[4], 'text': h[5]} for h in hits[:n]]
+            hits.append((len(present), count, para.startswith('|'), page, title, heading, para))
+    hits.sort(key=lambda h: (-h[0], h[2], -h[1], h[3]))
+    return [{'page': h[3], 'title': h[4], 'heading': h[5], 'text': h[6]} for h in hits[:n]]
