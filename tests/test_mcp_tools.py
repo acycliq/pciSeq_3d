@@ -508,6 +508,10 @@ def test_run_info_reports_the_settings_and_how_it_ended(fitted):
     # the run date is the one thing everybody asks for first
     assert info['run_date'].endswith('Z') and info['run_date'].startswith('20')
     assert info['python_version'] and 'numpy' in info['package_versions']
+    # the mean cell radius is written to the metadata now; it is what every cell's
+    # Gaussian is initialised with, so it is positive and smaller than the image
+    assert 0 < info['mean_cell_radius'] < 1000
+    assert info['mean_cell_radius'] == float(run._meta('mcr'))
     assert info['settings']['max_iter'] == 40
     assert info['settings']['CellCallTolerance'] == 0.001
     assert info['voxel_size'] == [1, 1, 1] and info['is3D'] is False
@@ -622,3 +626,102 @@ def test_explain_cell_reports_the_class_means(fitted):
         assert g['mean_in_assigned'] == pytest.approx(means[gi, names.index(e['assigned'])])
         assert g['mean_in_compared'] == pytest.approx(means[gi, names.index(e['compared_with'])])
     assert 'not the scRNAseq profile' in e['means_are']
+
+
+# ------------------------------------------------------- the whole run
+
+def test_gene_counts_add_up(fitted):
+    """The soft counts of a gene split by class must sum to its counts in cells,
+    and the hard split too; the top cells must really hold the most of it."""
+    run, _, _ = fitted
+    g = run.gene(str(run.gene_panel[0]))
+    assert g['counts_in_cells'] == pytest.approx(sum(r['soft'] for r in g['counts_per_class']), abs=1e-2)
+    assert g['counts_in_cells'] == pytest.approx(sum(r['in_cells_called'] for r in g['counts_per_class']), abs=1e-2)
+    assert g['eta'] > 0 and g['inefficiency'] > 0 and g['total_spots'] > 0
+    counts = [c['counts'] for c in g['top_cells']]
+    assert counts == sorted(counts, reverse=True)
+    assert g['top_cells'][0]['counts'] == pytest.approx(
+        run.cell_counts(g['top_cells'][0]['cell'], gene=g['gene'])['counts'])
+    with pytest.raises(ValueError):
+        run.gene('NoSuchGene')
+
+
+def test_theta_and_gamma_are_the_stored_arrays(fitted):
+    run, _, _ = fitted
+    c = run._cell(105)
+    th = run.theta(105)
+    assert th['theta'] == c['theta']
+    best = th['theta_bar_per_class'][0]
+    assert best['theta_bar'] == pytest.approx(c['theta_bar'][c['assigned_class_idx']])
+    gm = run.gamma(105)
+    assert len(gm['gamma']) == run.nG and gm['class'] == best['class']
+    one = run.gamma(105, gene=gm['gamma'][3]['gene'])
+    assert one['gamma'] == gm['gamma'][3]['gamma']
+    assert 'assigned class only' in gm['gamma_is']
+
+
+def test_spot_agrees_with_explain_spot(fitted):
+    run, _, geneData = fitted
+    sid = geneData.index[5]
+    s, e = run.spot(sid), run.explain_spot(sid)
+    assert s['assigned_to'] == e['assigned_to'] and s['gene'] == e['gene']
+    assert [c['prob'] for c in s['candidates']] == [c['prob'] for c in e['candidates']]
+    with pytest.raises(KeyError):
+        run.spot(-1)
+
+
+def test_neighbours_match_the_cell_and_carry_distances(fitted):
+    run, _, _ = fitted
+    nb = run.neighbours(101)
+    assert [r['cell'] for r in nb['neighbours']] == run.cell(101)['neighbours']
+    assert all(r['distance_xy'] >= 0 for r in nb['neighbours'])
+    assert nb['class'] == run.explain_cell(101)['assigned']
+
+
+def test_class_counts_cover_every_cell(fitted):
+    run, cellData, _ = fitted
+    cc = run.class_counts()
+    assert cc['n_cells'] == 16 == sum(r['cells'] for r in cc['classes'])
+    assert sum(r['soft'] for r in cc['classes']) == pytest.approx(16, abs=1e-3)
+    assert cc['classes'][0]['class'] == 'Zero'
+    want = cellData['ClassName'].map(lambda v: v[0]).value_counts()
+    for r in cc['classes']:
+        assert r['cells'] == int(want.get(r['class'], 0)), r['class']
+    assert run.class_counts(min_counts=1e9)['n_cells'] == 0
+
+
+def test_find_cells_filters(fitted):
+    run, _, _ = fitted
+    e = run.explain_cell(101)
+    hit = run.find_cells(class_name=e['assigned'])
+    assert 101 in [r['cell'] for r in hit['cells']]
+    assert hit['n_matching'] == run.class_counts()['classes'][
+        [r['class'] for r in run.class_counts()['classes']].index(e['assigned'])]['cells']
+    sure = run.find_cells(top_two_within=0.0)
+    assert sure['n_matching'] <= 16
+    assert run.find_cells(n=3)['shown'] == 3
+    with pytest.raises(ValueError):
+        run.find_cells(class_name='NoSuchClass')
+
+
+def test_metadata_lists_and_returns(fitted):
+    run, _, _ = fitted
+    keys = {k['key']: k['kind'] for k in run.metadata()['keys']}
+    assert keys['eta_bar'].startswith('list of %d' % run.nG)
+    assert keys['mean_gene_reads_per_class'] == 'list of %d of lists of %d' % (run.nG, run.nK)
+    assert run.metadata('nC')['value'] == run.nC
+    assert run.metadata('class_names')['value'] == list(run.class_names)
+    with pytest.raises(KeyError):
+        run.metadata('no_such_key')
+
+
+def test_spots_of_cell_by_gene(fitted):
+    """The per gene count is the tool's, and it is the filter of the full list."""
+    run, _, _ = fitted
+    full = run.spots_of_cell(103)
+    gene = full['spots'][0]['gene']
+    mine = run.spots_of_cell(103, gene=gene)
+    assert mine['n_spots'] == sum(1 for s in full['spots'] if s['gene'] == gene)
+    assert mine['gene'] == gene
+    with pytest.raises(ValueError):
+        run.spots_of_cell(103, gene='NoSuchGene')

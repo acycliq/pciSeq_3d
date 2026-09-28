@@ -143,6 +143,10 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         ('nK', str(nK)),
         ('rSpot', str(float(varBayes.config['rSpot']))),
         ('SpotReg', str(float(varBayes.config['SpotReg']))),
+        # the mean cell radius, in pixels of the xy plane. It sets the Gaussian of
+        # every cell (cov = mcr^2 I, the Gaussian update is not run) and it was
+        # only recoverable from cellData.sphere_scale / 3, which nobody would guess
+        ('mcr', str(float(cells.mcr))),
         ('class_names', json.dumps(cells.class_names.tolist())),
         ('eta_bar', json.dumps(genes.eta_bar.astype(np.float32).tolist())),
         ('mean_gene_reads_per_class', json.dumps(cells.mean_gene_reads_per_class().astype(np.float32).tolist())),

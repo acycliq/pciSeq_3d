@@ -217,6 +217,10 @@ class Run:
             'os': prov.get('os'),
             'package_versions': prov.get('package_versions'),
             'cells': self.nC - 1, 'spots': self.nS, 'genes': self.nG, 'classes': self.nK,
+            'mean_cell_radius': self.mean_cell_radius(),
+            'mean_cell_radius_is': 'in pixels of the xy plane, the mean over the segmented '
+                                   'cells of sqrt(area / pi), halved; the Gaussian of every '
+                                   'cell has this radius',
         }
         if self.config is None:
             out['settings'] = None
@@ -242,6 +246,22 @@ class Run:
                             % (out['iterations'], out['final_delta'] or float('nan'),
                                out['tolerance']))
         return out
+
+    def mean_cell_radius(self):
+        """The mean cell radius, mcr, in pixels of the xy plane.
+
+        Written to the metadata since September 2026. Older runs have it only in
+        disguise: the Gaussian update is not run, so every cell keeps its initial
+        covariance mcr^2 I, and cellData's sphere_scale is 3 sqrt of its eigenvalues,
+        so sphere_scale / 3 on any row is mcr. None when neither is there.
+        """
+        val = self._meta('mcr', default=None)
+        if val is not None:
+            return float(val)
+        row = self._tsv_row('cellData.tsv', r'^\d+\t')
+        if row and isinstance(row.get('sphere_scale'), (list, tuple)) and row['sphere_scale']:
+            return float(row['sphere_scale'][0]) / 3.0
+        return None
 
     def _plane_of(self, z):
         """The plane index a scaled z belongs to, or None without voxel_size."""
@@ -478,17 +498,20 @@ class Run:
             'spots_are': note,
         }
 
-    def spots_of_cell(self, label, min_prob=None):
+    def spots_of_cell(self, label, min_prob=None, gene=None):
         """Which spots belong to a cell, under one of two definitions.
 
         With `min_prob` unset: the spots whose most likely parent is this cell, the
         argmax. With `min_prob` set: every spot with a probability on this cell above
         it, which is what cellData.spot_id holds at 0.0001. The two are different
         lists, and the answer says which one it is. Either way every spot comes with
-        its probability, sorted highest first.
+        its probability, sorted highest first. `gene` keeps only that gene's spots,
+        so the count of them is the tool's number and not the agent's.
         """
         label = int(label)
         self.to_internal(label)                  # raises if it is not a cell
+        if gene is not None:
+            self._gene_index(gene)               # raises if it is not a gene
 
         rows = []
         for tb, gene_of in self._arrow_spots(['spot_id', 'gene_id', 'neighbour_array',
@@ -498,6 +521,8 @@ class Run:
                                               tb['neighbour_array'].to_pylist(),
                                               tb['neighbour_prob'].to_pylist()):
                 if label not in cands:
+                    continue
+                if gene is not None and gene_of[int(gid)] != gene:
                     continue
                 p = probs[cands.index(label)]
                 if min_prob is None:
@@ -521,12 +546,311 @@ class Run:
                     % min_prob)
         return {
             'cell': label,
+            'gene': gene,
             'definition': 'most likely parent' if min_prob is None else 'prob > %g' % min_prob,
             'n_spots': len(rows),
             'sum_of_probs': float(sum(r['prob'] for r in rows)),
             'spots': rows,
             'spots_are': note,
         }
+
+    # ----------------------------------------------------- the whole run
+
+    def _all_cells(self):
+        """Every cell's class probabilities, gene counts and assigned class, read
+        once and kept. Rows are in internal order, the background row left out.
+        A few tens of MB on a big run, which is fine for the questions these
+        answer (cells per class, where is a gene, which cells match)."""
+        if not hasattr(self, '_cells_scan'):
+            with self._lock:
+                rows = self._con.execute(
+                    'SELECT %s, class_prob, gene_count, assigned_class_idx FROM cells '
+                    'WHERE %s > 0 ORDER BY %s' % ((self._cell_key,) * 3)).fetchall()
+            self._cells_scan = {
+                'internal': np.array([r[0] for r in rows], dtype=np.int64),
+                'class_prob': np.stack([np.frombuffer(r[1], dtype=np.float32) for r in rows]),
+                'gene_count': np.stack([np.frombuffer(r[2], dtype=np.float32) for r in rows]),
+                'assigned': np.array([r[3] for r in rows], dtype=np.int64),
+            }
+        return self._cells_scan
+
+    def _positions(self):
+        """Centroid (X, Y, Z) per segmentation label from the viewer's cells table,
+        or None when the viewer files are not in this run."""
+        if not hasattr(self, '_pos'):
+            try:
+                tb = self._arrow_cells()
+                self._pos = {int(c): (float(x), float(y), float(z)) for c, x, y, z in zip(
+                    tb['cell_id'].to_pylist(), tb['X'].to_pylist(),
+                    tb['Y'].to_pylist(), tb['Z'].to_pylist())}
+            except Exception:
+                self._pos = None
+        return self._pos
+
+    def _gene_index(self, name):
+        hit = np.where(self.gene_panel == name)[0]
+        if not len(hit):
+            raise ValueError('no gene %r in this run' % name)
+        return int(hit[0])
+
+    def _class_index(self, name):
+        hit = np.where(self.class_names == name)[0]
+        if not len(hit):
+            raise ValueError('no class %r in this run' % name)
+        return int(hit[0])
+
+    def gene(self, name):
+        """One gene across the run: its efficiency, misread density, how many spots
+        it has and where they went, class by class and cell by cell."""
+        g = self._gene_index(name)
+        cfg = self.config or {}
+        eta = float(np.asarray(self._meta('eta_bar', parse=True), dtype=np.float32)[g])
+        scan = self._all_cells()
+        col = scan['gene_count'][:, g]
+        soft_per_class = scan['class_prob'].T @ col
+        hard_per_class = np.bincount(scan['assigned'], weights=col, minlength=self.nK)
+        order = np.argsort(-soft_per_class)
+        top = np.argsort(-col)[:10]
+        totals = self._meta('gene_total_spots', parse=True, default=None)
+        misread = self._meta('hard_misread_counts', parse=True, default=None)
+        return {
+            'gene': name,
+            'eta': eta,
+            'eta_is': 'eta_bar, the posterior mean of the gene efficiency; the reference '
+                      'expression of every class is multiplied by it',
+            'inefficiency': eta * cfg['Inefficiency'] if cfg.get('Inefficiency') is not None else None,
+            'inefficiency_is': 'eta_bar times the Inefficiency setting, as Genes.inefficiency '
+                               'defines it; None on runs without the settings record',
+            'misread_density': self._meta('rho_bar', parse=True, default={}).get(name),
+            'misread_density_prior': self._meta('misread_density', parse=True, default={}).get(name),
+            'misread_density_is': 'rho_bar, the rate of misread spots per unit volume the '
+                                  'model learned for this gene; the prior is where it started',
+            'total_spots': int(totals[g]) if totals else None,
+            'spots_called_misread': int(misread[g]) if misread else None,
+            'counts_in_cells': float(col.sum()),
+            'counts_are': 'soft, weighted by the spot assignment probabilities',
+            'counts_per_class': [{'class': str(self.class_names[k]),
+                                  'soft': float(soft_per_class[k]),
+                                  'in_cells_called': float(hard_per_class[k])}
+                                 for k in order if soft_per_class[k] > _COUNT_TOL],
+            'counts_per_class_are': 'soft: every cell weighted by its probability of the '
+                                    'class; in_cells_called: summed over the cells whose '
+                                    'most probable class it is',
+            'top_cells': [{'cell': self.to_external(int(scan['internal'][i])),
+                           'counts': float(col[i]),
+                           'class': str(self.class_names[scan['assigned'][i]])}
+                          for i in top if col[i] > _COUNT_TOL],
+        }
+
+    def theta(self, label):
+        """The cell scale factor of one cell, overall and under each class."""
+        c = self._cell(label)
+        order = np.argsort(-c['class_prob'])
+        return {
+            'cell': int(label),
+            'theta': c['theta'],
+            'theta_is': 'the scale factor averaged over the class probabilities, the '
+                        'value the outputs report',
+            'theta_bar_per_class': [{'class': str(self.class_names[k]),
+                                     'theta_bar': float(c['theta_bar'][k]),
+                                     'prob': float(c['class_prob'][k])}
+                                    for k in order[:5]],
+            'theta_bar_is': 'the posterior mean of theta under each class: the factor '
+                            'scaling that class\'s expected counts to the cell\'s total. '
+                            'Gamma(rTheta, rTheta) prior, mean 1',
+            'rTheta': (self.config or {}).get('rTheta'),
+        }
+
+    def gamma(self, label, gene=None):
+        """The cell-gene scale factors of one cell under its assigned class."""
+        c = self._cell(label)
+        gam = c['gamma_assigned']
+        cls = str(self.class_names[c['assigned_class_idx']])
+        out = {
+            'cell': int(label),
+            'class': cls,
+            'gamma_is': 'gamma_bar, the posterior mean of the per cell, per gene scale that '
+                        'absorbs overdispersion, under the assigned class only. '
+                        'diagnostics.db does not keep the (cell, gene, class) array, so '
+                        'gamma under another class is not available',
+        }
+        if gene is not None:
+            g = self._gene_index(gene)
+            out['gene'] = gene
+            out['gamma'] = float(gam[g])
+            out['counts'] = float(c['gene_count'][g])
+        else:
+            out['gamma'] = [{'gene': str(self.gene_panel[g]), 'gamma': float(gam[g]),
+                             'counts': float(c['gene_count'][g])}
+                            for g in range(self.nG)]
+        return out
+
+    def spot(self, spot_id):
+        """One spot: its gene, position, plane, and the cells it may belong to
+        with their probabilities. explain_spot gives the terms behind them."""
+        try:
+            spot_id = int(spot_id)
+        except (TypeError, ValueError):
+            raise ValueError('%r is not a spot id' % (spot_id,))
+        got = self._query(
+            "SELECT gene_idx, x, y, z, neighbor_cell_ids, mvn_loglik, attention, "
+            "expr_fluct, cell_inefficiency, gene_inefficiency, bonus "
+            "FROM spots WHERE spot_id = ?", (spot_id,))
+        if got is None:
+            raise KeyError('no spot %s in this run' % spot_id)
+        neighbours, _, _, _, prob = self._spot_scores(got)
+        cands = []
+        for i, internal in enumerate(neighbours[:-1]):
+            k = self._query("SELECT assigned_class_idx FROM cells WHERE %s = ?" % self._cell_key,
+                            (internal,))
+            cands.append({'cell': self.to_external(internal),
+                          'class': str(self.class_names[k[0]]) if k else None,
+                          'prob': float(prob[i])})
+        cands.append({'cell': 'background', 'prob': float(prob[-1])})
+        best = int(np.argmax(prob))
+        plane = self._plane_of(got[3])
+        return {
+            'spot': spot_id,
+            'gene': str(self.gene_panel[got[0]]),
+            'position': {'x': got[1], 'y': got[2], 'z': got[3], 'plane': plane,
+                         'z_is': 'the anisotropy scaled z the model works in; plane is the '
+                                 'plane index, None when the run carries no voxel_size'},
+            'assigned_to': cands[best]['cell'],
+            'prob': float(prob[best]),
+            'candidates': cands,
+            'candidates_are': 'the nearest cells the spot was scored against, plus the '
+                              'background, with the probability of each',
+        }
+
+    def neighbours(self, label):
+        """The cells whose classes enter this cell's spatial term, with their
+        classes and, when the viewer files are there, their distances."""
+        label = int(label)
+        nbrs = self._neighbours(label)
+        if nbrs is None:
+            raise NotImplementedError('this run was written before diagnostics.db kept the '
+                                      'spatial neighbours; rerun with the current pciSeq')
+        scan = self._all_cells()
+        pos = self._positions()
+        me = pos.get(label) if pos else None
+        rows = []
+        for n in nbrs:
+            i = int(np.searchsorted(scan['internal'], self.to_internal(n)))
+            k = int(scan['assigned'][i])
+            r = {'cell': n, 'class': str(self.class_names[k]),
+                 'prob': float(scan['class_prob'][i, k])}
+            if me and n in pos:
+                x, y, z = pos[n]
+                r['distance_xy'] = float(np.hypot(x - me[0], y - me[1]))
+                r['plane_offset'] = float(z - me[2])
+            rows.append(r)
+        c = self._cell(label)
+        return {
+            'cell': label,
+            'class': str(self.class_names[c['assigned_class_idx']]),
+            'n': len(rows),
+            'neighbours': rows,
+            'neighbours_are': 'the cells the spatial (mrf) term listens to, nearest first. '
+                              'distance_xy is between centroids in pixels of the xy plane, '
+                              'plane_offset in planes',
+            'mrf_beta': (self.config or {}).get('mrf_beta'),
+        }
+
+    def class_counts(self, min_counts=None):
+        """How many cells each class has, hard and soft."""
+        scan = self._all_cells()
+        totals = scan['gene_count'].sum(axis=1)
+        keep = totals >= min_counts if min_counts is not None else np.ones(len(totals), bool)
+        hard = np.bincount(scan['assigned'][keep], minlength=self.nK)
+        soft = scan['class_prob'][keep].sum(axis=0)
+        rows = [{'class': str(name), 'cells': int(hard[k]), 'soft': float(soft[k])}
+                for k, name in enumerate(self.class_names)]
+        zero = [r for r in rows if r['class'] == 'Zero']
+        rest = sorted([r for r in rows if r['class'] != 'Zero'], key=lambda r: -r['cells'])
+        return {
+            'n_cells': int(keep.sum()),
+            'min_counts': min_counts,
+            'classes': zero + rest,
+            'cells_is': 'hard: the number of cells whose most probable class it is',
+            'soft_is': 'the class probability summed over the cells, the expected '
+                       'number of cells of the class',
+            'min_counts_is': 'cells with fewer soft counts in total are left out',
+        }
+
+    def find_cells(self, class_name=None, plane=None, min_counts=None,
+                   top_two_within=None, n=50):
+        """The cells matching a few filters: assigned class, plane of the centroid,
+        total counts, and how close the top two classes are."""
+        scan = self._all_cells()
+        mask = np.ones(len(scan['internal']), bool)
+        if class_name is not None:
+            mask &= scan['assigned'] == self._class_index(class_name)
+        totals = scan['gene_count'].sum(axis=1)
+        if min_counts is not None:
+            mask &= totals >= min_counts
+        top2 = -np.sort(-scan['class_prob'], axis=1)[:, :2]
+        margin = top2[:, 0] - top2[:, 1]
+        if top_two_within is not None:
+            mask &= margin <= top_two_within
+        labels = [self.to_external(int(i)) for i in scan['internal']]
+        if plane is not None:
+            pos = self._positions()
+            if pos is None:
+                raise NotImplementedError('the viewer files are not in this run, so the '
+                                          'cells have no positions to filter by plane')
+            z = np.array([pos.get(lab, (0, 0, np.nan))[2] for lab in labels])
+            mask &= np.round(z) == plane
+        idx = np.where(mask)[0]
+        idx = idx[np.argsort(-top2[idx, 0])]
+        runner = np.argsort(-scan['class_prob'], axis=1)[:, 1]
+        rows = [{'cell': labels[i],
+                 'class': str(self.class_names[scan['assigned'][i]]),
+                 'prob': float(top2[i, 0]),
+                 'runner_up': str(self.class_names[runner[i]]),
+                 'margin': float(margin[i]),
+                 'total_counts': float(totals[i])}
+                for i in idx[:n]]
+        return {
+            'n_matching': int(len(idx)),
+            'shown': len(rows),
+            'filters': {'class_name': class_name, 'plane': plane, 'min_counts': min_counts,
+                        'top_two_within': top_two_within},
+            'cells': rows,
+            'cells_are': 'matched on the most probable class; margin is the probability of '
+                         'the assigned class minus the runner up; plane is the centroid Z '
+                         'rounded to the nearest plane; sorted by prob, the first n shown',
+        }
+
+    def metadata(self, key=None):
+        """The metadata table of diagnostics.db: the keys, or one value."""
+        with self._lock:
+            rows = self._con.execute('SELECT key, value FROM metadata').fetchall()
+
+        def parsed(v):
+            try:
+                return json.loads(v)
+            except (TypeError, ValueError):
+                return v
+
+        def kind(v):
+            v = parsed(v)
+            if isinstance(v, list):
+                inner = ' of lists of %d' % len(v[0]) if v and isinstance(v[0], list) else ''
+                return 'list of %d%s' % (len(v), inner)
+            if isinstance(v, dict):
+                return 'dict of %d keys' % len(v)
+            return 'number' if isinstance(v, (int, float)) else 'text'
+
+        if key is None:
+            return {'keys': [{'key': k, 'kind': kind(v)} for k, v in rows],
+                    'note': 'call again with a key for its value. eta_bar, gene_total_spots '
+                            'and hard_misread_counts follow gene_panel; log_prior and '
+                            'class_names go together; mean_gene_reads_per_class and '
+                            'sc_mean_expression are gene by class'}
+        for k, v in rows:
+            if k == key:
+                return {'key': key, 'value': parsed(v)}
+        raise KeyError('no metadata key %r, call metadata() for the list' % key)
 
     def cell_row(self, label):
         """The cellData row of one cell, value for value.

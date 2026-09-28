@@ -115,11 +115,12 @@ def open_run(path: str) -> dict:
 @_tool
 def run_info() -> dict:
     """What produced the open run and how it ended: pciSeq version, commit and its
-    date, when the run was made (run_date), python and package versions, the
-    resolved settings (mrf_beta, rTheta, Inefficiency, nNeighbors, voxel_size and the
-    rest), the number of iterations, and whether the loop converged, with a sentence
-    saying so. Use it for 'when was this run made', 'what settings did it use' and
-    'did it converge'. Older runs carry only the provenance and the answer says so."""
+    date, when the run was made (run_date), python and package versions, the mean
+    cell radius in pixels, the resolved settings (mrf_beta, rTheta, Inefficiency,
+    nNeighbors, voxel_size and the rest), the number of iterations, and whether the
+    loop converged, with a sentence saying so. Use it for 'when was this run made',
+    'what is the mean cell radius', 'what settings did it use' and 'did it converge'.
+    Older runs carry only the provenance and the answer says so."""
     return _need_run().run_info()
 
 
@@ -191,7 +192,7 @@ def spots_in_cell(label: int, gene: Optional[str] = None) -> dict:
 
 
 @_tool
-def spots_of_cell(label: int, min_prob: Optional[float] = None) -> dict:
+def spots_of_cell(label: int, min_prob: Optional[float] = None, gene: Optional[str] = None) -> dict:
     """Which spots belong to a cell, with their probabilities, sorted highest first.
 
     Two definitions, and the answer says which it used. Without min_prob: the spots
@@ -202,9 +203,105 @@ def spots_of_cell(label: int, min_prob: Optional[float] = None) -> dict:
     than the first.
 
     Use this for 'which spots are assigned to cell 18223' or 'list the spots of
-    cell 18223 with their probabilities'.
+    cell 18223 with their probabilities'. With gene, only that gene's spots, so
+    'how many Plp1 spots are assigned to cell 18223' is answered by n_spots.
     """
-    return _need_run().spots_of_cell(label, min_prob=min_prob)
+    return _need_run().spots_of_cell(label, min_prob=min_prob, gene=gene)
+
+
+@_tool
+def gene(name: str) -> dict:
+    """One gene across the run: its efficiency eta and inefficiency, its misread
+    density, how many spots it has and how many were called misreads, its soft
+    counts in cells split by class (soft, and summed over the cells called each
+    class), and the ten cells holding most of it.
+
+    Use it for 'what is the efficiency of Plp1', 'which classes express Plp1 in this
+    run', 'which cells hold most Plp1'. Counts are soft.
+    """
+    return _need_run().gene(name)
+
+
+@_tool
+def theta(label: int) -> dict:
+    """The cell scale factor theta of one cell: the overall value, and theta_bar
+    under each of the top classes with the class probability. Theta scales a
+    class's expected counts to the cell's total, with a Gamma(rTheta, rTheta) prior
+    of mean 1; rTheta is returned too. label is the segmentation label.
+    """
+    return _need_run().theta(label)
+
+
+@_tool
+def gamma(label: int, gene: Optional[str] = None) -> dict:
+    """The cell-gene scale factors gamma_bar of one cell under its assigned class,
+    for every gene or for one, each with the cell's count of the gene. Gamma is the
+    per cell, per gene factor absorbing overdispersion. Only the assigned class is
+    kept in diagnostics.db, and the answer says so. label is the segmentation label.
+    """
+    return _need_run().gamma(label, gene=gene)
+
+
+@_tool
+def spot(spot_id: int) -> dict:
+    """One spot: its gene, position and plane, the cell it was assigned to with the
+    probability, and every candidate cell with its class and probability. Lighter
+    than explain_spot, which gives the terms behind each probability.
+
+    Use it for 'which cell is spot 1642419 in', 'what gene is spot 1642419',
+    'which cells was spot 1642419 scored against'.
+    """
+    return _need_run().spot(spot_id)
+
+
+@_tool
+def neighbours(label: int) -> dict:
+    """The cells whose classes enter the spatial (mrf) term of one cell, nearest
+    first, each with its class and probability and, when the viewer files are
+    present, the centroid distance in xy pixels and the plane offset. mrf_beta is
+    returned too. label is the segmentation label.
+    """
+    return _need_run().neighbours(label)
+
+
+@_tool
+def class_counts(min_counts: Optional[float] = None) -> dict:
+    """How many cells each class has: hard (the number of cells whose most probable
+    class it is) and soft (the class probability summed over the cells). Zero is
+    listed first, the rest by size. min_counts leaves out cells with fewer soft
+    counts in total.
+
+    Use it for 'how many cells per class', 'how many cells are Zero', 'how many CA1
+    cells with more than 40 reads'.
+    """
+    return _need_run().class_counts(min_counts=min_counts)
+
+
+@_tool
+def find_cells(class_name: Optional[str] = None, plane: Optional[int] = None,
+               min_counts: Optional[float] = None, top_two_within: Optional[float] = None,
+               n: int = 50) -> dict:
+    """The cells matching the filters given: assigned class, plane of the centroid,
+    minimum total counts, and top_two_within, the largest gap allowed between the
+    probabilities of the top two classes (small values pick the uncertain cells).
+    Returns the number matching and the first n by probability, each with its class,
+    probability, runner up, margin and total counts.
+
+    Use it for 'which cells are CA2 on plane 40', 'list the uncertain cells', 'the
+    L5 ET cells with over 100 reads'. Labels are segmentation labels.
+    """
+    return _need_run().find_cells(class_name=class_name, plane=plane, min_counts=min_counts,
+                                  top_two_within=top_two_within, n=n)
+
+
+@_tool
+def metadata(key: Optional[str] = None) -> dict:
+    """The metadata table of diagnostics.db. Without a key: every key with the kind
+    of value it holds. With a key: its value, parsed. Covers what has no tool of its
+    own: sc_mean_expression (the reference expression, gene by class), log_prior,
+    rho_bar, hard_misread_counts, gene_total_spots, config, run, label_map.
+    """
+    return _need_run().metadata(key=key)
 
 
 @_tool
