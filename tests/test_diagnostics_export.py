@@ -25,6 +25,7 @@ EXPECTED_METADATA = {
 EXPECTED_CELL_COLUMNS = {
     'internal_label', 'scaled_means', 'theta_bar', 'gene_count', 'class_prob',
     'theta', 'assigned_class_idx', 'gamma_assigned', 'mrf',
+    'gene_loglik', 'runner_up_idx', 'contr_assigned', 'contr_runner_up',
 }
 
 EXPECTED_SPOT_COLUMNS = {
@@ -84,3 +85,30 @@ def test_the_new_blobs_are_not_empty(exported_db):
     assert mrf and len(mrf) > 0
     row = exported_db.execute('select gene_inefficiency, bonus from spots limit 1').fetchone()
     assert row is not None and all(b is not None for b in row)
+
+
+def test_the_saved_class_score_gives_back_the_stored_probabilities(exported_db):
+    """gene_loglik is the run's own gene term, from its last class update, so with
+    the prior and the spatial term it has to give the stored class_prob back through
+    a softmax, for every cell. That is the point of saving it: an explanation read
+    from it is the run's, whatever pciSeq reads the file years later."""
+    from scipy.special import softmax
+    meta = dict(exported_db.execute('select key, value from metadata'))
+    nG, nK = int(meta['nG']), int(meta['nK'])
+    log_prior = np.asarray(json.loads(meta['log_prior']), dtype=np.float32)
+    rows = exported_db.execute(
+        'select class_prob, mrf, gene_loglik, assigned_class_idx, runner_up_idx, '
+        'contr_assigned, contr_runner_up from cells').fetchall()
+    assert rows
+    f32 = lambda b: np.frombuffer(b, dtype=np.float32)
+    for cp, mrf, gl, a, r, ca, cr in rows:
+        cp, mrf, gl, ca, cr = f32(cp), f32(mrf), f32(gl), f32(ca), f32(cr)
+        assert gl.shape == (nK,) and ca.shape == (nG,) and cr.shape == (nG,)
+        np.testing.assert_allclose(softmax(gl + log_prior + mrf), cp, atol=1e-5)
+        # the per gene terms add up to the saved totals
+        assert ca.sum() == pytest.approx(gl[a], rel=1e-4, abs=1e-3)
+        if r >= 0:
+            assert r != a and cp[r] > 0 and cp[r] == np.sort(cp)[-2]
+            assert cr.sum() == pytest.approx(gl[r], rel=1e-4, abs=1e-3)
+        else:
+            assert (np.delete(cp, a) == 0).all()

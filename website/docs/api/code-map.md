@@ -199,8 +199,8 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 | Name | Line | Description |
 |---|---|---|
 | `export_diagnostics` | 14 | Export diagnostics data (check_cell and check_spot) to a single SQLite database. |
-| `export_db_tables` | 298 | Export all database tables to CSV files. |
-| `export_db_table` | 311 | Export single database table to CSV. |
+| `export_db_tables` | 337 | Export all database tables to CSV files. |
+| `export_db_table` | 350 | Export single database table to CSV. |
 
 </details>
 

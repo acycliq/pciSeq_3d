@@ -49,7 +49,11 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             assigned_class_idx INTEGER,
             gamma_assigned BLOB,
             mrf BLOB,
-            neighbours BLOB
+            neighbours BLOB,
+            gene_loglik BLOB,
+            runner_up_idx INTEGER,
+            contr_assigned BLOB,
+            contr_runner_up BLOB
         )
     ''')
 
@@ -224,6 +228,36 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     nbrs = cells.nbrs['indices'] if cells.nbrs is not None else np.zeros((nC, 0))
     nbrs_i32 = np.ascontiguousarray(nbrs, dtype=np.int32)
 
+    # The class score as the run itself computed it, from the last class update
+    # (cells.nb_contr, the per cell, gene and class negative binomial terms). A run
+    # is often opened months or years later by a newer pciSeq; saved here, the
+    # explanation reads the run's own numbers instead of recomputing them with
+    # formulas that may have changed since. gene_loglik + log_prior + mrf gives the
+    # stored class_prob back through a softmax.
+    #   gene_loglik      per cell and class, the sum over genes
+    #   runner_up_idx    the second most probable class, -1 when no other class
+    #                    has any probability at all
+    #   contr_assigned   per gene, for the assigned class
+    #   contr_runner_up  per gene, for the runner up (zeros when there is none)
+    # The per gene terms of the other classes are left out, all of them would be
+    # nC x nG x nK, about 800 MB on espio.
+    nb_contr = getattr(cells, 'nb_contr', None)
+    rows = np.arange(nC)
+    order = np.argsort(-class_prob_f32, axis=1)
+    second = np.where(order[:, 0] == assigned_class_idx, order[:, 1], order[:, 0]) if nK > 1 \
+        else np.full(nC, -1)
+    has_second = (second >= 0) & (class_prob_f32[rows, np.maximum(second, 0)] > 0)
+    runner_up_idx = np.where(has_second, second, -1).astype(np.int32)
+    if nb_contr is not None:
+        gene_loglik_f32 = nb_contr.sum(axis=1).astype(np.float32)                  # (nC, nK)
+        contr_assigned = nb_contr[rows, :, assigned_class_idx].astype(np.float32)   # (nC, nG)
+        contr_runner_up = np.where(has_second[:, None],
+                                   nb_contr[rows, :, np.maximum(second, 0)], 0).astype(np.float32)
+    else:
+        # the run never got to a class update, nothing to save
+        gene_loglik_f32 = np.zeros((nC, nK), dtype=np.float32)
+        contr_assigned = contr_runner_up = np.zeros((nC, nG), dtype=np.float32)
+
     batch_size = 10000
     for batch_start in range(0, nC, batch_size):
         batch_end = min(batch_start + batch_size, nC)
@@ -240,8 +274,13 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                 gamma_assigned[c].tobytes(),
                 mrf_f32[c].tobytes(),
                 nbrs_i32[c].tobytes(),
+                gene_loglik_f32[c].tobytes(),
+                int(runner_up_idx[c]),
+                contr_assigned[c].tobytes(),
+                contr_runner_up[c].tobytes(),
             ))
-        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', batch_data)
+        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                           batch_data)
         # if (batch_end % 10000 == 0) or (batch_end == nC):
         #     logger.info('Inserted %d/%d cells', batch_end, nC)
 
