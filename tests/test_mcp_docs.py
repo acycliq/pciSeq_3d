@@ -15,8 +15,9 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 
 
 def test_docs_root_is_the_repo_checkout_here():
-    """In a checkout there is no packed copy, setup.py only packs when run as
-    __main__ by a real build, so the root is website/docs."""
+    """In a checkout the root is the live website/docs, even when a packed copy is
+    there too: pip install -e runs setup.py and packs one, and reading it would
+    freeze the docs at the day of the install."""
     root = docs.docs_root()
     assert root is not None
     assert root.name == 'docs' and (root / 'index.md').is_file()

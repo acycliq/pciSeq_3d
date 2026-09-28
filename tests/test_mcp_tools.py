@@ -607,6 +607,24 @@ def test_explain_spot_gives_the_plane_on_an_anisotropic_3d_run(rng, tmp_path):
         assert pos['plane'] == gd.loc[sid, 'plane_id'], sid
         assert pos['z'] == int(gd.loc[sid, 'z'])
 
+    # the same cells on all three planes, so every centroid sits at plane 1 (z = 4
+    # scaled). find_cells(plane) has to compare planes, not the scaled z
+    assert run.find_cells(plane=1)['n_matching'] == 16
+    assert run.find_cells(plane=0)['n_matching'] == 0
+    assert run.find_cells(plane=4)['n_matching'] == 0
+
+
+def test_plane_is_the_floor_like_the_spots_plane_id():
+    """A centroid between two planes belongs to the lower one, as pciSeq gives a spot
+    its plane_id and the viewer its Centroid Plane. Cell 2413 on espio is at plane
+    21.56, the viewer says 21; the tools said 22 while they rounded."""
+    from pciSeq.src.mcp.tools import Run
+    r = Run.__new__(Run)
+    r.config = {'voxel_size': [0.28, 0.28, 0.7]}
+    assert r._plane_of(53.91) == 21
+    # exactly on a plane, even when the ratio is not exact in floating point
+    assert all(r._plane_of(p * 0.7 / 0.28) == p for p in range(90))
+
 
 def test_narrative_says_when_a_gene_counts_by_absence():
     """Cell 16609 on espio: Pcp4 is the second strongest gene for CA3 with 0.00002

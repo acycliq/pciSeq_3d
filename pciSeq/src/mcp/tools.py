@@ -267,11 +267,18 @@ class Run:
         return None
 
     def _plane_of(self, z):
-        """The plane index a scaled z belongs to, or None without voxel_size."""
+        """The plane index a scaled z belongs to, or None without voxel_size.
+
+        Floor, not round: plane p is the stretch from p up to p + 1, the same as
+        pciSeq gives a spot its plane_id (spot_processing.py) and the viewer its
+        'Centroid Plane'. So a cell centroid at plane 21.56 is on plane 21. The tiny
+        tolerance keeps a spot sitting exactly on a plane from landing one below
+        when z / ratio comes out as 56.99999 in floating point.
+        """
         if not self.config or not self.config.get('voxel_size'):
             return None
         vx, _, vz = self.config['voxel_size']
-        return int(round(z * vx / vz))
+        return int(np.floor(z * vx / vz + 1e-4))
 
     def cell(self, label):
         """The headline facts about one cell."""
@@ -834,8 +841,14 @@ class Run:
             if pos is None:
                 raise NotImplementedError('the viewer files are not in this run, so the '
                                           'cells have no positions to filter by plane')
-            z = np.array([pos.get(lab, (0, 0, np.nan))[2] for lab in labels])
-            mask &= np.round(z) == plane
+            if self._plane_of(0.0) is None:
+                raise NotImplementedError('this run does not record its voxel size, so a '
+                                          'centroid cannot be put on a plane; rerun with the '
+                                          'current pciSeq to record it')
+            # Z in the viewer files is the anisotropy scaled z, not a plane index
+            planes = np.array([self._plane_of(pos[lab][2]) if lab in pos else -1
+                               for lab in labels])
+            mask &= planes == int(plane)
         idx = np.where(mask)[0]
         idx = idx[np.argsort(-top2[idx, 0])]
         runner = np.argsort(-scan['class_prob'], axis=1)[:, 1]
@@ -853,8 +866,9 @@ class Run:
                         'top_two_within': top_two_within},
             'cells': rows,
             'cells_are': 'matched on the most probable class; margin is the probability of '
-                         'the assigned class minus the runner up; plane is the centroid Z '
-                         'rounded to the nearest plane; sorted by prob, the first n shown',
+                         'the assigned class minus the runner up; plane is the plane the '
+                         'centroid falls on, rounded down as for the spots; sorted by prob, '
+                         'the first n shown',
         }
 
     def metadata(self, key=None):
@@ -1300,7 +1314,8 @@ class Run:
             'picture': picture,
             'plane': plane,
             'plane_is': why,
-            'planes_with_an_outline': [min(area), max(area)],
+            # in words: as a list [12, 34] a model read it as 'planes 12 and 34'
+            'outline_on_planes': '%d to %d' % (min(area), max(area)),
             'cell_has_outline_on_this_plane': outline is not None,
             'centroid_xy': [float(cx), float(cy)],
             'bbox': [round(float(v), 1) for v in box],

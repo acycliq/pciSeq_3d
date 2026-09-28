@@ -17,14 +17,20 @@ _SKIP = ('node_modules', '.vitepress', '_tables')
 
 
 def docs_root():
-    """The folder holding the markdown pages, or None when there is none."""
-    packed = HERE / '_docs'
-    if (packed / 'index.md').is_file():
-        return packed
+    """The folder holding the markdown pages, or None when there is none.
+
+    The live website/docs of a checkout first, the copy setup.py packs into _docs
+    only when there is no checkout above (a pip install). The other way round, an
+    editable install (pip install -e, which also runs the packing) would read the
+    docs as they were on the day of the install, and never see an edit after it.
+    """
     for parent in HERE.parents:
         cand = parent / 'website' / 'docs'
         if (cand / 'index.md').is_file():
             return cand
+    packed = HERE / '_docs'
+    if (packed / 'index.md').is_file():
+        return packed
     return None
 
 
