@@ -473,39 +473,55 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 </details>
 
 <details>
+<summary><code>mcp/registry.py</code> Where the pciSeq viewer finds the MCP server: a small registry file.</summary>
+
+| Name | Line | Description |
+|---|---|---|
+| `registry_path` | 27 | The registry file for this user, on this OS. |
+| `_read` | 38 |  |
+| `_write` | 45 |  |
+| `this_entry` | 52 | How to start the server from the python running now. |
+| `register` | 73 | Add or refresh the entry for this python. Returns the entry. |
+| `unregister` | 84 | Remove the entry for this python (or the one given). True if there was one. |
+| `list_entries` | 95 | Every registered entry, each with 'exists': whether its python is still there. |
+
+</details>
+
+<details>
 <summary><code>mcp/server.py</code> The MCP server: the tools in tools.py, exposed over the protocol.</summary>
 
 | Name | Line | Description |
 |---|---|---|
-| `_need_run` | 112 |  |
-| `_tool` | 126 |  |
-| `open_run` | 139 | Open a finished pciSeq run so the other tools can answer questions about it. |
-| `run_info` | 153 | What produced the open run and how it ended: pciSeq version, commit and its |
-| `cell` | 165 | The headline facts about one cell: its class probabilities, its top genes, its |
-| `explain_cell` | 176 | Why a cell was given its class, gene by gene. |
-| `explain_spot` | 201 | Why a spot was assigned to the cell it was, term by term. |
-| `cell_counts` | 218 | How many reads a cell holds, in total or for one gene. |
-| `spots_in_cell` | 229 | How many spots physically sit inside a cell's segmentation mask. |
-| `spots_of_cell` | 241 | Which spots belong to a cell, with their probabilities, sorted highest first. |
-| `gene` | 259 | One gene across the run: its efficiency eta and inefficiency, its misread |
-| `theta` | 272 | The cell scale factor theta of one cell: the overall value, and theta_bar |
-| `gamma` | 282 | The cell-gene scale factors gamma_bar of one cell under its assigned class, |
-| `spot` | 292 | One spot: its gene, position and plane, the cell it was assigned to with the |
-| `neighbours` | 304 | The cells whose classes enter the spatial (mrf) term of one cell, nearest |
-| `class_counts` | 314 | How many cells each class has: hard (the number of cells whose most probable |
-| `find_cells` | 327 | The cells matching the filters given: assigned class, plane of the centroid, |
-| `metadata` | 344 | The metadata table of diagnostics.db. Without a key: every key with the kind |
-| `cell_row` | 354 | The cellData.tsv row of one cell, value for value: Cell_Num, X, Y, Z, |
-| `spot_row` | 362 | The geneData.tsv row of one spot, value for value: gene, position, plane, |
-| `cell_image` | 370 | A picture of a cell on the background image (DAPI or another stain), for 'show |
-| `plane_image` | 412 | The background image (DAPI or another stain) of one plane with nothing drawn |
-| `_picture` | 442 | What an image tool hands back: the png itself, so the agent can look at it, |
-| `docs` | 455 | Search the pciSeq documentation. Returns the paragraphs that match the query |
-| `calculate` | 474 | Do arithmetic instead of doing it in your head. |
-| `docs_index` | 491 |  |
-| `_page_reader` | 502 |  |
-| `_register_pages` | 510 |  |
-| `main` | 521 |  |
+| `_version` | 106 |  |
+| `_need_run` | 119 |  |
+| `_tool` | 133 |  |
+| `open_run` | 146 | Open a finished pciSeq run so the other tools can answer questions about it. |
+| `run_info` | 160 | What produced the open run and how it ended: pciSeq version, commit and its |
+| `cell` | 172 | The headline facts about one cell: its class probabilities, its top genes, its |
+| `explain_cell` | 183 | Why a cell was given its class, gene by gene. |
+| `explain_spot` | 208 | Why a spot was assigned to the cell it was, term by term. |
+| `cell_counts` | 225 | How many reads a cell holds, in total or for one gene. |
+| `spots_in_cell` | 236 | How many spots physically sit inside a cell's segmentation mask. |
+| `spots_of_cell` | 248 | Which spots belong to a cell, with their probabilities, sorted highest first. |
+| `gene` | 266 | One gene across the run: its efficiency eta and inefficiency, its misread |
+| `theta` | 279 | The cell scale factor theta of one cell: the overall value, and theta_bar |
+| `gamma` | 289 | The cell-gene scale factors gamma_bar of one cell under its assigned class, |
+| `spot` | 299 | One spot: its gene, position and plane, the cell it was assigned to with the |
+| `neighbours` | 311 | The cells whose classes enter the spatial (mrf) term of one cell, nearest |
+| `class_counts` | 321 | How many cells each class has: hard (the number of cells whose most probable |
+| `find_cells` | 334 | The cells matching the filters given: assigned class, plane of the centroid, |
+| `metadata` | 351 | The metadata table of diagnostics.db. Without a key: every key with the kind |
+| `cell_row` | 361 | The cellData.tsv row of one cell, value for value: Cell_Num, X, Y, Z, |
+| `spot_row` | 369 | The geneData.tsv row of one spot, value for value: gene, position, plane, |
+| `cell_image` | 377 | A picture of a cell on the background image (DAPI or another stain), for 'show |
+| `plane_image` | 419 | The background image (DAPI or another stain) of one plane with nothing drawn |
+| `_picture` | 449 | What an image tool hands back: the png itself, so the agent can look at it, |
+| `docs` | 462 | Search the pciSeq documentation. Returns the paragraphs that match the query |
+| `calculate` | 481 | Do arithmetic instead of doing it in your head. |
+| `docs_index` | 498 |  |
+| `_page_reader` | 509 |  |
+| `_register_pages` | 517 |  |
+| `main` | 528 | Run the server over stdio, which is what every MCP client does. With |
 
 </details>
 

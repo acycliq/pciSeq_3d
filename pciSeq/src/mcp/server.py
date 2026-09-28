@@ -103,7 +103,14 @@ INSTRUCTIONS = '\n'.join([
     'never present it as a finding of this run.',
 ])
 
-server = MCPServer(name='pciSeq', instructions=INSTRUCTIONS)
+def _version():
+    # the pciSeq version and commit, eg '0.0.66.dev0+9992e76d', so a client such as
+    # the viewer can show which pciSeq it is talking to
+    import pciSeq
+    return '%s+%s' % (pciSeq.__version__, pciSeq.__commit__)
+
+
+server = MCPServer(name='pciSeq', version=_version(), instructions=INSTRUCTIONS)
 
 # the run the tools are answering about. One at a time, set by open_run.
 _run: Optional[Run] = None
@@ -518,8 +525,39 @@ def _register_pages():
 _register_pages()
 
 
-def main() -> None:
-    server.run(transport='stdio')
+def main(argv=None) -> None:
+    """Run the server over stdio, which is what every MCP client does. With
+    --register, --unregister or --list it manages the registry the pciSeq viewer
+    reads instead, see registry.py."""
+    import argparse
+    from . import registry
+    p = argparse.ArgumentParser(prog='pciseq-mcp', description=(
+        'The pciSeq MCP server. With no options it runs over stdio for an MCP client. '
+        'Run it once with --register inside the environment that has pciSeq_3d[mcp], '
+        'so the pciSeq viewer can find it.'))
+    g = p.add_mutually_exclusive_group()
+    g.add_argument('--register', action='store_true',
+                   help='tell the pciSeq viewer how to start the server from this python')
+    g.add_argument('--unregister', action='store_true', help='remove this python from the list')
+    g.add_argument('--list', action='store_true', help='show what is registered')
+    p.add_argument('--name', help='a name to show in the viewer, the env name by default')
+    a = p.parse_args(argv)
+
+    if a.register:
+        e = registry.register(a.name)
+        print('registered "%s": %s, pciSeq %s (%s)\nin %s\nThe pciSeq viewer will list it '
+              'on the Connection tab of its chat.'
+              % (e['name'], e['python'], e['pciseq_version'], e['commit'], registry.registry_path()))
+    elif a.unregister:
+        print('removed' if registry.unregister() else 'this python was not registered')
+    elif a.list:
+        entries = registry.list_entries()
+        print('%s\n' % registry.registry_path() + ('\n'.join(
+            '%s  %s  pciSeq %s (%s)%s' % (e['name'], e['python'], e['pciseq_version'],
+                                          e['commit'], '' if e['exists'] else '  MISSING')
+            for e in entries) or 'nothing registered'))
+    else:
+        server.run(transport='stdio')
 
 
 if __name__ == '__main__':
