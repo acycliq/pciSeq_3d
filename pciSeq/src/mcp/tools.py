@@ -323,6 +323,15 @@ class Run:
         if vs_class is None:
             order = np.argsort(-c['class_prob'])
             other = int(order[1] if order[0] == assigned else order[0])
+            # the runner up is the second best class however small, but when no other
+            # class has any probability at all there is none: argsort would just hand
+            # back the first class of the list and the story would call it 'the
+            # closest alternative'. Ask instead, the same rule as the viewer's chat.
+            if len(order) < 2 or not c['class_prob'][other] > 0:
+                raise ValueError('cell %s is %s and no other class has any probability, so '
+                                 'there is no runner up to compare against. Ask the user '
+                                 'which class to compare against and call again with '
+                                 'vs_class' % (label, self.class_names[assigned]))
         else:
             hit = np.where(self.class_names == vs_class)[0]
             if not len(hit):

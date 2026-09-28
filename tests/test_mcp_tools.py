@@ -94,6 +94,28 @@ def test_shared_genes_are_big_counts_that_do_not_separate_the_classes(fitted):
         assert 'finalists' in e['shared_genes_are']
 
 
+def test_no_runner_up_asks_for_a_class_rather_than_picking_one(fitted, monkeypatch):
+    """A cell whose class holds all the probability has no runner up. argsort would
+    return the first class of the list and the story would call it the closest
+    alternative; the tool asks instead. Seen on espio cells 2632 and 24454."""
+    run, _, _ = fitted
+    real = run._cell
+
+    def one_hot(label):
+        c = dict(real(label))
+        p = np.zeros_like(c['class_prob'])
+        p[c['assigned_class_idx']] = 1.0
+        c['class_prob'] = p
+        return c
+
+    monkeypatch.setattr(run, '_cell', one_hot)
+    with pytest.raises(ValueError, match='no runner up'):
+        run.explain_cell(101)
+    # naming a class still works
+    other = [k for k in run.class_names if k != run.cell(101)['classes'][0]['class']][0]
+    assert run.explain_cell(101, vs_class=other)['compared_with'] == other
+
+
 def test_explain_cell_against_a_named_class(fitted):
     run, _, _ = fitted
     e = run.explain_cell(101)
