@@ -39,7 +39,7 @@ except ModuleNotFoundError as e:  # pragma: no cover
     ) from e
 
 from . import docs as _docs
-from .tools import Run, open_run as _open
+from .tools import Run, calculate as _calculate, open_run as _open
 
 # How the agent should talk. This is the one home of it: the viewer's chat takes it
 # from the server when it connects and adds only what is about its own screen (flying
@@ -73,9 +73,11 @@ INSTRUCTIONS = '\n'.join([
     'cells this run called that class, weighted by class probability. Never present',
     'it as a property of the class or a typical cell, and never say "carries" or',
     '"holds" without saying it is that average. Quote numbers as the tools return',
-    'them and never do arithmetic on them yourself, not even adding a few up: the',
-    'totals of the two gene lists are sum_favouring_assigned and',
-    'sum_favouring_compared, and if a total is not in the output, say so. A',
+    'them. Never do arithmetic in your head, not even adding a few up: the totals of',
+    'the two gene lists are sum_favouring_assigned and sum_favouring_compared, and',
+    'for any other number the tools do not give, use calculate. Never make up a new',
+    'quantity the tools do not define, such as a ratio of two sums: one sum of',
+    'log-likelihood differences divided by another is not odds and means nothing. A',
     'log-likelihood difference is not odds: the odds are e to that difference, and',
     'the narrative already gives them in words, so never call a raw difference odds.',
     'Do not use units such as nats; say odds, or a word. explain_cell and',
@@ -447,6 +449,21 @@ def docs(query: Annotated[str, Field(
         h['resource'] = 'pciseq-docs://' + h['page']
     return {'query': query, 'hits': hits,
             'note': 'no docs pages found on this machine' if _docs.docs_root() is None else ''}
+
+
+@_tool
+def calculate(expression: Annotated[str, Field(
+        description='Arithmetic, for example "15.29 + 9.8 + 3.1" or "exp(3.2)".')]) -> dict:
+    """Do arithmetic instead of doing it in your head.
+
+    Numbers, + - * / ** and brackets, and exp, log (natural), log10, sqrt, abs and
+    round. Use it for a number the tools do not give, for example adding up a few
+    gene differences, or exp(d) to turn a log-likelihood difference d into odds.
+    Quote the result as calculate returned it. It makes a sum right, not meaningful:
+    never use it to build a quantity the tools do not define, such as a ratio of two
+    sums of log-likelihood differences, which is not odds.
+    """
+    return _calculate(expression)
 
 
 @server.resource('pciseq-docs://index', name='pciSeq documentation index',

@@ -22,7 +22,14 @@ from tests.test_label_identifiers import _run
 TOOLS = {'open_run', 'cell', 'explain_cell', 'explain_spot', 'cell_counts', 'spots_in_cell',
          'spots_of_cell', 'cell_row', 'spot_row', 'docs', 'run_info', 'cell_image',
          'plane_image', 'gene', 'theta', 'gamma', 'spot', 'neighbours', 'class_counts',
-         'find_cells', 'metadata'}
+         'find_cells', 'metadata', 'calculate'}
+
+
+def test_calculate_answers_and_refusals_reach_the_agent():
+    """calculate needs no run, and when it refuses the agent must see why."""
+    assert call('calculate', expression='15.29 + 9.8')['result'] == pytest.approx(25.09)
+    msg = error_of('calculate', expression='__import__("os")')
+    assert 'only numbers' in msg
 
 
 def call(name, **args):

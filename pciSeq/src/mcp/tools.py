@@ -25,8 +25,11 @@ and gives the full float32, so use that when the small numbers matter. Note also
 cellData truncates and geneData rounds, summary.py:31 against summary.py:102, so the
 last digit of the two files is not arrived at the same way.
 """
+import ast
 import json
 import logging
+import math
+import operator
 import sqlite3
 import threading
 from pathlib import Path
@@ -1691,6 +1694,64 @@ def _mbtiles_meta(mbtiles):
     else:
         planes = list(range(int(meta.get('plane_count', 1))))
     return int(meta['width']), int(meta['height']), planes
+
+
+# ------------------------------------------------------------- arithmetic
+
+# calculate() walks the parsed expression itself and only knows these. Never eval:
+# an expression is text from the model, and eval would run anything.
+_CALC_FUNCS = {'exp': math.exp, 'log': math.log, 'log10': math.log10,
+               'sqrt': math.sqrt, 'abs': abs, 'round': round}
+_CALC_BINOPS = {ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
+                ast.Div: operator.truediv, ast.Pow: operator.pow}
+_CALC_MAX_LEN = 500       # characters, a sum of a few dozen numbers fits easily
+_CALC_MAX_POWER = 1000    # |exponent|, so 10**10**10 cannot run the machine out
+
+
+def calculate(expression):
+    """Arithmetic for the agent, so it does not have to do it in its head.
+
+    Numbers, + - * / ** and brackets, and exp, log (natural), log10, sqrt, abs and
+    round. For example '15.29 + 9.8 + 3.1' to add up some gene differences, or
+    'exp(3.2)' to turn a log-likelihood difference into odds. Anything else, a
+    name, an attribute, a keyword argument, is refused with a message saying so.
+    """
+    text = str(expression)
+    if len(text) > _CALC_MAX_LEN:
+        raise ValueError('expression longer than %d characters' % _CALC_MAX_LEN)
+    try:
+        tree = ast.parse(text, mode='eval')
+    except SyntaxError:
+        raise ValueError('cannot read %r as arithmetic' % text)
+    try:
+        result = _calc(tree.body)
+    except (OverflowError, ZeroDivisionError) as e:
+        raise ValueError('%s: %s' % (text, e))
+    except ValueError as e:
+        # math domain errors, log(0) and the like, come here too
+        raise ValueError('%s: %s' % (text, e))
+    return {'expression': text, 'result': result}
+
+
+def _calc(node):
+    if isinstance(node, ast.Constant) and type(node.value) in (int, float):
+        return node.value
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        v = _calc(node.operand)
+        return -v if isinstance(node.op, ast.USub) else v
+    if isinstance(node, ast.BinOp) and type(node.op) in _CALC_BINOPS:
+        a, b = _calc(node.left), _calc(node.right)
+        if isinstance(node.op, ast.Pow):
+            if abs(b) > _CALC_MAX_POWER:
+                raise ValueError('exponent larger than %d' % _CALC_MAX_POWER)
+            # in floats, so an integer power cannot grow a number with a million digits
+            return math.pow(a, b)
+        return _CALC_BINOPS[type(node.op)](a, b)
+    if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+            and node.func.id in _CALC_FUNCS and not node.keywords):
+        return _CALC_FUNCS[node.func.id](*[_calc(x) for x in node.args])
+    raise ValueError('only numbers, + - * / ** and %s are allowed, not %s'
+                     % (', '.join(_CALC_FUNCS), ast.dump(node)[:60]))
 
 
 def _polygon_area(xs, ys):

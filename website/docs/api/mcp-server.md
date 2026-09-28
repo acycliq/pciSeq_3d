@@ -113,6 +113,10 @@ not appear; see [Cell identifiers](./working-with-results.md#cell-identifiers).
 - `cell_image(label, context=False, plane=None, width=1200, channel=None, neighbours=False, save_as=None, mbtiles=None)`: a rendering of the cell on the tissue image, stitched from the viewer's `.mbtiles`: a close-up with the cell outlined in red and the other cells of the plane in blue, or with `context=True` the whole plane with the cell marked. `neighbours=True` outlines only the cells that enter the spatial term. `save_as` writes the PNG to a file.
 - `plane_image(plane=None, bbox=None, width=1200, channel=None, save_as=None, mbtiles=None)`: the tissue image of one plane, whole or restricted to `bbox` in image pixels. The plane defaults to the middle of the stack. When the run has several background images, `channel` selects one by name; without it the tool lists them.
 
+### Arithmetic
+
+- `calculate(expression)`: evaluates an arithmetic expression: numbers, `+ - * / **`, brackets, and `exp`, `log`, `log10`, `sqrt`, `abs` and `round`. Anything else is refused. The agent is instructed to use it rather than compute in its reply, and not to use it to form quantities the other tools do not define.
+
 ### Documentation
 
 - `docs(query, n=5)`: the paragraphs of this documentation matching a keyword query, each with its page and heading.
