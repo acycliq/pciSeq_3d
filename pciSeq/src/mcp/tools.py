@@ -298,9 +298,11 @@ class Run:
     def cell(self, label):
         """The headline facts about one cell."""
         c = self._cell(label)
-        order = np.argsort(-c['class_prob'])
+        # stable: probabilities tie at exactly 0 and 1 in float32, and an unstable
+        # sort would list the tied ones in an arbitrary order
+        order = np.argsort(-c['class_prob'], kind='stable')
         counts = c['gene_count']
-        top_genes = np.argsort(-counts)[:10]
+        top_genes = np.argsort(-counts, kind='stable')[:10]
         return {
             'cell': int(label),
             'total_counts': float(counts.sum()),
@@ -509,7 +511,7 @@ class Run:
                 raise ValueError('no gene %r in the panel' % gene)
             return {'cell': int(label), 'gene': gene,
                     'counts': float(counts[hit[0]]), 'counts_are': note}
-        order = np.argsort(-counts)
+        order = np.argsort(-counts, kind='stable')
         return {
             'cell': int(label),
             'total_counts': float(counts.sum()),
@@ -667,8 +669,8 @@ class Run:
         col = scan['gene_count'][:, g]
         soft_per_class = scan['class_prob'].T @ col
         hard_per_class = np.bincount(scan['assigned'], weights=col, minlength=self.nK)
-        order = np.argsort(-soft_per_class)
-        top = np.argsort(-col)[:10]
+        order = np.argsort(-soft_per_class, kind='stable')
+        top = np.argsort(-col, kind='stable')[:10]
         totals = self._meta('gene_total_spots', parse=True, default=None)
         misread = self._meta('hard_misread_counts', parse=True, default=None)
         return {
@@ -703,7 +705,7 @@ class Run:
     def theta(self, label):
         """The cell scale factor of one cell, overall and under each class."""
         c = self._cell(label)
-        order = np.argsort(-c['class_prob'])
+        order = np.argsort(-c['class_prob'], kind='stable')
         return {
             'cell': int(label),
             'theta': c['theta'],
@@ -865,7 +867,7 @@ class Run:
                                for lab in labels])
             mask &= planes == int(plane)
         idx = np.where(mask)[0]
-        idx = idx[np.argsort(-top2[idx, 0])]
+        idx = idx[np.argsort(-top2[idx, 0], kind='stable')]
         runner = np.argsort(-scan['class_prob'], axis=1)[:, 1]
         rows = [{'cell': labels[i],
                  'class': str(self.class_names[scan['assigned'][i]]),
