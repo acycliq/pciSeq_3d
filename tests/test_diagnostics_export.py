@@ -27,6 +27,7 @@ EXPECTED_CELL_COLUMNS = {
     'internal_label', 'scaled_means', 'theta_bar', 'gene_count', 'class_prob',
     'theta', 'assigned_class_idx', 'gamma_assigned', 'mrf',
     'gene_loglik', 'runner_up_idx', 'contr_assigned', 'contr_runner_up',
+    'x', 'y', 'z',
 }
 
 EXPECTED_SPOT_COLUMNS = {
@@ -132,3 +133,15 @@ def test_the_format_version_is_1_and_a_future_file_is_refused(exported_db, tmp_p
     con.commit(); con.close()
     with pytest.raises(NotImplementedError, match='format version 2'):
         open_run(tmp_path)
+
+
+def test_the_centroids_land_in_the_cells_table(exported_db, minimal_varbayes):
+    """x, y and the scaled z per cell, so a reader places cells from this file
+    alone, without the viewer's arrow files."""
+    want = minimal_varbayes.cells.centroid
+    got = exported_db.execute(
+        'select internal_label, x, y, z from cells order by internal_label').fetchall()
+    assert len(got) == len(want)
+    for i, x, y, z in got[1:]:          # row 0 is the background dummy
+        assert x == pytest.approx(want['x'].iloc[i]) and y == pytest.approx(want['y'].iloc[i])
+        assert z == pytest.approx(want['z'].iloc[i])

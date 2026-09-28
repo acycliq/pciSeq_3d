@@ -50,6 +50,9 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             gamma_assigned BLOB,
             mrf BLOB,
             neighbours BLOB,
+            x REAL,
+            y REAL,
+            z REAL,
             gene_loglik BLOB,
             runner_up_idx INTEGER,
             contr_assigned BLOB,
@@ -235,6 +238,13 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     nbrs = cells.nbrs['indices'] if cells.nbrs is not None else np.zeros((nC, 0))
     nbrs_i32 = np.ascontiguousarray(nbrs, dtype=np.int32)
 
+    # the centroid, in image pixels for x and y and the anisotropy scaled z the
+    # model works in, so a tool can place a cell (and its plane) from this file
+    # alone. Row 0 is the background dummy at -sys.maxsize, stored as it is.
+    cx = cells.centroid['x'].to_numpy(dtype=np.float64)
+    cy = cells.centroid['y'].to_numpy(dtype=np.float64)
+    cz = cells.centroid['z'].to_numpy(dtype=np.float64)
+
     # The class score as the run itself computed it, from the last class update
     # (cells.nb_contr, the per cell, gene and class negative binomial terms). A run
     # is often opened months or years later by a newer pciSeq; saved here, the
@@ -281,12 +291,13 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
                 gamma_assigned[c].tobytes(),
                 mrf_f32[c].tobytes(),
                 nbrs_i32[c].tobytes(),
+                float(cx[c]), float(cy[c]), float(cz[c]),
                 gene_loglik_f32[c].tobytes(),
                 int(runner_up_idx[c]),
                 contr_assigned[c].tobytes(),
                 contr_runner_up[c].tobytes(),
             ))
-        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        cursor.executemany('INSERT INTO cells VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                            batch_data)
         # if (batch_end % 10000 == 0) or (batch_end == nC):
         #     logger.info('Inserted %d/%d cells', batch_end, nC)
