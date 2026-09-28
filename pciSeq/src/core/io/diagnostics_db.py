@@ -141,6 +141,13 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         nN = neighbor_ids.shape[1]
 
     meta_items = [
+        # The format of this file. A run is often opened months or years after the
+        # fit, so from version 1 on the promise is: columns and keys are only ever
+        # ADDED, never renamed, removed or given a new meaning. A reader written for
+        # version 1 then reads every later file. Bump the number only when that
+        # promise has to be broken, and expect readers to refuse what they do not
+        # know. Runs from before this key are pre-1 and unsupported: regenerate.
+        ('format_version', '1'),
         # Cell-related
         ('nC', str(nC)),
         ('nG', str(nG)),

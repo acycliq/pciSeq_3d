@@ -15,6 +15,7 @@ import pytest
 from pciSeq.src.core.io import export_diagnostics
 
 EXPECTED_METADATA = {
+    'format_version',
     'nC', 'nG', 'nK', 'rSpot', 'SpotReg', 'class_names', 'eta_bar',
     'mean_gene_reads_per_class', 'sc_mean_expression', 'log_prior',
     'nS', 'nN', 'misread_density', 'rho_bar', 'log_rho_bar',
@@ -112,3 +113,22 @@ def test_the_saved_class_score_gives_back_the_stored_probabilities(exported_db):
             assert cr.sum() == pytest.approx(gl[r], rel=1e-4, abs=1e-3)
         else:
             assert (np.delete(cp, a) == 0).all()
+
+
+def test_the_format_version_is_1_and_a_future_file_is_refused(exported_db, tmp_path):
+    """From version 1 the promise is add-only, so a reader can trust any file at or
+    below its own version and must refuse one from above, rather than guess."""
+    (v,) = exported_db.execute("select value from metadata where key='format_version'").fetchone()
+    assert v == '1'
+    from pciSeq.src.mcp.tools import open_run
+    run = open_run(tmp_path)
+    assert run.summary()['format_version'] == 1
+    assert run.run_info()['format_version'] == 1
+    # a file written by a future pciSeq that had to break the promise
+    import sqlite3 as sq
+    db = tmp_path / 'diagnostics' / 'diagnostics.db'
+    con = sq.connect(db)
+    con.execute("update metadata set value='2' where key='format_version'")
+    con.commit(); con.close()
+    with pytest.raises(NotImplementedError, match='format version 2'):
+        open_run(tmp_path)

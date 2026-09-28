@@ -109,6 +109,17 @@ class Run:
 
         # the resolved settings and the convergence record. Runs written before
         # September 2026 have neither; the tools say so rather than guess.
+        # The file's format version. 0 means a run from before the key existed
+        # (pre-1, to be refused once the old-run grace period ends, see cz1.9.1);
+        # bigger than 1 means a future pciSeq broke the only-add promise, and
+        # guessing at such a file risks quietly wrong answers, so refuse.
+        self.format_version = int(self._meta('format_version', default='0'))
+        if self.format_version > 1:
+            raise NotImplementedError(
+                'this run has diagnostics.db format version %d, and this pciSeq only '
+                'knows version 1. Read it with the pciSeq that made it, or newer.'
+                % self.format_version)
+
         self.config = self._meta('config', parse=True, default=None)
         self.run_record = self._meta('run', parse=True, default=None)
 
@@ -187,6 +198,7 @@ class Run:
         prov = self._meta('pciSeq_provenance', parse=True, default={})
         return {
             'path': str(self.path),
+            'format_version': self.format_version,
             'cells': self.nC - 1,          # row 0 is the background
             'spots': self.nS,
             'genes': self.nG,
@@ -211,6 +223,7 @@ class Run:
         prov = self._meta('pciSeq_provenance', parse=True, default={})
         out = {
             'path': str(self.path),
+            'format_version': self.format_version,
             'pciSeq_version': prov.get('version'),
             'commit': prov.get('commit'),
             'commit_date': prov.get('commit_date'),
@@ -235,7 +248,9 @@ class Run:
         out['settings'] = cfg
         out['is3D'] = cfg.get('is3D')
         out['voxel_size'] = cfg.get('voxel_size')
-        if self.run_record:
+        # iterations is None when the run was exported without the loop ever
+        # finishing an iteration; there is no convergence story to tell then
+        if self.run_record and self.run_record.get('iterations') is not None:
             out['iterations'] = self.run_record['iterations']
             out['converged'] = self.run_record['converged']
             delta = self.run_record.get('delta') or []
