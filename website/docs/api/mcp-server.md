@@ -167,16 +167,16 @@ and its `narrative`:
 
 > Cell 2413 was called 048 RHP-COA Ndnf Gaba, with probability 1.00. The closest
 > alternative was 047 Sncg Gaba, at less than 0.01. pciSeq decides a cell's class from
-> three things: how well its gene counts match what each class typically expresses (the
-> gene log-likelihood), how common each class is to begin with (the prior), and what the
-> neighbouring cells were called (the spatial term). The class that comes out best
-> overall wins. The genes point to 048 RHP-COA Ndnf Gaba, overwhelmingly, beyond any
-> doubt. The strongest evidence comes from Ndnf, Rgs5 and Ttr: the cell holds these in
-> the amounts a 048 RHP-COA Ndnf Gaba cell typically does and a 047 Sncg Gaba cell does
-> not. A few genes, Npy, Kit and Rgs10, look more like 047 Sncg Gaba, but they are
-> outweighed. The prior treats the two classes alike. The neighbouring cells are mostly
-> 048 RHP-COA Ndnf Gaba, which strengthens the call. So the genes settled it, and the
-> neighbourhood agreed.
+> three things: how well its gene counts match what each class expresses according to
+> the cell type definitions (the gene log-likelihood), how common each class is to begin
+> with (the prior), and what the neighbouring cells were called (the spatial term). The
+> class that comes out best overall wins. The genes point to 048 RHP-COA Ndnf Gaba,
+> overwhelmingly, beyond any doubt. The strongest evidence comes from Ndnf, Rgs5 and
+> Ttr: the cell holds these in amounts that fit what the cell type definitions give for
+> a 048 RHP-COA Ndnf Gaba cell, and not for a 047 Sncg Gaba cell. A few genes, Npy, Kit
+> and Rgs10, look more like 047 Sncg Gaba, but they are outweighed. The prior treats the
+> two classes alike. The neighbouring cells are mostly 048 RHP-COA Ndnf Gaba, which
+> strengthens the call. So the genes settled it, and the neighbourhood agreed.
 
 When the spatial term decides against the genes, the narrative states it. Cell 4308 is
 assigned `022 L5 ET CTX Glut` although its genes favour `006 L4/5 IT CTX Glut` by about

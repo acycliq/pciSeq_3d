@@ -21,7 +21,9 @@ import functools
 import io
 import json
 from pathlib import Path
-from typing import Optional
+from typing import Annotated, Optional
+
+from pydantic import Field
 
 try:
     from mcp.server.mcpserver import Image, MCPServer
@@ -152,34 +154,41 @@ def cell(label: int) -> dict:
 
 
 @_tool
-def explain_cell(label: int, vs_class: Optional[str] = None, top_n: int = 10) -> dict:
+def explain_cell(
+        label: Annotated[int, Field(description='The cell label, as in the segmentation.')],
+        vs_class: Annotated[Optional[str], Field(
+            description='Class to compare against. Defaults to the runner up.')] = None,
+        top_n: Annotated[int, Field(
+            description='How many genes to list for each side, default 10.')] = 10) -> dict:
     """Why a cell was given its class, gene by gene.
 
-    Compares the assigned class against another (the runner up by default, or
-    vs_class). Reports the three parts of the score for each, the gene
-    log-likelihood, the class prior and the spatial term, and lists the genes that
-    pushed hardest for each side, each with the cell's count and what a cell of
-    either class typically holds. A gene the cell lacks can count against the class
-    that expresses it. The narrative field tells the story in plain words, with the
-    evidence as odds rather than units.
+    Compares the assigned class against another, the runner up unless vs_class is
+    given: the gene log-likelihood, the class prior and the spatial term for each,
+    the genes that pushed hardest for each side with the cell's count and the
+    average count of that gene over the cells this run called each class
+    (mean_in_assigned, mean_in_compared), and a narrative in plain words, with the
+    evidence as odds rather than units. A gene the cell lacks can count against the
+    class that expresses it. Counts are soft, weighted by assignment probability.
 
     Use this for questions like 'why is cell 2413 Ndnf Gaba' or 'why is cell 18223
-    not CA1'. label is the segmentation label.
+    not CA1'. label is the cell number of the segmentation, the one the viewer shows.
     """
     return _need_run().explain_cell(label, vs_class=vs_class, top_n=top_n)
 
 
 @_tool
-def explain_spot(spot_id: int) -> dict:
+def explain_spot(spot_id: Annotated[int, Field(description='The spot id.')]) -> dict:
     """Why a spot was assigned to the cell it was, term by term.
 
     One row per candidate cell plus the background: the Gaussian fit to the cell
     centroid, the class expression term, the cell scale, the cell-gene scale, the
-    gene efficiency, the inside-cell bonus, their sum, and the resulting probability.
+    gene efficiency, the inside-cell bonus, their sum, and the resulting probability,
+    and a narrative that tells the story in plain words with the evidence as odds.
     The background row carries the gene's misread density instead.
 
     A spot can sit outside every cell and still go to one, because the position is
-    scored against the centroid, not the mask. spot_id is the index in geneData.
+    scored against the centroid, not the mask. spot_id is the id shown in the
+    viewer, the same as the spot_id in geneData.
     """
     return _need_run().explain_spot(spot_id)
 
@@ -422,13 +431,16 @@ def _picture(im, info, save_as):
 
 
 @_tool
-def docs(query: str, n: int = 5) -> dict:
-    """Search the pciSeq documentation and return the paragraphs that match.
+def docs(query: Annotated[str, Field(
+             description='A few words, for example "rTheta" or "spatial term".')],
+         n: Annotated[int, Field(description='How many paragraphs, default 5.')] = 5) -> dict:
+    """Search the pciSeq documentation. Returns the paragraphs that match the query
+    words, best first, each with its page and heading.
 
-    Use it to check how something works before explaining it: what a term means,
-    what a config option does, how a file is laid out. Each hit names the page it
-    came from; read the whole page as the resource pciseq-docs://<page> when the
-    paragraph is not enough. Plain keyword search, no index.
+    Use it before answering any question about how pciSeq works, a term, or a
+    setting such as rTheta, mrf_beta or Inefficiency, and quote the page you took
+    the answer from. Read the whole page as the resource pciseq-docs://<page> when
+    the paragraph is not enough. Plain keyword search, no index.
     """
     hits = _docs.search_docs(query, n=n)
     for h in hits:

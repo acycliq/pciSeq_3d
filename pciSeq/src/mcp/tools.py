@@ -1414,7 +1414,8 @@ def narrate_cell(e):
     out.append('Cell %d was called %s, with probability %s. The closest alternative was %s, '
                'at %s.' % (e['cell'], a, p(e['prob_assigned']), o, p(e['prob_compared'])))
     out.append('pciSeq decides a cell\'s class from three things: how well its gene counts '
-               'match what each class typically expresses (the gene log-likelihood), how '
+               'match what each class expresses according to the cell type definitions '
+               '(the gene log-likelihood), how '
                'common each class is to begin with (the prior), and what the neighbouring '
                'cells were called (the spatial term). The class that comes out best '
                'overall wins.')
@@ -1422,9 +1423,12 @@ def narrate_cell(e):
     # the genes, ranked, no numbers
     if d['genes'] > 0:
         if a_present:
+            # 'typically' used to stand here; say where it comes from, the cell type
+            # definitions, so it is not read as the run's own average (that is mean_in_*)
             out.append('The genes point to %s, %s. The strongest evidence comes from %s: the '
-                       'cell holds these in the amounts a %s cell typically does and a %s cell '
-                       'does not.' % (a, _strength(d['genes']), names(a_present), a, o))
+                       'cell holds these in amounts that fit what the cell type definitions '
+                       'give for a %s cell, and not for a %s cell.'
+                       % (a, _strength(d['genes']), names(a_present), a, o))
             if a_absent:
                 gs, ms = absent(a_absent, 'mean_in_compared')
                 out.append('%s %s the same way by %s absence: the cell holds almost none, '
