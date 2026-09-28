@@ -374,13 +374,37 @@ class Run:
             # diffs itself, which it does badly.
             'sum_favouring_assigned': float(sum(g['diff'] for g in for_a)),
             'sum_favouring_compared': float(sum(g['diff'] for g in for_o)),
+            'shared_genes': self._shared_genes(c, diff, means, assigned, other),
+            'shared_genes_are': 'the genes the cell holds most of that barely separate the two '
+                                'classes, each fitting both within a factor of e. Both classes '
+                                'express them, which is why these two were the finalists; the '
+                                'call rests on the genes in the two lists above',
             'counts_are': 'soft, weighted by the spot assignment probabilities',
             'means_are': 'the average count over the cells of this run, each weighted by '
                          'its probability of being that class. An after the fact summary '
-                         'of the run, not the scRNAseq profile the likelihood scores against',
+                         'of the run, not the cell type definitions the likelihood scores '
+                         'against',
         }
         out['narrative'] = narrate_cell(out)
         return out
+
+    def _shared_genes(self, c, diff, means, assigned, other, top=10, n=5, within=1.0):
+        """The cell's biggest counts that barely tell the two classes apart.
+
+        Of the `top` genes the cell holds most of, the ones whose log-likelihood
+        difference between the two classes is under `within` in size, biggest count
+        first, at most `n`. These are the genes a model would otherwise mention with
+        'both classes express Cnr1 and Htr3a', from its own memory; this gives it the
+        data instead.
+        """
+        counts = c['gene_count']
+        biggest = [g for g in np.argsort(-counts)[:top] if counts[g] > _COUNT_TOL]
+        return [{'gene': str(self.gene_panel[g]),
+                 'counts': float(counts[g]),
+                 'mean_in_assigned': float(means[g, assigned]),
+                 'mean_in_compared': float(means[g, other]),
+                 'diff': float(diff[g])}
+                for g in biggest if abs(diff[g]) < within][:n]
 
     def explain_spot(self, spot_id):
         """Why this spot went to the cell it did, term by term.

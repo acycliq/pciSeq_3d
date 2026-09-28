@@ -77,6 +77,23 @@ def test_explain_cell_agrees_with_cellData(fitted):
         assert e['assigned'] != e['compared_with']
 
 
+def test_shared_genes_are_big_counts_that_do_not_separate_the_classes(fitted):
+    """The finalists share them: among the cell's ten biggest counts, each fitting
+    both classes within a factor of e, biggest first, at most five."""
+    run, _, _ = fitted
+    for lab in LABELS:
+        e = run.explain_cell(lab)
+        shared = e['shared_genes']
+        assert len(shared) <= 5
+        assert all(abs(g['diff']) < 1.0 for g in shared)
+        counts = [g['counts'] for g in shared]
+        assert counts == sorted(counts, reverse=True)
+        c = run._cell(lab)
+        ten_biggest = set(run.gene_panel[np.argsort(-c['gene_count'])[:10]])
+        assert {g['gene'] for g in shared} <= ten_biggest
+        assert 'finalists' in e['shared_genes_are']
+
+
 def test_explain_cell_against_a_named_class(fitted):
     run, _, _ = fitted
     e = run.explain_cell(101)
@@ -612,9 +629,9 @@ def test_narrative_says_when_a_gene_counts_by_absence():
 
 
 def test_explain_cell_reports_the_class_means(fitted):
-    """The Cell Inspector's Gene Expression table shows what a cell of each class
-    typically holds. explain_cell has to carry the same two numbers, or the story
-    cannot back 'a CA2 cell would hold some' with a figure."""
+    """The Cell Inspector's Gene Expression table shows the average count over the
+    cells this run called each class. explain_cell has to carry the same two numbers,
+    or the story cannot back 'cells called CA2 hold about 3.6' with a figure."""
     run, _, _ = fitted
     means = np.asarray(run._meta('mean_gene_reads_per_class', parse=True), dtype=np.float32)
     names = list(run.class_names)
@@ -625,7 +642,8 @@ def test_explain_cell_reports_the_class_means(fitted):
         gi = list(run.gene_panel).index(g['gene'])
         assert g['mean_in_assigned'] == pytest.approx(means[gi, names.index(e['assigned'])])
         assert g['mean_in_compared'] == pytest.approx(means[gi, names.index(e['compared_with'])])
-    assert 'not the scRNAseq profile' in e['means_are']
+    # not 'scRNAseq profile': the cell type definitions need not be single-cell data
+    assert 'not the cell type definitions' in e['means_are']
 
 
 # ------------------------------------------------------- the whole run

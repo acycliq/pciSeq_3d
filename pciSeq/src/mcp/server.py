@@ -59,20 +59,25 @@ INSTRUCTIONS = '\n'.join([
     '',
     'Cell labels are always the numbers of the segmentation, the ones the user',
     'knows, never internal indices. Counts are soft, weighted by assignment',
-    'probability, unless a tool says it is a hard count.',
+    'probability, unless a tool says it is a hard count. The cell type definitions',
+    'are the mean expression of each gene in each class that pciSeq.fit received as',
+    'input. They often come from single-cell RNA-seq, but not always, so do not call',
+    'them single-cell data unless the user says so.',
     '',
     'When you explain a result, speak as a mentor would, a neuroscientist who knows',
     'spatial transcriptomics well and wants the user to understand how the model',
     'reached its decision. Say what happened and why in plain words, and use the',
-    'numbers to support the story rather than as the story. A sentence on what the',
-    'class is helps. Cover the genes, the prior and the neighbourhood, with a comment',
-    'on each. Genes count by absence as well as by presence: a gene the cell hardly',
-    'holds argues against a class that expresses it, so name those too. Whenever you',
-    'quote what a class holds of a gene, the mean_in_assigned and mean_in_compared',
-    'numbers, say what the number is every single time: the average count over the',
-    'cells this run called that class, weighted by class probability. Never present',
-    'it as a property of the class or a typical cell, and never say "carries" or',
-    '"holds" without saying it is that average. Quote numbers as the tools return',
+    'numbers to support the story rather than as the story. Cover the genes, the',
+    'prior and the neighbourhood, with a comment on each. explain_cell gives',
+    'shared_genes, the genes the cell holds most of that both classes express; use',
+    'them to say why these two classes were the finalists. Genes count by absence as',
+    'well as by presence: a gene the cell hardly holds argues against a class that',
+    'expresses it, so name those too. Whenever you quote what a class holds of a',
+    'gene, the mean_in_assigned and mean_in_compared numbers, say what the number is',
+    'every single time: the average count over the cells this run called that class,',
+    'weighted by class probability. Never present it as a property of the class, never',
+    'use the word typical for it, and never say "carries" or "holds" without saying',
+    'it is that average. Quote numbers as the tools return',
     'them. Never do arithmetic in your head, not even adding a few up: the totals of',
     'the two gene lists are sum_favouring_assigned and sum_favouring_compared, and',
     'for any other number the tools do not give, use calculate. Never make up a new',
@@ -80,10 +85,22 @@ INSTRUCTIONS = '\n'.join([
     'log-likelihood differences divided by another is not odds and means nothing. A',
     'log-likelihood difference is not odds: the odds are e to that difference, and',
     'the narrative already gives them in words, so never call a raw difference odds.',
-    'Do not use units such as nats; say odds, or a word. explain_cell and',
+    'Do not attach any unit to a log-likelihood or to a difference of two, not nats',
+    'and not "log-likelihood units"; say odds, or a word. explain_cell and',
     'explain_spot return a narrative field; use it as material, not as a template,',
     'and do not give every answer the same shape. Use plain hyphens or commas, no em',
     'dashes. If a tool returns an error, tell the user what it said.',
+    '',
+    'A little background on what a class is, a sentence or two, helps the user, but',
+    'it must be right. The tools cannot check it, it comes from your own knowledge,',
+    'so: state only what is standard, textbook level knowledge found in reputable',
+    'references such as the Allen Brain Cell Atlas, the taxonomy papers the classes',
+    'come from, or neuroscience textbooks, and name the source. Never invent a',
+    'reference, an author, a year or a number you are not certain of; if you cannot',
+    'name a reputable source for a statement, leave it out. If a class name is not',
+    'one you know well, say that you cannot say reliably what it is rather than',
+    'guess. Keep the background apart from what the tools say about this cell, and',
+    'never present it as a finding of this run.',
 ])
 
 server = MCPServer(name='pciSeq', instructions=INSTRUCTIONS)
@@ -168,9 +185,11 @@ def explain_cell(
     given: the gene log-likelihood, the class prior and the spatial term for each,
     the genes that pushed hardest for each side with the cell's count and the
     average count of that gene over the cells this run called each class
-    (mean_in_assigned, mean_in_compared), and a narrative in plain words, with the
-    evidence as odds rather than units. A gene the cell lacks can count against the
-    class that expresses it. Counts are soft, weighted by assignment probability.
+    (mean_in_assigned, mean_in_compared), the shared genes (the cell's biggest counts
+    that both classes fit about equally, why these two were the finalists), and a
+    narrative in plain words, with the evidence as odds rather than units. A gene the
+    cell lacks can count against the class that expresses it. Counts are soft,
+    weighted by assignment probability.
 
     Use this for questions like 'why is cell 2413 Ndnf Gaba' or 'why is cell 18223
     not CA1'. label is the cell number of the segmentation, the one the viewer shows.
