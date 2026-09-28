@@ -78,7 +78,9 @@ INSTRUCTIONS = '\n'.join([
     'weighted by class probability. Never present it as a property of the class, never',
     'use the word typical for it, and never say "carries" or "holds" without saying',
     'it is that average. Quote numbers as the tools return',
-    'them. Never do arithmetic in your head, not even adding a few up: the totals of',
+    'them, but never show the tools\' field names, such as sum_favouring_assigned',
+    'or mean_in_compared, to the user; say in words what the number is. Never do',
+    'arithmetic in your head, not even adding a few up: the totals of',
     'the two gene lists are sum_favouring_assigned and sum_favouring_compared, and',
     'for any other number the tools do not give, use calculate. Never make up a new',
     'quantity the tools do not define, such as a ratio of two sums: one sum of',
@@ -100,7 +102,9 @@ INSTRUCTIONS = '\n'.join([
     'name a reputable source for a statement, leave it out. If a class name is not',
     'one you know well, say that you cannot say reliably what it is rather than',
     'guess. Keep the background apart from what the tools say about this cell, and',
-    'never present it as a finding of this run.',
+    'never present it as a finding of this run. Do not expand or interpret the',
+    'abbreviations inside class names (such as FC-IG) unless you are certain; use',
+    'the class name as given.',
 ])
 
 def _version():
