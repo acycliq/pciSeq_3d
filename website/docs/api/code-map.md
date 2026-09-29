@@ -473,6 +473,28 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 </details>
 
 <details>
+<summary><code>mcp/live.py</code> Tools for asking about a run while it is still running.</summary>
+
+| Name | Line | Description |
+|---|---|---|
+| `Live` | 29 | A run in progress, opened for questions. |
+| `Live._cfg` | 56 |  |
+| `Live._label_map` | 59 |  |
+| `Live.to_internal` | 62 |  |
+| `Live.to_external` | 83 |  |
+| `Live._class_prob` | 93 |  |
+| `Live.class_names` | 101 |  |
+| `Live.gene_panel` | 105 |  |
+| `Live.remember` | 108 | Note what every cell is called right now, so the next call to |
+| `Live.progress` | 124 | Where the run has got to, and whether it is settling. |
+| `Live.cell` | 152 | What a cell is called at this iteration, and on what evidence. |
+| `Live.class_counts` | 180 | How many cells each class holds at this iteration, hard and soft. |
+| `Live.changed_cells` | 197 | The cells that changed class in the last iteration, and the ones that |
+| `Live.scale_factors` | 233 | The factors the model has learned so far: eta per gene, theta per cell. |
+
+</details>
+
+<details>
 <summary><code>mcp/registry.py</code> Where the pciSeq viewer finds the MCP server: a small registry file.</summary>
 
 | Name | Line | Description |
