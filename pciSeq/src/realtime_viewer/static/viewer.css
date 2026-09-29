@@ -631,3 +631,263 @@
         #check-cell-table .gene-name { font-weight: 600; color: var(--text); }
         #check-cell-table .gene-name.assigned { color: #87CEEB; }
         #check-cell-table .gene-name.comparison { color: #FA8072; }
+
+
+        /* ------------------------------------------------------------------
+           The chat: a dock along the bottom, the same shape as the one in the
+           desktop viewer, so the two feel like the same thing.
+           ------------------------------------------------------------------ */
+
+        /* the toggle sits on the canvas, top right, out of the HUD's way */
+        #chat-toggle {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 500;
+            width: 30px;
+            height: 30px;
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        #chat-toggle:hover,
+        #chat-toggle.open {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        #chat-dock {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.4);
+            z-index: 2500;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #chat-dock.open { height: 40vh; }
+        #chat-dock.expanded { height: 85vh; }
+        #chat-dock.resizing { transition: none !important; }
+
+        #chat-resize-handle {
+            height: 8px;
+            background: var(--border);
+            cursor: ns-resize;
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        #chat-resize-handle:hover { background: var(--accent); }
+
+        #chat-resize-handle::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 3px;
+            background: var(--muted);
+            border-radius: 2px;
+        }
+
+        #chat-header {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            padding: 6px 12px;
+            background: var(--bg);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        #chat-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        .chat-prompt {
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: var(--accent);
+        }
+
+        #chat-tabs { display: flex; gap: 4px; }
+
+        .chat-tab {
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--muted);
+            padding: 5px 10px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .chat-tab:hover { color: var(--text); }
+
+        .chat-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        #chat-header-buttons {
+            margin-left: auto;
+            display: flex;
+            gap: 2px;
+        }
+
+        #chat-header-buttons button {
+            background: none;
+            border: none;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1;
+            padding: 4px 8px;
+            cursor: pointer;
+        }
+
+        #chat-header-buttons button:hover { color: var(--accent); }
+
+        /* one tab body is shown at a time */
+        .chat-tab-body {
+            display: none;
+            flex: 1;
+            min-height: 0;
+            flex-direction: column;
+        }
+
+        .chat-tab-body.active { display: flex; }
+
+        /* ---- the Connection tab ---- */
+        #chat-tab-connection {
+            padding: 12px 16px;
+            overflow-y: auto;
+            max-width: 480px;
+        }
+
+        #chat-tab-connection label {
+            display: block;
+            font-size: 11px;
+            color: var(--muted);
+            margin: 8px 0 3px;
+        }
+
+        #chat-tab-connection select,
+        #chat-tab-connection input {
+            width: 100%;
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 5px 8px;
+            font-size: 12px;
+        }
+
+        #chat-key-state {
+            font-size: 11px;
+            color: var(--muted);
+            margin: 10px 0;
+            word-break: break-all;
+        }
+
+        #chat-save,
+        #chat-send {
+            background: var(--bg);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 5px 12px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        #chat-save:hover,
+        #chat-send:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        #chat-send:disabled { opacity: 0.4; cursor: default; }
+
+        /* ---- the Chat tab ---- */
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        /* the question, echoed back the way a terminal would */
+        .chat-user {
+            font-family: 'Consolas', 'Monaco', monospace;
+            color: var(--text);
+        }
+
+        .chat-user::before {
+            content: '>_ ';
+            color: var(--accent);
+        }
+
+        .chat-assistant {
+            color: var(--text);
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* the tool line, so the answer is not a black box */
+        .chat-tool {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 11px;
+            color: var(--accent);
+        }
+
+        .chat-thinking {
+            font-size: 11px;
+            color: var(--muted);
+            font-style: italic;
+        }
+
+        .chat-error {
+            color: var(--danger);
+            font-size: 12px;
+        }
+
+        #chat-input-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-top: 1px solid var(--border);
+            background: var(--bg);
+            flex-shrink: 0;
+        }
+
+        #chat-input {
+            flex: 1;
+            resize: none;
+            background: none;
+            color: var(--text);
+            border: none;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+        }
+
+        #chat-input:focus { outline: none; }

@@ -5,7 +5,7 @@ This module provides a self-contained Flask-SocketIO server that streams
 cell assignment updates during VarBayes algorithm execution.
 """
 
-from flask import Flask, send_from_directory
+from flask import Flask, send_from_directory, request, jsonify
 from flask_socketio import SocketIO
 from werkzeug.serving import make_server
 import numpy as np
@@ -68,6 +68,11 @@ class RealtimeViewerServer:
         self._varbayes_ref = None  # Will be set by app.py when callback is wired
         self._httpd = None         # the werkzeug server, held so stop() can shut it
         self.server_thread = None
+        # the chat: a Live view of the model, the conversation so far, and a lock
+        # so two questions in a row cannot run the tool loop at the same time
+        self._live = None
+        self._chat_history = []
+        self._chat_lock = threading.Lock()
         self._geometry_sent = False
         self._geometry_cache = None
         self._num_cells_expected = (
@@ -122,6 +127,35 @@ class RealtimeViewerServer:
         @self.socketio.on("request_check_cell")
         def handle_check_cell_request(data):
             self._on_check_cell_request(data)
+
+        @self.app.route("/chat/settings", methods=["GET", "POST"])
+        def chat_settings_route():
+            """The provider, model and whether a key is set. Never the key itself:
+            status() leaves it out, and nothing here reads it back."""
+            from pciSeq.src.mcp import chat_settings
+
+            if request.method == "GET":
+                return jsonify(chat_settings.status())
+            body = request.get_json(silent=True) or {}
+            try:
+                return jsonify(chat_settings.save(
+                    provider=body.get("provider"),
+                    api_key=body.get("api_key"),
+                    model=body.get("model"),
+                    base_url=body.get("base_url"),
+                ))
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
+
+        @self.socketio.on("chat_message")
+        def handle_chat_message(data):
+            # off the socket thread, so the page keeps getting iteration updates
+            # while the model is thinking
+            self.socketio.start_background_task(self._on_chat_message, data)
+
+        @self.socketio.on("chat_reset")
+        def handle_chat_reset():
+            self._chat_history = []
 
     def start(self):
         """Start server in background thread and optionally open browser.
@@ -290,6 +324,11 @@ class RealtimeViewerServer:
             # Stream classes/prob each iteration (smaller payload)
             self._send_class_updates(cell_classes, prob, num_cells,
                                      iteration, delta)
+
+            # Keep a snapshot for the chat, so it can answer "what changed since
+            # the last iteration". Only costs anything once someone has chatted.
+            if self._live is not None:
+                self._live.remember()
 
             # logger.info(f"Sent update for iteration {iteration} to all clients (delta={delta:.6f}, cells={len(cell_classes)})")
 
@@ -657,6 +696,54 @@ class RealtimeViewerServer:
             self.socketio.emit("check_cell_result", {
                 "error": str(e)
             }, namespace="/")
+
+    def _on_chat_message(self, data):
+        """The user asked the chat something about the run.
+
+        Runs the tool loop in chat.py against a Live view of the model and sends
+        every step back as it happens, so the page can show which tool was used
+        rather than only the final answer. Runs in a background task, so a slow
+        model does not hold up the iteration updates.
+        """
+        from pciSeq.src.mcp import chat
+        from pciSeq.src.mcp.live import Live
+
+        text = (data or {}).get("text", "").strip()
+        if not text:
+            return
+        if self._varbayes_ref is None:
+            self.socketio.emit("chat_event", {
+                "type": "error", "error": "the model is not wired up yet"
+            }, namespace="/")
+            return
+
+        if self._live is None:
+            self._live = Live(self._varbayes_ref)
+            self._live.remember()          # so the first question has a baseline
+
+        # one question at a time, otherwise two tool loops write the same history
+        if not self._chat_lock.acquire(blocking=False):
+            self.socketio.emit("chat_event", {
+                "type": "error", "error": "still answering the previous question"
+            }, namespace="/")
+            return
+        try:
+            self._chat_history.append({"role": "user", "content": text})
+            out = chat.run_turn(
+                self._live,
+                self._chat_history,
+                on_event=lambda ev: self.socketio.emit("chat_event", ev, namespace="/"),
+            )
+            self._chat_history = out["messages"]
+        except Exception as e:
+            # the question stays out of the history, so the next one starts clean
+            self._chat_history = self._chat_history[:-1]
+            logger.error("chat turn failed: %s", e, exc_info=True)
+            self.socketio.emit("chat_event", {
+                "type": "error", "error": str(e)
+            }, namespace="/")
+        finally:
+            self._chat_lock.release()
 
     def __enter__(self):
         """Context manager support."""

@@ -285,6 +285,13 @@
         }
     });
 
+    // One step of a chat turn: a tool being used, a piece of the answer, or the end
+    socket.on('chat_event', (data) => {
+        if (window.pciSeq.chat && window.pciSeq.chat.handleEvent) {
+            window.pciSeq.chat.handleEvent(data);
+        }
+    });
+
     // Export socket reference
     window.pciSeq.socket = socket;
 

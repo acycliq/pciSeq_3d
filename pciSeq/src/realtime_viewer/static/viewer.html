@@ -48,6 +48,7 @@
                     <span class="hud-sep">|</span>
                     <span class="hud-item"><span id="hud-cells-value">-</span> cells</span>
                 </div>
+                <button id="chat-toggle" title="Ask about this run">&gt;_</button>
                 <div id="loading-overlay">
                     <div class="spinner"></div>
                     <div class="loading-text">Waiting for algorithm to start...</div>
@@ -148,6 +149,46 @@
         </div>
     </div>
 
+    <!-- Bottom dock: ask the model about the run while it is running -->
+    <div id="chat-dock">
+        <div id="chat-resize-handle" title="Drag to resize"></div>
+        <div id="chat-header">
+            <span id="chat-title"><span class="chat-prompt">&gt;_</span> Ask the run</span>
+            <div id="chat-tabs">
+                <button class="chat-tab" data-tab="connection">Connection</button>
+                <button class="chat-tab active" data-tab="chat">Chat</button>
+            </div>
+            <div id="chat-header-buttons">
+                <button id="chat-reset" title="Start a new conversation">&#8635;</button>
+                <button id="chat-expand" title="Expand">&#8599;</button>
+                <button id="chat-close" title="Close">&times;</button>
+            </div>
+        </div>
+
+        <div id="chat-tab-connection" class="chat-tab-body">
+            <label for="chat-provider">Provider</label>
+            <select id="chat-provider"></select>
+            <label for="chat-model">Model</label>
+            <input id="chat-model" type="text" placeholder="model name">
+            <label for="chat-base-url" class="chat-other-only">Address</label>
+            <input id="chat-base-url" type="text" class="chat-other-only" placeholder="https://...">
+            <label for="chat-key">API key</label>
+            <input id="chat-key" type="password" placeholder="leave blank to keep the saved one">
+            <div id="chat-key-state"></div>
+            <button id="chat-save">Save</button>
+        </div>
+
+        <div id="chat-tab-chat" class="chat-tab-body active">
+            <div id="chat-messages"></div>
+            <div id="chat-input-row">
+                <span class="chat-prompt">&gt;_</span>
+                <textarea id="chat-input" rows="1"
+                          placeholder="How far along is it? What changed since the last iteration?"></textarea>
+                <button id="chat-send">Send</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Load modular JavaScript files in dependency order -->
     <script src="js/state.js"></script>
     <script src="js/colors.js"></script>
@@ -155,6 +196,7 @@
     <script src="js/rendering.js"></script>
     <script src="js/chart.js"></script>
     <script src="js/check-cell.js"></script>
+    <script src="js/chat.js"></script>
     <script src="js/socket-handlers.js"></script>
     <script src="js/ui-controls.js"></script>
     <script src="js/main.js"></script>

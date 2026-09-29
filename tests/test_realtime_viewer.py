@@ -262,3 +262,93 @@ def test_class_indices_above_255_reach_the_viewer(minimal_varbayes):
     # row 0 is the background pseudo cell, the server leaves it out
     assert got == wanted[1:].tolist()
     assert max(got) > 255
+
+
+# --------------------------------------------------------------------------- #
+# The chat panel. The model itself is stubbed (tests/test_mcp_chat.py covers the
+# tool loop); what matters here is the wiring: that a question reaches the loop,
+# that the answer comes back as chat_event, and that the key never goes out on
+# the wire or into the settings route's answer.
+# --------------------------------------------------------------------------- #
+
+def test_a_question_runs_a_turn_and_the_steps_come_back(minimal_varbayes, monkeypatch):
+    _run_one_iteration(minimal_varbayes)
+    srv, sent = _wired(minimal_varbayes, _free_port())
+
+    seen = {}
+
+    def fake_turn(live, messages, on_event=None, **kw):
+        seen['question'] = messages[-1]['content']
+        seen['live'] = live
+        on_event({'type': 'text', 'text': 'iteration 3, still moving'})
+        on_event({'type': 'done'})
+        return {'text': 'iteration 3, still moving',
+                'messages': messages + [{'role': 'assistant', 'content': 'ok'}]}
+
+    from pciSeq.src.mcp import chat
+    monkeypatch.setattr(chat, 'run_turn', fake_turn)
+    srv._on_chat_message({'text': 'how far along is it?'})
+
+    assert seen['question'] == 'how far along is it?'
+    events = [d for e, d in sent if e == 'chat_event']
+    assert [d['type'] for d in events] == ['text', 'done']
+    # the conversation is kept, so the next question has the context
+    assert len(srv._chat_history) == 2
+
+
+def test_the_chat_gets_a_snapshot_each_iteration(minimal_varbayes):
+    """changed_cells compares with the last snapshot, so something has to take
+    one every iteration. Only once the chat has been used: no chat, no cost."""
+    _run_one_iteration(minimal_varbayes)
+    srv, _ = _wired(minimal_varbayes, _free_port())
+    srv.send_update(minimal_varbayes.cells.classProb, 1, 0.5)
+    assert srv._live is None
+
+    from pciSeq.src.mcp.live import Live
+    srv._live = Live(minimal_varbayes)
+    minimal_varbayes.iter_num = 2            # main_loop sets this in a real run
+    srv.send_update(minimal_varbayes.cells.classProb, 2, 0.4)
+    assert srv._live.changed_cells()['compared_with_iteration'] == 2
+
+
+def test_a_failing_turn_is_reported_and_not_remembered(minimal_varbayes, monkeypatch):
+    """A bad key must not leave the question stuck in the history, or every later
+    question replays it."""
+    _run_one_iteration(minimal_varbayes)
+    srv, sent = _wired(minimal_varbayes, _free_port())
+
+    def boom(*a, **kw):
+        raise RuntimeError('the model answered 401: invalid x-api-key')
+
+    from pciSeq.src.mcp import chat
+    monkeypatch.setattr(chat, 'run_turn', boom)
+    srv._on_chat_message({'text': 'hello'})
+
+    errs = [d for e, d in sent if e == 'chat_event' and d['type'] == 'error']
+    assert '401' in errs[0]['error']
+    assert srv._chat_history == []
+
+
+def test_no_model_wired_up_says_so(minimal_varbayes):
+    srv, sent = _wired(minimal_varbayes, _free_port())
+    srv._varbayes_ref = None
+    srv._on_chat_message({'text': 'hello'})
+    assert [d['type'] for e, d in sent if e == 'chat_event'] == ['error']
+
+
+def test_the_settings_route_never_hands_out_the_key(minimal_varbayes, tmp_path, monkeypatch):
+    from pciSeq.src.mcp import chat_settings
+    monkeypatch.setattr(chat_settings, 'config_path', lambda: tmp_path / 'chat.json')
+    srv, _ = _wired(minimal_varbayes, _free_port())
+    client = srv.app.test_client()
+
+    saved = client.post('/chat/settings', json={'provider': 'anthropic',
+                                                'api_key': 'sk-secret'})
+    assert saved.status_code == 200
+    assert 'sk-secret' not in saved.get_data(as_text=True)
+    got = client.get('/chat/settings')
+    assert got.get_json()['has_key'] is True
+    assert 'sk-secret' not in got.get_data(as_text=True)
+    # a service we do not know needs its address, and says so rather than 500ing
+    bad = client.post('/chat/settings', json={'provider': 'other'})
+    assert bad.status_code == 400 and 'address' in bad.get_json()['error']

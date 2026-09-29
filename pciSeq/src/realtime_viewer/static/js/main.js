@@ -29,6 +29,11 @@
             window.pciSeq.checkCell.initialize();
         }
 
+        // Initialize the chat panel
+        if (window.pciSeq.chat) {
+            window.pciSeq.chat.initialize();
+        }
+
         console.log('=== pciSeq Real-Time Viewer Ready ===');
     });
 
