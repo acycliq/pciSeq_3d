@@ -100,13 +100,13 @@ def spot_to_cell_prob_plot(data):
     # never drift apart.
     prob = data['prob']
 
-    # Labels (cells + misread)
-    labels = [f'Cell {cid}' for cid in cell_ids] + ['Misread']
+    # Labels (cells + background)
+    labels = [f'Cell {cid}' for cid in cell_ids] + ['Background']
 
     # Create bar chart with consistent styling
     fig = go.Figure()
 
-    # Bar trace (blue for cells, red for misread)
+    # Bar trace (blue for cells, red for the background)
     fig.add_trace(go.Bar(
         x=labels,
         y=prob,
@@ -189,7 +189,7 @@ def spot_to_cell_score_plot(my_dict):
     misread = my_dict['misread']
 
     # Labels
-    labels = [f'Cell {cid}' for cid in cell_ids] + ['Misread']
+    labels = [f'Cell {cid}' for cid in cell_ids] + ['Background']
 
     # Create figure with Matplotlib-like aesthetics
     fig = go.Figure()
@@ -215,20 +215,20 @@ def spot_to_cell_score_plot(my_dict):
 
     fig.add_trace(go.Bar(
         x=labels[:-1],
-        y=expr_fluct,
-        name='cell-gene scale',
-        marker_color='#2ca02c',
-        hovertemplate="<b>%{x}</b><br>cell-gene scale: %{y:.2f}<extra></extra>",
-        width=0.7
-    ))
-
-    fig.add_trace(go.Bar(
-        x=labels[:-1],
         y=cell_inefficiency,
         name='cell scale',
         marker_color='#9467bd',
         hovertemplate="<b>%{x}</b><br>cell scale"
                       ": %{y:.2f}<extra></extra>",
+        width=0.7
+    ))
+
+    fig.add_trace(go.Bar(
+        x=labels[:-1],
+        y=expr_fluct,
+        name='cell-gene scale',
+        marker_color='#2ca02c',
+        hovertemplate="<b>%{x}</b><br>cell-gene scale: %{y:.2f}<extra></extra>",
         width=0.7
     ))
 
@@ -252,13 +252,13 @@ def spot_to_cell_score_plot(my_dict):
         width=0.7
     ))
 
-    # Misread bar (standalone)
+    # the background bar (standalone), its whole score is the misread term
     fig.add_trace(go.Bar(
         x=[labels[-1]],
         y=[misread],
         name='misread',
         marker_color='#d62728',
-        hovertemplate="<b>Misread</b><br>Value: %{y:.2f}<extra></extra>",
+        hovertemplate="<b>Background</b><br>misread: %{y:.2f}<extra></extra>",
         width=0.7
     ))
 

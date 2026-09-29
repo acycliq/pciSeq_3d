@@ -222,7 +222,7 @@ def check_spot(self, spot_id, show_plot=True):
     # Create labels. If the segmentation has been relabelled, map the labels back to the original ones.
     cell_ids = to_external(cell_ids, self.config['label_map'])
 
-    labels = [f'Cell {cid}' for cid in cell_ids] + ['Misread']
+    labels = [f'Cell {cid}' for cid in cell_ids] + ['Background']
 
     datadict = {
         'spot_id': spot_id,
