@@ -553,8 +553,9 @@ class Run:
         return {
             'cell': label,
             'total_spots': sum(per_gene.values()),
+            # ties by name, so two readers of the same run list them the same way
             'per_gene': [{'gene': g, 'spots': n}
-                         for g, n in sorted(per_gene.items(), key=lambda kv: -kv[1])],
+                         for g, n in sorted(per_gene.items(), key=lambda kv: (-kv[1], kv[0]))],
             'spots_are': note,
         }
 
