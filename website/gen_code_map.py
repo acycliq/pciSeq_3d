@@ -186,7 +186,7 @@ def gen_code_map():
         code = "<br>".join("`%s` `%s` line %d" % (path, name, idx[path][name]) for path, name in refs)
         out.append("| %s | %s | %s |" % (cell(what), cell(desc), code))
     out.append("")
-    out.append("## Module index")
+    out.append("## Every module and function")
     out.append("")
     out.append("One block per module, in source order. Methods are listed as `Class.method`; names starting with an underscore are internal.")
     out.append("")
