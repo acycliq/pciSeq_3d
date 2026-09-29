@@ -18,6 +18,7 @@
 
     let providers = [];
     let busy = false;          // a question is in flight, do not send another
+    let gone = false;          // the run ended and took the server with it
 
     function el(id) {
         return document.getElementById(id);
@@ -50,7 +51,7 @@
     function send() {
         const input = el('chat-input');
         const text = input.value.trim();
-        if (!text || busy) return;
+        if (!text || busy || gone) return;
         addLine('user', text);
         input.value = '';
         busy = true;
@@ -80,8 +81,37 @@
 
     function finish() {
         busy = false;
-        el('chat-send').disabled = false;
+        el('chat-send').disabled = gone;
         clearThinking();
+    }
+
+    /** The run ended and pciSeq.fit shut the server down, so there is nobody to
+     *  answer any more. Say it once and put the input out of use, rather than
+     *  letting Send look like it worked. */
+    function serverGone() {
+        if (gone) return;
+        gone = true;
+        clearThinking();
+        if (busy) {
+            busy = false;
+            addLine('error', 'the run ended before that could be answered');
+        }
+        addLine('error', 'The run has finished and the live viewer server has '
+                       + 'stopped, so the chat cannot answer any more. Open the '
+                       + 'saved run in the pciSeq viewer to keep asking.');
+        el('chat-send').disabled = true;
+        el('chat-input').disabled = true;
+        el('chat-input').placeholder = 'the run has finished';
+    }
+
+    /** It came back, which happens on a reconnect rather than after a fit. */
+    function serverBack() {
+        if (!gone) return;
+        gone = false;
+        el('chat-send').disabled = false;
+        el('chat-input').disabled = false;
+        el('chat-input').placeholder = 'How far along is it? What changed since the last iteration?';
+        addLine('tool', 'reconnected');
     }
 
     /** One step of the turn, as the server runs it. */
@@ -289,6 +319,11 @@
         initResize();
     }
 
-    window.pciSeq.chat = { initialize: initialize, handleEvent: onEvent };
+    window.pciSeq.chat = {
+        initialize: initialize,
+        handleEvent: onEvent,
+        serverGone: serverGone,
+        serverBack: serverBack
+    };
 
 })();

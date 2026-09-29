@@ -21,6 +21,18 @@
     socket.on('disconnect', (reason) => {
         console.log('Disconnected:', reason);
         window.pciSeq.updateConnectionStatus(false);
+        // pciSeq.fit stops this server when the run ends, so there is nothing
+        // left to answer a question. The chat has to say so, or Send looks like
+        // it worked and no answer ever arrives.
+        if (window.pciSeq.chat && window.pciSeq.chat.serverGone) {
+            window.pciSeq.chat.serverGone();
+        }
+    });
+
+    socket.on('connect', () => {
+        if (window.pciSeq.chat && window.pciSeq.chat.serverBack) {
+            window.pciSeq.chat.serverBack();
+        }
     });
 
     // Backward-compatible single-shot update (geometry + classes together)
