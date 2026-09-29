@@ -677,7 +677,9 @@
             transition: height 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        #chat-dock.open { height: 40vh; }
+        /* matched by eye to the desktop viewer's dock. Drag the top edge to
+           change it, the height you leave it at is remembered */
+        #chat-dock.open { height: 30vh; }
         #chat-dock.expanded { height: 85vh; }
         #chat-dock.resizing { transition: none !important; }
 

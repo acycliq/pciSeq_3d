@@ -57,3 +57,13 @@ def test_saving_a_model_does_not_need_the_key_again(cfg):
     chat_settings.save(model='claude-opus-5', path=cfg)
     s = chat_settings.load(cfg)
     assert s['api_key'] == 'sk-secret' and s['model'] == 'claude-opus-5'
+
+
+def test_the_page_is_told_each_provider_s_model(cfg):
+    """The page moves the model box when you pick a provider. Without the model
+    in here it keeps the one you came from, so a Z.ai account ends up being asked
+    for a Claude model."""
+    st = chat_settings.status(cfg)
+    by_id = {p['id']: p for p in st['providers']}
+    assert by_id['zai']['model'] == 'glm-5.2'
+    assert by_id['anthropic']['model'] == 'claude-sonnet-5'

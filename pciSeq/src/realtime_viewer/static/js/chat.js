@@ -55,8 +55,22 @@
         input.value = '';
         busy = true;
         el('chat-send').disabled = true;
-        addLine('thinking', 'thinking...').id = 'chat-thinking';
+        showThinking();
         socket().emit('chat_message', { text: text });
+    }
+
+    /** The thinking line always sits at the bottom, so it keeps showing while
+     *  the model works out its answer after the tool calls, not only before
+     *  them. Moving the same element is what keeps it last. */
+    function showThinking() {
+        let t = el('chat-thinking');
+        if (!t) {
+            t = addLine('thinking', 'thinking...');
+            t.id = 'chat-thinking';
+        }
+        const box = el('chat-messages');
+        box.appendChild(t);
+        box.scrollTop = box.scrollHeight;
     }
 
     function clearThinking() {
@@ -73,15 +87,17 @@
     /** One step of the turn, as the server runs it. */
     function onEvent(ev) {
         if (ev.type === 'tool_call') {
-            clearThinking();
             addToolLine(ev.name, ev.input);
+            showThinking();                 // back to the bottom, under the call
         } else if (ev.type === 'tool_result' && ev.is_error) {
             addLine('tool', '  ' + ev.name + ' could not answer');
+            showThinking();
         } else if (ev.type === 'text') {
             clearThinking();
             // the model can speak more than once in a turn, before and after a
             // tool call, so each text block gets its own line
             addLine('assistant', ev.text);
+            showThinking();                 // it may not be finished yet
         } else if (ev.type === 'error') {
             clearThinking();
             addLine('error', ev.error);
@@ -132,6 +148,15 @@
         });
     }
 
+    /** Picking a provider moves the model box to that provider's own model.
+     *  Without this the box keeps the model of the provider you came from and
+     *  saves it, so you end up asking Z.ai for a Claude model. */
+    function onProviderPicked() {
+        const p = providers.find(x => x.id === el('chat-provider').value);
+        if (p) el('chat-model').value = p.model || '';
+        onProviderChange();
+    }
+
     function loadSettings() {
         fetch('/chat/settings')
             .then(r => r.json())
@@ -172,11 +197,35 @@
     }
 
     function openDock(open) {
-        el('chat-dock').classList.toggle('open', open);
+        const dock = el('chat-dock');
+        // an inline height from an earlier drag beats the class, so it has to go
+        // when closing, or the dock never shuts
+        const h = savedHeight();
+        dock.style.height = (open && h) ? h + 'px' : '';
+        dock.classList.toggle('open', open);
         el('chat-toggle').classList.toggle('open', open);
         if (open) {
             el('chat-input').focus();
             if (!providers.length) loadSettings();
+        }
+    }
+
+    // the same limits as the desktop viewer: never shorter than this, and always
+    // leave a strip of map above the dock
+    const MIN_HEIGHT = 140;
+    const HEIGHT_KEY = 'pciSeqLiveChatHeight';
+
+    function clamp(h) {
+        return Math.max(MIN_HEIGHT, Math.min(h, window.innerHeight - 120));
+    }
+
+    /** The height you dragged it to, kept for next time, as the desktop does. */
+    function savedHeight() {
+        try {
+            const h = Number(localStorage.getItem(HEIGHT_KEY));
+            return h > 0 ? clamp(h) : 0;
+        } catch (e) {
+            return 0;
         }
     }
 
@@ -193,14 +242,17 @@
         });
         document.addEventListener('mousemove', e => {
             if (!dragging) return;
-            const h = Math.min(Math.max(window.innerHeight - e.clientY, 120),
-                               window.innerHeight - 60);
-            dock.style.height = h + 'px';
+            dock.style.height = clamp(window.innerHeight - e.clientY) + 'px';
         });
         document.addEventListener('mouseup', () => {
             if (!dragging) return;
             dragging = false;
             dock.classList.remove('resizing');
+            try {
+                localStorage.setItem(HEIGHT_KEY, String(parseInt(dock.style.height, 10)));
+            } catch (e) {
+                // a browser with storage off still resizes, it just forgets
+            }
         });
     }
 
@@ -216,7 +268,7 @@
         });
         el('chat-send').addEventListener('click', send);
         el('chat-save').addEventListener('click', saveSettings);
-        el('chat-provider').addEventListener('change', onProviderChange);
+        el('chat-provider').addEventListener('change', onProviderPicked);
         el('chat-reset').addEventListener('click', () => {
             socket().emit('chat_reset');
             el('chat-messages').innerHTML = '';

@@ -479,7 +479,7 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 | `_provider` | 52 |  |
 | `load` | 57 | Everything the chat needs to call the model: provider, key, model, base url. |
 | `status` | 76 | What the page may know: everything except the key itself. |
-| `save` | 91 | Write the settings. An empty api_key leaves the stored one alone, so the |
+| `save` | 94 | Write the settings. An empty api_key leaves the stored one alone, so the |
 
 </details>
 

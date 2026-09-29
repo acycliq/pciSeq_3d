@@ -78,7 +78,10 @@ def status(path=None):
     s = load(path)
     return {
         'provider': s['provider'],
-        'providers': [{'id': k, 'label': v['label']} for k, v in PROVIDERS.items()],
+        # the model too, so the page can move the model box when you pick a
+        # provider, rather than saving the one you came from
+        'providers': [{'id': k, 'label': v['label'], 'model': v['model']}
+                      for k, v in PROVIDERS.items()],
         'has_key': bool(s['api_key']),
         'key_from_env': s['key_from_env'],
         'env_name': PROVIDERS[s['provider']]['env'],
