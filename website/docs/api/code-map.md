@@ -488,12 +488,12 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 
 | Name | Line | Description |
 |---|---|---|
-| `docs_root` | 19 | The folder holding the markdown pages, or None when there is none. |
-| `list_pages` | 37 | Every page, as its path relative to the docs root, sorted. Includes and |
-| `read_page` | 48 | The markdown of one page. Raises KeyError for a path that is not a page. |
-| `page_title` | 56 | The first heading of a page, or its description from the frontmatter. |
-| `_paragraphs` | 65 | (heading, paragraph) pairs, heading being the nearest one above. Frontmatter |
-| `search_docs` | 93 | Paragraphs matching a query, best first. |
+| `docs_root` | 23 | The folder holding the markdown pages, or None when there is none. |
+| `list_pages` | 41 | Every page, as its path relative to the docs root, sorted. Includes and |
+| `read_page` | 53 | The markdown of one page. Raises KeyError for a path that is not a page. |
+| `page_title` | 61 | The first heading of a page, or its description from the frontmatter. |
+| `_paragraphs` | 70 | (heading, paragraph) pairs, heading being the nearest one above. Frontmatter |
+| `search_docs` | 98 | Paragraphs matching a query, best first. |
 
 </details>
 

@@ -66,6 +66,11 @@ def get_static_files(root):
 # The documentation pages ride inside the wheel, so the MCP server can hand them to
 # an agent on a machine that has no repo checkout. Copied fresh at every build from
 # website/docs, the single source of truth; the copy itself is gitignored.
+# convergence.md is left out: it is about the oscillation, which Dimitris keeps out
+# of anything that leaves the repo. Same list as LEFT_OUT in pciSeq/src/mcp/docs.py.
+DOCS_LEFT_OUT = ("the-model/convergence.md",)
+
+
 def pack_docs():
     src = os.path.join("website", "docs")
     dst = os.path.join("pciSeq", "src", "mcp", "_docs")
@@ -77,6 +82,8 @@ def pack_docs():
         for f in files:
             if f.endswith(".md"):
                 rel = os.path.relpath(os.path.join(root, f), src)
+                if rel.replace(os.sep, "/") in DOCS_LEFT_OUT:
+                    continue
                 os.makedirs(os.path.dirname(os.path.join(dst, rel)), exist_ok=True)
                 shutil.copy2(os.path.join(root, f), os.path.join(dst, rel))
 

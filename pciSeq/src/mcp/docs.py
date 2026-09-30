@@ -14,6 +14,10 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 _SKIP = ('node_modules', '.vitepress', '_tables')
+# Pages never handed to an agent. convergence.md is about the oscillation, which
+# Dimitris keeps out of anything that leaves the repo, so it stays a local draft
+# and is not searched, read or shipped. Same list in pack_docs, setup.py.
+LEFT_OUT = ('the-model/convergence.md',)
 
 
 def docs_root():
@@ -42,6 +46,7 @@ def list_pages():
         return []
     pages = [p.relative_to(root).as_posix() for p in root.rglob('*.md')
              if not any(part in _SKIP for part in p.relative_to(root).parts)]
+    pages = [p for p in pages if p not in LEFT_OUT]
     return sorted(pages)
 
 

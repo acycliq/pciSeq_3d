@@ -31,7 +31,9 @@ def test_every_page_is_listed_once_and_includes_are_not():
     on_disk = {p.relative_to(REPO / 'website/docs').as_posix()
                for p in (REPO / 'website/docs').rglob('*.md')
                if not any(x in p.parts for x in ('node_modules', '.vitepress', '_tables'))}
-    assert set(pages) == on_disk
+    # the pages kept out on purpose (the oscillation page) are never listed
+    assert set(pages) == on_disk - set(docs.LEFT_OUT)
+    assert not set(pages) & set(docs.LEFT_OUT)
 
 
 def test_read_page_and_title():
