@@ -20,6 +20,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
       - metadata: key-value pairs (including JSON arrays)
       - cells: per-cell diagnostic data
       - spots: per-spot diagnostic data
+      - docs: the documentation pages, one row per page (see export_docs)
 
     Args:
         varBayes: Fitted VarBayes object
@@ -344,12 +345,34 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
             # if (end % 50000 == 0) or (end == nS):
             #     logger.info('Inserted %d/%d spots', end, nS)
 
+    export_docs(cursor)
+
     conn.commit()
     conn.close()
 
     db_size_mb = os.path.getsize(db_path) / (1024 * 1024)
     logger.info('Saved at: %s (%.1f MB)', db_path, db_size_mb)
 
+
+
+def export_docs(cursor: Any) -> None:
+    """Save the documentation pages (markdown only) into the docs table.
+
+    So the docs travel with the run: the viewer's chat reads the pages of the pciSeq
+    that made the numbers, with no internet and no drift. About 280 kB. The pages
+    come from docs.list_pages(), the repo checkout or the copy packed into a pip
+    install, and pages kept out on purpose (docs.LEFT_OUT) stay out. When no docs
+    are found the table is still made, empty, and the viewer falls back to GitHub.
+    """
+    from pciSeq.src.mcp import docs
+
+    cursor.execute('CREATE TABLE docs (page TEXT PRIMARY KEY, text TEXT)')
+    pages = docs.list_pages()
+    if not pages:
+        logger.warning('No documentation pages found, the docs table is left empty')
+        return
+    cursor.executemany('INSERT INTO docs VALUES (?, ?)',
+                       [(p, docs.read_page(p)) for p in pages])
 
 
 def export_db_tables(out_dir: str, con: Any) -> None:

@@ -74,6 +74,15 @@ def test_spots_table_columns(exported_db):
     assert EXPECTED_SPOT_COLUMNS <= got, 'missing: %s' % (EXPECTED_SPOT_COLUMNS - got)
 
 
+def test_the_docs_travel_with_the_run(exported_db):
+    from pciSeq.src.mcp import docs
+    rows = dict(exported_db.execute('select page, text from docs'))
+    assert set(rows) == set(docs.list_pages())
+    assert rows['index.md'] == docs.read_page('index.md')
+    # the oscillation page never leaves the repo
+    assert not set(rows) & set(docs.LEFT_OUT)
+
+
 def test_provenance_says_which_code_made_it(exported_db):
     (val,) = exported_db.execute(
         "select value from metadata where key='pciSeq_provenance'").fetchone()
