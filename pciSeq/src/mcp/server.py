@@ -16,6 +16,12 @@ other MCP client at it over stdio, for example in ~/.claude.json:
 Use the full path to the command if the client does not share your shell's PATH, which
 is usually the case for desktop apps. The docstrings below are what the agent reads to decide which tool to call,
 so they say what the numbers mean, not how they are computed.
+
+Why this is kept although the viewer no longer uses it (September 2026): the desktop
+viewer has its own MCP server now, and its chat reads the run itself. But this is
+the only way to ask about a finished run with no screen, on a remote or headless
+machine such as a cluster over SSH, where the viewer cannot open. It can go once
+the viewer has a no-window mode (bead cz1.9.7).
 """
 import functools
 import io
@@ -465,39 +471,9 @@ def _register_pages():
 _register_pages()
 
 
-def main(argv=None) -> None:
-    """Run the server over stdio, which is what every MCP client does. With
-    --register, --unregister or --list it manages the registry the pciSeq viewer
-    reads instead, see registry.py."""
-    import argparse
-    from . import registry
-    p = argparse.ArgumentParser(prog='pciseq-mcp', description=(
-        'The pciSeq MCP server. With no options it runs over stdio for an MCP client. '
-        'Run it once with --register inside the environment that has pciSeq_3d[mcp], '
-        'so the pciSeq viewer can find it.'))
-    g = p.add_mutually_exclusive_group()
-    g.add_argument('--register', action='store_true',
-                   help='tell the pciSeq viewer how to start the server from this python')
-    g.add_argument('--unregister', action='store_true', help='remove this python from the list')
-    g.add_argument('--list', action='store_true', help='show what is registered')
-    p.add_argument('--name', help='a name to show in the viewer, the env name by default')
-    a = p.parse_args(argv)
-
-    if a.register:
-        e = registry.register(a.name)
-        print('registered "%s": %s, pciSeq %s (%s)\nin %s\nThe pciSeq viewer will list it '
-              'on the Connection tab of its chat.'
-              % (e['name'], e['python'], e['pciseq_version'], e['commit'], registry.registry_path()))
-    elif a.unregister:
-        print('removed' if registry.unregister() else 'this python was not registered')
-    elif a.list:
-        entries = registry.list_entries()
-        print('%s\n' % registry.registry_path() + ('\n'.join(
-            '%s  %s  pciSeq %s (%s)%s' % (e['name'], e['python'], e['pciseq_version'],
-                                          e['commit'], '' if e['exists'] else '  MISSING')
-            for e in entries) or 'nothing registered'))
-    else:
-        server.run(transport='stdio')
+def main() -> None:
+    """Run the server over stdio, which is what every MCP client does."""
+    server.run(transport='stdio')
 
 
 if __name__ == '__main__':
