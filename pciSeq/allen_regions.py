@@ -1,6 +1,11 @@
 """Allen brain regions on a coronal mouse section, fitted from one or two regions
 the user drew by hand (the landmarks).
 
+EXPERIMENTAL. Good for a rough map of what is where; not good enough for thin
+layers. On the one section tried so far (espio, hippocampus) the outlines were
+right near the landmarks and about 50 um off further away, which is as much as a
+cell layer is wide. See "What is missing" at the end.
+
     python -m pciSeq.allen_regions outlines.geojson allen.geojson \\
         --landmark "Dentate Gyrus=DG-sg" --landmark "CA1=CA1:inside" \\
         --pixel-size 0.28 --image-size 6408 4382
@@ -21,6 +26,13 @@ each tagged by: allen, so the viewer can open them next to the user's own.
 The fit is a straight one (no bending), so it is best near the landmarks and
 gets rougher further away. Only numpy, scipy and matplotlib are needed; the
 atlas (4 MB) is downloaded once into ~/.cache/pciSeq/allen_ccf.
+
+What is missing (bead pciSeq_3d-7wp has the details):
+  - the cut is taken as exactly coronal; a real section is a little tilted
+  - the fit cannot bend, so uneven shrinkage is not followed
+  - the newer Allen annotation (Allen-CCF-2020) has the CA1, CA2 and CA3 layers,
+    this one has them as whole fields
+  - only the outer edge of a region is kept, holes are ignored
 
 Bead pciSeq_3d-7wp. Uses the Allen Mouse Brain Common Coordinate Framework
 (Wang et al. 2020, Cell), under the Allen Institute Terms of Use.
