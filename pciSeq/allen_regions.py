@@ -46,9 +46,9 @@ VOX = 25.0           # um per atlas voxel
 STEP = 10.0          # um between the points sampled along the drawings
 W_INSIDE = 1.0       # weight of an 'inside' landmark against a 'same' one
 MIN_VOXELS = 4       # region pieces smaller than this are left out
-SMOOTH = 5           # outline points averaged, to round off the atlas's 25 um staircase
-SMOOTH_MIN = 40      # outlines with fewer points (a few voxels) are left as they are,
-                     # smoothing those rounds them nearly away
+MIN_POINTS = 10      # a drawn landmark must give at least this many sample points
+SMOOTH_ROUNDS = 10   # smoothing passes, to round off the atlas's 25 um staircase
+SMOOTH_MIN = 40      # outlines with fewer points (a few voxels) are left as they are
 
 
 # ---------------------------------------------------------------- the atlas
@@ -159,13 +159,14 @@ def sample(dist, xy, far=2000.0):
 class Landmark:
     """one drawn region and the Allen structure it stands for"""
 
-    def __init__(self, ring_um, structure_id, mode):
+    def __init__(self, ring_um, structure_id, mode, name='landmark'):
         self.structure_id, self.mode = structure_id, mode
+        self.points = along(ring_um) if mode == 'same' else within(ring_um)
+        if len(self.points) < MIN_POINTS:
+            raise ValueError(f'the drawn region {name!r} is too small to use as a landmark '
+                             f'(it must be a few tens of um across)')
         if mode == 'same':
-            self.points = along(ring_um)
             self.user_dist, self.user_lo, self.user_step = distance_map(self.points)
-        else:
-            self.points = within(ring_um)
 
     def slice_maps(self, sl):
         """what the cost needs from one atlas slice, or None if the structure is not in it"""
@@ -237,15 +238,40 @@ def fit(volume, landmarks):
 
 # ---------------------------------------------------------------- the regions
 
-def smooth(ring, k=SMOOTH):
-    """round off a closed outline: each point becomes the mean of its k neighbours"""
+def smooth(ring, rounds=SMOOTH_ROUNDS, shrink=0.5, grow=-0.53):
+    """round off a closed outline without shrinking it (Taubin smoothing): each round
+    pulls every point towards the middle of its two neighbours, then pushes it back
+    out by a little more. A plain moving average made every region smaller, and the
+    thin ones lost a tenth of their cells"""
     if np.allclose(ring[0], ring[-1]):
         ring = ring[:-1]
     if len(ring) < SMOOTH_MIN:
         return ring
-    pad = np.vstack([ring[-(k // 2):], ring, ring[:k // 2]])
-    kernel = np.ones(k) / k
-    return np.c_[np.convolve(pad[:, 0], kernel, 'valid'), np.convolve(pad[:, 1], kernel, 'valid')]
+    p = ring.astype(float)
+    for _ in range(rounds):
+        for step in (shrink, grow):
+            p = p + step * ((np.roll(p, 1, axis=0) + np.roll(p, -1, axis=0)) / 2 - p)
+    return p
+
+
+def clip_to_box(ring, w, h):
+    """cut a closed outline at the box [0, w] x [0, h] (Sutherland-Hodgman, one side at a time)"""
+    def cut(pts, axis, limit, keep_below):
+        inside = lambda p: p[axis] <= limit if keep_below else p[axis] >= limit
+        out = []
+        for a, b in zip(pts, np.roll(pts, -1, axis=0)):
+            if inside(a) != inside(b):        # the edge crosses the side: add the crossing point
+                t = (limit - a[axis]) / (b[axis] - a[axis])
+                cross = a + t * (b - a)
+                out += [a, cross] if inside(a) else [cross]
+            elif inside(a):
+                out.append(a)
+        return np.array(out).reshape(-1, 2)
+    for axis, limit, keep_below in ((0, 0, False), (0, w, True), (1, 0, False), (1, h, True)):
+        if len(ring) == 0:
+            break
+        ring = cut(ring, axis, limit, keep_below)
+    return ring
 
 
 def regions(best, structures, image_size_um, pixel_size):
@@ -255,6 +281,10 @@ def regions(best, structures, image_size_um, pixel_size):
     rect = to_atlas(np.array([[0, 0], [w, 0], [w, h], [0, h]]), params, mirror) / VOX - 0.5
     yy, xx = np.mgrid[0:sl.shape[0], 0:sl.shape[1]]
     on_image = Polygon(rect).contains_points(np.c_[xx.ravel(), yy.ravel()]).reshape(sl.shape)
+    # one voxel more all round, so voxels only partly on the image are traced whole;
+    # the outline is cut at the image border afterwards, exactly
+    on_image = ndimage.binary_dilation(on_image, structure=np.ones((3, 3), bool))
+    size_px = np.array(image_size_um) / pixel_size
 
     features = []
     for rid in np.unique(sl[on_image]):
@@ -268,7 +298,9 @@ def regions(best, structures, image_size_um, pixel_size):
             mask = np.pad(pieces == label, 1).astype(float)
             outer = max(contour_generator(z=mask).lines(0.5), key=len)    # the outer edge, not holes
             um = (smooth(outer) - 1) * VOX + VOX / 2
-            px = np.clip(to_image(um, params, mirror) / pixel_size, 0, np.array(image_size_um) / pixel_size)
+            px = clip_to_box(to_image(um, params, mirror) / pixel_size, *size_px)
+            if len(px) < 3:           # the piece was only in the extra voxel, off the image
+                continue
             name = f"Allen {node['acronym']}" + (f' {k + 1}' if len(kept) > 1 else '')
             features.append({
                 'type': 'Feature',
@@ -313,7 +345,7 @@ def main(argv=None):
         f = drawn.get(name)
         if not f or not f.get('geometry') or f['geometry']['type'] != 'Polygon':
             raise ValueError(f'no drawn region called {name!r} in {args.outlines}')
-        landmarks.append(Landmark(np.array(f['geometry']['coordinates'][0], float) * args.pixel_size, sid, mode))
+        landmarks.append(Landmark(np.array(f['geometry']['coordinates'][0], float) * args.pixel_size, sid, mode, name))
 
     best = fit(volume, landmarks)
     size_um = [v * args.pixel_size for v in args.image_size]
@@ -325,11 +357,11 @@ def main(argv=None):
     summary = {
         'regions': len(features),
         'atlas_slice': int(best['ap']),
-        'hemisphere': best['side'],
         'rotation_deg': round(float(np.degrees(th)) % 360, 1),
         'scale': round(float(np.exp(ls)), 3),
         'section_vs_atlas_pct': round(100 / float(np.exp(ls))),
-        'mirrored': bool(best['mirror']),
+        'hemisphere_is': 'not determined: the two halves of the atlas are near mirror images, so the '
+                         'fit cannot tell which hemisphere the section is from',
         'landmark_fit_um': {t: round(c, 1) for t, c in zip(args.landmark, best['per_landmark'])},
         'fit_um_is': "per landmark: for 'same' the mean distance between the drawn and the Allen "
                      "outline, for 'inside' the mean distance of the drawing outside the structure",
