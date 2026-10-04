@@ -746,15 +746,26 @@ class Run:
                         'absorbs overdispersion, under the assigned class only. '
                         'diagnostics.db does not keep the (cell, gene, class) array, so '
                         'gamma under another class is not available',
+            'expected_is': 'the count the assigned class predicts for the gene in this cell, '
+                           'after Inefficiency, eta and theta. gamma is not counts over '
+                           'expected: it is (rSpot + counts) over (rSpot + expected), which '
+                           'pulls it toward 1, so say how far off a gene is from counts '
+                           'against expected, not from gamma',
         }
+        # gamma_bar = (rSpot + counts) / (rSpot + expected), see VarBayes.gamma_upd.
+        # Turned round it gives back the expected count the fit used
+        r_spot = float(self._meta('rSpot'))
+        expected = np.maximum((r_spot + c['gene_count']) / gam - r_spot, 0)
         if gene is not None:
             g = self._gene_index(gene)
             out['gene'] = gene
             out['gamma'] = float(gam[g])
             out['counts'] = float(c['gene_count'][g])
+            out['expected'] = float(expected[g])
         else:
             out['gamma'] = [{'gene': str(self.gene_panel[g]), 'gamma': float(gam[g]),
-                             'counts': float(c['gene_count'][g])}
+                             'counts': float(c['gene_count'][g]),
+                             'expected': float(expected[g])}
                             for g in range(self.nG)]
         return out
 

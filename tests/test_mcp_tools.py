@@ -716,6 +716,13 @@ def test_theta_and_gamma_are_the_stored_arrays(fitted):
     one = run.gamma(105, gene=gm['gamma'][3]['gene'])
     assert one['gamma'] == gm['gamma'][3]['gamma']
     assert 'assigned class only' in gm['gamma_is']
+    # expected is the count the fit used: put back in the formula it gives gamma again
+    r_spot = float(run._meta('rSpot'))
+    for row in gm['gamma']:
+        assert row['expected'] >= 0
+        if row['expected'] > 0:
+            assert (r_spot + row['counts']) / (r_spot + row['expected']) == pytest.approx(row['gamma'], rel=1e-4)
+    assert one['expected'] == gm['gamma'][3]['expected']
 
 
 def test_spot_agrees_with_explain_spot(fitted):
