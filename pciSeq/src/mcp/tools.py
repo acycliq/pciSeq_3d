@@ -677,7 +677,7 @@ class Run:
         return {
             'gene': name,
             'eta': eta,
-            'eta_is': 'eta_bar, the posterior mean of the gene efficiency; the reference '
+            'eta_is': 'eta_bar, the posterior mean of the gene inefficiency; the reference '
                       'expression of every class is multiplied by it',
             'inefficiency': eta * cfg['Inefficiency'] if cfg.get('Inefficiency') is not None else None,
             'inefficiency_is': 'eta_bar times the Inefficiency setting, as Genes.inefficiency '

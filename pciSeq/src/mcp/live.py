@@ -239,7 +239,7 @@ class Live:
         if eta is not None:
             order = np.argsort(-eta, kind='stable')
             out['eta'] = {
-                'is': 'eta_bar, the posterior mean of the gene efficiency; the reference '
+                'is': 'eta_bar, the posterior mean of the gene inefficiency; the reference '
                       'expression of every class is multiplied by it',
                 'mean': float(eta.mean()),
                 'highest': [{'gene': str(self.gene_panel[g]), 'eta': float(eta[g])}
