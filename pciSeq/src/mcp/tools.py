@@ -84,6 +84,7 @@ class Run:
                                     check_same_thread=False)
         self._lock = threading.Lock()
         self._meta_cache = {}
+        self._docs_pages = _MISSING
 
         self.nC = int(self._meta('nC'))
         self.nG = int(self._meta('nG'))
@@ -129,6 +130,17 @@ class Run:
         """One row from the db, under the lock. See __init__ for why the lock."""
         with self._lock:
             return self._con.execute(sql, params).fetchone()
+
+    def docs_pages(self):
+        """The documentation pages saved inside this run (page -> markdown), or None
+        for a run made before they were saved. Same table the viewer reads."""
+        if self._docs_pages is _MISSING:
+            with self._lock:
+                has = self._con.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name='docs'").fetchone()
+                rows = self._con.execute('SELECT page, text FROM docs').fetchall() if has else []
+            self._docs_pages = {r[0]: r[1] for r in rows} or None
+        return self._docs_pages
 
     def _meta(self, key, parse=False, default=_MISSING):
         """One row of the metadata table.

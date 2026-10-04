@@ -112,18 +112,19 @@ TOOLS = [
     {
         'name': 'docs',
         'description':
-            'Search the pciSeq documentation. Returns the paragraphs that match the '
-            'query words, best first, each with its page and heading. Use it before '
-            'answering any question about how pciSeq works, a term, or a setting such '
-            'as rTheta, mrf_beta or Inefficiency, and quote the page you took the '
-            'answer from.',
+            'The pciSeq documentation. query returns the paragraphs holding those '
+            'words, best first, each with its page and heading; page returns one whole '
+            'page. The search matches words literally, so when your words may not be '
+            'the ones the docs use, read a page instead. Use this before answering any '
+            'question about how pciSeq works, a term, or a setting such as rTheta, '
+            'mrf_beta or Inefficiency, and quote the page you took the answer from.',
         'input_schema': {
             'type': 'object',
             'properties': {
                 'query': {'type': 'string', 'description': 'A few words, for example "rTheta".'},
-                'n': {'type': 'integer', 'description': 'How many paragraphs, default 5.'},
+                'page': {'type': 'string', 'description': 'A page, for example "the-model/scale-factors.md".'},
+                'n': {'type': 'integer', 'description': 'How many paragraphs, for a query; default 5.'},
             },
-            'required': ['query'],
         },
     },
     {
@@ -166,9 +167,18 @@ def call_tool(live, name, args):
             }
         if name == 'docs':
             from . import docs as docs_mod
-            hits = docs_mod.search_docs(args['query'], n=args.get('n', 5))
-            return {'query': args['query'], 'hits': hits,
-                    'note': 'no docs pages found on this machine' if not docs_mod.docs_root() else ''}
+            # a run being fitted has no saved docs yet, so these are this machine's
+            page = args.get('page')
+            if page:
+                try:
+                    text = docs_mod.read_page(page)
+                except KeyError:
+                    return {'error': 'no page %s' % page,
+                            'pages': docs_mod.list_pages()}
+                return {'page': page, 'title': docs_mod.page_title(text), 'text': text}
+            hits = docs_mod.search_docs(args.get('query', ''), n=args.get('n', 5))
+            return {'query': args.get('query', ''), 'hits': hits,
+                    'docs_are': docs_mod.source()}
         return {'error': 'unknown tool %s' % name}
     except Exception as e:
         return {'error': '%s' % e}

@@ -99,6 +99,9 @@ def open_run(path: str) -> dict:
     """
     global _run
     _run = _open(path)
+    # the run carries the documentation of the commit that fitted it; read that one
+    # rather than whatever is on this machine (docs.use_run_pages)
+    _docs.use_run_pages(_run.docs_pages())
     return _run.summary()
 
 
@@ -406,21 +409,47 @@ def _picture(im, info, save_as):
 
 @_tool
 def docs(query: Annotated[str, Field(
-             description='A few words, for example "rTheta" or "spatial term".')],
-         n: Annotated[int, Field(description='How many paragraphs, default 5.')] = 5) -> dict:
-    """Search the pciSeq documentation. Returns the paragraphs that match the query
-    words, best first, each with its page and heading.
+             description='A few words, for example "rTheta" or "spatial term".')] = '',
+         page: Annotated[str, Field(
+             description='A page name from the list, for example '
+                         '"the-model/scale-factors.md".')] = '',
+         n: Annotated[int, Field(description='How many paragraphs, for a query; default 5.')] = 5) -> dict:
+    """The pciSeq documentation, three ways.
 
-    Use it before answering any question about how pciSeq works, a term, or a
-    setting such as rTheta, mrf_beta or Inefficiency, and quote the page you took
-    the answer from. Read the whole page as the resource pciseq-docs://<page> when
-    the paragraph is not enough. Plain keyword search, no index.
+    query searches it and returns the paragraphs holding those words, best first,
+    each with its page and heading. page returns one whole page. Neither returns the
+    list of all the pages, each with a line on what it is about.
+
+    The search matches words literally, so when your words may not be the ones the
+    docs use (an idea you can describe but cannot name, or a term from another
+    method), ask for the list and pick the page by its subject, then read that page.
+    Use this before answering any question about how pciSeq works, a term, or a
+    setting such as rTheta, mrf_beta or Inefficiency, and quote the page you took the
+    answer from.
     """
+    def contents():
+        return [{'page': p, 'title': _docs.page_title(_docs.read_page(p)),
+                 'about': _docs.page_summary(_docs.read_page(p))} for p in _docs.list_pages()]
+
+    if page:
+        try:
+            text = _docs.read_page(page)
+        except KeyError:
+            return {'error': 'no page %s; call docs with no query and no page for the list' % page,
+                    'contents': contents()}
+        return {'page': page, 'title': _docs.page_title(text), 'text': text,
+                'docs_are': _docs.source()}
+    if not query:
+        return {'contents': contents(), 'docs_are': _docs.source(),
+                'contents_are': 'every page with what it is about; read one with docs(page=...)'}
     hits = _docs.search_docs(query, n=n)
     for h in hits:
         h['resource'] = 'pciseq-docs://' + h['page']
-    return {'query': query, 'hits': hits,
-            'note': 'no docs pages found on this machine' if _docs.docs_root() is None else ''}
+    out = {'query': query, 'hits': hits, 'docs_are': _docs.source()}
+    if not hits:
+        # nothing matched the words: the list, so the page can be picked by subject
+        out['contents'] = contents()
+    return out
 
 
 @_tool
@@ -439,12 +468,17 @@ def calculate(expression: Annotated[str, Field(
 
 
 @server.resource('pciseq-docs://index', name='pciSeq documentation index',
-                 description='Every documentation page, with its title. Read a page as '
-                             'pciseq-docs://<page>.', mime_type='text/markdown')
+                 description='Every documentation page, with its title and what it is '
+                             'about. Read a page as pciseq-docs://<page>. Use it when '
+                             'the docs search finds nothing, since that search matches '
+                             'words literally: pick the page by its subject instead.',
+                 mime_type='text/markdown')
 def docs_index() -> str:
     lines = ['# pciSeq documentation', '']
     for page in _docs.list_pages():
-        lines.append('- pciseq-docs://%s  %s' % (page, _docs.page_title(_docs.read_page(page))))
+        text = _docs.read_page(page)
+        lines.append('- pciseq-docs://%s  **%s**  %s'
+                     % (page, _docs.page_title(text), _docs.page_summary(text)))
     return '\n'.join(lines) if len(lines) > 2 else 'no docs pages found on this machine'
 
 

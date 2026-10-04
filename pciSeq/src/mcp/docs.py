@@ -4,10 +4,12 @@ Two things the server builds on: the list of pages and their text, exposed as MC
 resources, and a keyword search over them, exposed as a tool. Both are plain
 functions here so they can be tested and used without mcp.
 
-Where the pages come from, in order: a copy that setup.py packs into the wheel at
-build time (pciSeq/src/mcp/_docs), so a pip install has them, and failing that the
-website/docs folder of a repo checkout, found by walking up from this file. No
-index, no embeddings: the whole corpus is 33 pages, it is searched on the spot.
+Where the pages come from, in order: the copy saved inside the open run, so a run
+is explained by the documentation of the pciSeq that produced it; failing that the
+website/docs folder of a repo checkout, found by walking up from this file; failing
+that a copy setup.py packs into the wheel at build time (pciSeq/src/mcp/_docs), so
+a pip install has them. No index, no embeddings: the whole corpus is a few dozen
+pages, it is searched on the spot.
 """
 import re
 from pathlib import Path
@@ -18,6 +20,31 @@ _SKIP = ('node_modules', '.vitepress', '_tables')
 # Dimitris keeps out of anything that leaves the repo, so it stays a local draft
 # and is not searched, read or shipped. Same list in pack_docs, setup.py.
 LEFT_OUT = ('the-model/convergence.md',)
+
+
+# The pages saved inside the open run (page -> markdown), set by open_run. A run
+# carries the documentation of the commit that fitted it, which is the one that
+# describes its numbers; the copy on this machine may be newer. The viewer does the
+# same (electron/run.js docsFromRun).
+_run_pages = None
+
+
+def use_run_pages(pages):
+    """Read the documentation from these pages until told otherwise. Called with the
+    docs saved inside a run when one is opened, and with None when it has none."""
+    global _run_pages
+    _run_pages = dict(pages) if pages else None
+
+
+def source():
+    """Where the pages being served come from, in words, for the agent."""
+    if _run_pages:
+        return ('the documentation saved inside this run when it was fitted, so it '
+                'describes the pciSeq that produced these numbers')
+    if docs_root() is None:
+        return 'no documentation pages were found on this machine'
+    return ('the documentation on this machine, not the run\'s own copy, so a page may '
+            'describe a newer pciSeq than the run')
 
 
 def docs_root():
@@ -41,6 +68,8 @@ def docs_root():
 def list_pages():
     """Every page, as its path relative to the docs root, sorted. Includes and
     build folders are left out."""
+    if _run_pages:
+        return sorted(p for p in _run_pages if p not in LEFT_OUT)
     root = docs_root()
     if root is None:
         return []
@@ -52,6 +81,10 @@ def list_pages():
 
 def read_page(path):
     """The markdown of one page. Raises KeyError for a path that is not a page."""
+    if _run_pages:
+        if path not in list_pages():
+            raise KeyError('no docs page %r' % path)
+        return _run_pages[path]
     root = docs_root()
     if root is None or path not in list_pages():
         raise KeyError('no docs page %r' % path)
@@ -65,6 +98,26 @@ def page_title(text):
         return m.group(1).strip()
     m = re.search(r'^description:\s*(.+)$', text, re.M)
     return m.group(1).strip() if m else ''
+
+
+def page_summary(text, max_length=160):
+    """What a page is about, in one line. The description in the frontmatter is
+    written for exactly this, so it wins; only a third of the pages carry one, and
+    the copy saved inside a run drops the frontmatter, so the fallback is the page's
+    first real paragraph, cut short. Tables, code, containers, html and a lone bold
+    lead-in such as "**Simplifications.**" are passed over: they say nothing about
+    the page."""
+    described = re.search(r'^description:\s*(.+)$', text, re.M)
+    if described:
+        return described.group(1).strip()
+    for _, para in _paragraphs(text):
+        if re.match(r'^[|`:<]', para):
+            continue
+        line = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', re.sub(r'\s+', ' ', para)).strip()
+        if not line or re.match(r'^\*\*[^*]+\*\*[.:]?$', line):
+            continue
+        return line if len(line) <= max_length else re.sub(r'\s+\S*$', '', line[:max_length - 1]) + '...'
+    return ''
 
 
 def _paragraphs(text):
