@@ -43,8 +43,9 @@ MAP = [
      "Per gene rate of spots per unit volume not attributable to any cell. The background candidate in the spot assignment.",
      [("core/main.py", "VarBayes.rho_upd"), ("core/datatypes/genes.py", "Genes.calc_rho"),
       ("core/datatypes/genes.py", "Genes.calc_misread_density"), ("core/datatypes/spots.py", "Spots.misread_density")]),
-    ("eta, the gene efficiency",
-     "Per gene factor scaling the reference expression to the detected counts. Its reciprocal is the gene inefficiency.",
+    ("eta, the gene inefficiency",
+     "Per gene factor scaling the reference expression to the detected counts. The gene inefficiency "
+     "(Genes.inefficiency) is eta times the Inefficiency setting, not its reciprocal.",
      [("core/main.py", "VarBayes.eta_upd"), ("core/datatypes/genes.py", "Genes.calc_eta"),
       ("core/datatypes/genes.py", "Genes.init_eta"), ("core/datatypes/genes.py", "Genes.inefficiency")]),
     ("theta, the cell scale",
