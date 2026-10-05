@@ -14,8 +14,7 @@
 [How it works](#how-it-works) ·
 [Explaining a call](#explaining-a-call) ·
 [Ask the run](#ask-in-plain-words) ·
-[Viewers](#viewers) ·
-[Citation](#citation)
+[Viewers](#viewers)
 
 </div>
 
@@ -237,12 +236,49 @@ Three things keep the answers checkable:
 - **The figures below show the same numbers.** Anything the agent says about a cell can
   be checked against `check_cell`.
 
-#### Where the agent is, and how to set it up
+#### Where the agent is
 
-> [!IMPORTANT]
-> The agent is not a website, and Claude knows nothing about your run until you connect
-> the two. Opening Claude and typing "explain cell 18223" will not work. The agent is
-> your own AI client plus the pciSeq tools, joined by three steps.
+The agent is available in three places. In each, a language model is given the pciSeq
+tools, and the tools are what give it access to the run; a general assistant without
+them has no knowledge of it.
+
+| When | Where | Requires |
+| --- | --- | --- |
+| During the run | the live viewer | an API key for the model |
+| After the run | pciSeq Viewer (recommended) | an API key for the model |
+| After the run | Claude Code, Claude Desktop or another MCP client | the `pciseq-mcp` server, registered with the client |
+
+**During the run: in the live viewer.**
+
+The live viewer's page has a chat of its own. It answers about the fit in progress: how
+far it has got, what a cell is called right now, which cells changed class since the
+last iteration. It needs an API key for the model, set on the page.
+
+This chat is alive only while the run is. When `fit` returns, the live viewer shuts down
+and the connection is lost, along with the conversation. To keep asking, open the saved
+run in pciSeq Viewer and use the chat there.
+
+**After the run: in pciSeq Viewer, the best way. No MCP, nothing to install or connect.**
+
+The desktop viewer has the agent built in, as a chat panel docked under the map.
+
+1. Open your run in [pciSeq Viewer](https://github.com/acycliq/pciSeq_viewer).
+2. Click the chat bubble at the top right.
+3. The first time, paste an API key for the model (Anthropic or Z.ai) in the panel's
+   Connection tab. It is stored encrypted on your machine.
+4. Ask. There is no run to name: it is the one on screen.
+
+Because it sits inside the viewer, it does more than answer. It can fly the map to the
+cell it is talking about, open the cell or spot diagnostics, open the cell in 3D with its
+neighbours, and show or hide classes and genes, so you see what it is explaining.
+
+The chat panel ships with the next release of the viewer.
+
+**After the run: from Claude Code or Claude Desktop, through MCP.**
+
+For those who already work in one of these, or for a machine with no screen. Here the
+agent is your AI client plus `pciseq-mcp`, a small server included in pciSeq that hands
+the client the same tools.
 
 ```mermaid
 flowchart LR
@@ -251,13 +287,13 @@ flowchart LR
     S --> R["<b>your run folder</b><br/>what the fit saved"]
 ```
 
-**1. Install pciSeq with the agent tools**, in the environment you run pciSeq in:
+Install pciSeq with the agent tools, in the environment you run pciSeq in:
 
 ```bash
 pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
 ```
 
-**2. Tell your AI client about them**, once. For Claude Code, add to `~/.claude.json`:
+Tell your AI client about them, once. For Claude Code, add to `~/.claude.json`:
 
 ```json
 {
@@ -269,24 +305,17 @@ pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3
 
 Claude Desktop, Cursor, VS Code and others take the same entry in their own settings
 file, listed on the [MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server)
-page.
-
-**3. Ask, naming the run folder the first time:**
+page. Then ask, naming the run folder the first time:
 
 ```
 Open the run in out/run1 and explain why cell 18223 got its class.
 ```
 
-After that, later questions in the same session need not name the run.
+This route does not work from the claude.ai website or the phone app, because the tools
+have to run next to your data.
 
-It works with any client that runs on your machine and speaks
-[MCP](https://modelcontextprotocol.io). It does not work from the claude.ai website or
-the phone app, because the tools have to run next to your data. The run stays on your
-machine; only the tool results the agent asks for are sent to the model.
-
-**No setup at all:** the pciSeq Viewer desktop application has the same agent built in
-as a chat panel, which can also fly the map to the cell it is talking about. In the next
-release.
+In all three, the run stays on your machine; only the tool results the agent asks for are
+sent to the model.
 
 ### The same, as figures
 
@@ -328,7 +357,7 @@ and
 
 | | When | What |
 | --- | --- | --- |
-| **[Live viewer](https://acycliq.github.io/pciSeq_3d/api/live-viewer)** | while `fit` is running | A browser page that redraws the cells at every iteration, with a convergence chart. Set `realtime_viewer` to `True`. |
+| **[Live viewer](https://acycliq.github.io/pciSeq_3d/api/live-viewer)** | while `fit` is running | A browser page that redraws the cells at every iteration, with a convergence chart and a chat for questions about the fit in progress. Set `realtime_viewer` to `True`. It closes when the run ends. |
 | **[pciSeq Viewer](https://github.com/acycliq/pciSeq_viewer)** | after the run | A desktop application for Windows, macOS and Linux. Spots and cells over the background image, plane by plane, a 3D voxel view, and the same diagnostics as `check_cell` and `check_spot` by clicking on a cell or a spot. |
 
 <p align="center">
@@ -344,20 +373,6 @@ and
 | [Explaining the calls](https://acycliq.github.io/pciSeq_3d/explaining-the-calls/overview) | `check_cell` and `check_spot`, followed through on a real cell and a real spot |
 | [The model](https://acycliq.github.io/pciSeq_3d/the-model/overview) | the mathematics |
 | [API](https://acycliq.github.io/pciSeq_3d/api/reference) | the reference, and a [code map](https://acycliq.github.io/pciSeq_3d/api/code-map) from each model quantity to the line that computes it |
-
-## Citation
-
-The method:
-
-> Qian, X. et al. Probabilistic cell typing enables fine mapping of closely related cell
-> types in situ. *Nature Methods* 17, 101 to 106 (2020).
-> [doi:10.1038/s41592-019-0631-4](https://doi.org/10.1038/s41592-019-0631-4)
-
-The 3D version in this repository is used and described in:
-
-> Prankerd, I., Shinn, M. et al. Spatially resolved transcriptomic identification of
-> thousands of neurons recorded in vivo. *bioRxiv* (2026).
-> [doi:10.64898/2026.05.15.725413](https://doi.org/10.64898/2026.05.15.725413)
 
 ## Licence
 
