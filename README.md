@@ -237,16 +237,56 @@ Three things keep the answers checkable:
 - **The figures below show the same numbers.** Anything the agent says about a cell can
   be checked against `check_cell`.
 
-Where to ask:
+#### Where the agent is, and how to set it up
 
-| | |
-| --- | --- |
-| **Claude Code, Claude Desktop** or another MCP client | through `pciseq-mcp`, the [MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server) included in pciSeq. No viewer needed, so it also works on a machine with no screen. |
-| **pciSeq Viewer** | a chat panel inside the desktop viewer, which can also fly the map to the cell it is talking about. In the next release. |
+> [!IMPORTANT]
+> The agent is not a website, and Claude knows nothing about your run until you connect
+> the two. Opening Claude and typing "explain cell 18223" will not work. The agent is
+> your own AI client plus the pciSeq tools, joined by three steps.
+
+```mermaid
+flowchart LR
+    U["<b>You</b><br/>ask a question"] --> C["<b>Claude Code</b> or<br/><b>Claude Desktop</b><br/>on your machine"]
+    C -- "MCP" --> S["<b>pciseq-mcp</b><br/>the pciSeq tools"]
+    S --> R["<b>your run folder</b><br/>what the fit saved"]
+```
+
+**1. Install pciSeq with the agent tools**, in the environment you run pciSeq in:
 
 ```bash
 pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
 ```
+
+**2. Tell your AI client about them**, once. For Claude Code, add to `~/.claude.json`:
+
+```json
+{
+  "mcpServers": {
+    "pciSeq": {"type": "stdio", "command": "pciseq-mcp", "args": []}
+  }
+}
+```
+
+Claude Desktop, Cursor, VS Code and others take the same entry in their own settings
+file, listed on the [MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server)
+page.
+
+**3. Ask, naming the run folder the first time:**
+
+```
+Open the run in out/run1 and explain why cell 18223 got its class.
+```
+
+After that, later questions in the same session need not name the run.
+
+It works with any client that runs on your machine and speaks
+[MCP](https://modelcontextprotocol.io). It does not work from the claude.ai website or
+the phone app, because the tools have to run next to your data. The run stays on your
+machine; only the tool results the agent asks for are sent to the model.
+
+**No setup at all:** the pciSeq Viewer desktop application has the same agent built in
+as a chat panel, which can also fly the map to the cell it is talking about. In the next
+release.
 
 ### The same, as figures
 
