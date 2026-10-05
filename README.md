@@ -203,6 +203,15 @@ the cell is called `037 DG Glut`.
 
 ### Ask in plain words
 
+<p align="center">
+<img src="https://github.com/user-attachments/assets/0daa6f49-a3df-4674-8d5f-5a40f9770043" width="100%" alt="The chat panel in pciSeq Viewer answering two questions about a cell">
+</p>
+
+<p align="center"><em>The chat panel in pciSeq Viewer, on another cell, 5016. It is asked to fly
+to the cell and say why it got its class, then to open the diagnostics and say what they
+show. The waits for the model are played at double speed; the model here is Claude
+Sonnet 5.</em></p>
+
 pciSeq gives an AI agent the tools to explain a run, so you can ask a question the way
 you would ask a colleague:
 
