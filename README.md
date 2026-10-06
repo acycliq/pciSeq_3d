@@ -59,6 +59,24 @@ pip install git+https://github.com/acycliq/pciSeq_3d.git@dev_3d
 
 Python 3.10 or newer.
 
+The MCP server is an optional extra. It is needed only to ask about a run from Claude
+Code, Claude Desktop or another MCP client; the chats inside the two viewers do not use
+it. See [Agent tools](#agent-tools).
+
+```bash
+pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
+```
+
+Then register it with the client, once. For Claude Code:
+
+```bash
+claude mcp add --scope user pciSeq -- pciseq-mcp
+```
+
+Claude Desktop, Cursor and the other clients take the same server in their settings
+file; [MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server) gives the entry
+for each.
+
 ## Quick start
 
 ```python

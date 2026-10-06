@@ -26,10 +26,22 @@ pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3
 
 This installs the `pciseq-mcp` command.
 
-## Starting the server
+## Registering the server
 
 MCP clients start the server themselves as a subprocess and communicate with it over
-stdin and stdout. Example configuration for Claude Code, in `~/.claude.json`:
+stdin and stdout, so the server is registered with the client once and never started
+by hand. Clients with a command line take one command:
+
+```bash
+claude mcp add --scope user pciSeq -- pciseq-mcp    # Claude Code
+gemini mcp add --scope user pciSeq pciseq-mcp        # Gemini CLI
+```
+
+`--scope user` makes the server available in every project; without it both clients
+register the server for the current folder only.
+
+The other clients take the same server as an entry in their settings file. For
+Claude Code the command above writes this to `~/.claude.json`:
 
 ```json
 {
@@ -45,6 +57,7 @@ The entry is the same for every client, under the key the client expects:
 | --- | --- | --- |
 | Claude Code | `~/.claude.json` | `mcpServers` |
 | Claude Desktop | `claude_desktop_config.json` in `~/Library/Application Support/Claude` (macOS), `%APPDATA%\Claude` (Windows), `~/.config/Claude` (Linux) | `mcpServers` |
+| Gemini CLI | `~/.gemini/settings.json` | `mcpServers` |
 | Cursor | `~/.cursor/mcp.json`, or `.cursor/mcp.json` in the project | `mcpServers` |
 | VS Code with Copilot | `.vscode/mcp.json` in the workspace | `servers` |
 | Windsurf | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
@@ -52,8 +65,8 @@ The entry is the same for every client, under the key the client expects:
 
 Desktop applications do not usually inherit the shell's `PATH`; give the full path to
 `pciseq-mcp` there (`which pciseq-mcp` prints it). In Claude Desktop the server
-appears under **Connectors** once registered. The locations above are the clients' as
-of September 2026; their own documentation is the reference.
+appears under **Connectors** once registered. The commands and locations above are the
+clients' as of October 2026; their own documentation is the reference.
 
 ## Usage
 
