@@ -17,9 +17,9 @@
 </div>
 
 pciSeq assigns each RNA spot of an imaging-based spatial transcriptomics experiment to a
-cell, and each cell to a cell type. The two assignments are estimated jointly: the type of
-a cell depends on the spots inside it, and the cell of a spot depends on the types of the
-cells around it. Both come back as probabilities. pciSeq_3d works on a stack of
+cell, and each cell to a cell type. The two assignments are estimated jointly: the class
+of a cell depends on the spots inside it, and the cell of a spot depends on the classes
+of the cells around it. Both come back as probabilities. pciSeq_3d works on a stack of
 segmented planes.
 
 <p align="center">
@@ -42,8 +42,8 @@ tracks convergence.</em></sub></p>
   are taken in 3D with the voxel size accounted for.
 - **Diagnostics.** Ask an AI agent why a cell got its class or why a spot went to a cell,
   or call `check_cell` and `check_spot`. Both read the terms of the score.
-- **Live viewer.** A browser page shows the classes settling, iteration by iteration. The
-  desktop viewer opens the saved result, in 2D and in 3D.
+- **Live viewer.** A browser page shows the classes settling, iteration by iteration. pciSeq
+  Viewer, a desktop application, opens the saved files, in 2D and in 3D.
 - **Output formats.** pandas DataFrames in memory; tsv, feather and a
   [SpatialData](https://spatialdata.scverse.org) zarr store on disk.
 
@@ -60,12 +60,12 @@ pip install git+https://github.com/acycliq/pciSeq_3d.git@dev_3d
 Python 3.10 or newer.
 
 pciSeq can also be queried from an AI assistant such as Claude Code, Gemini CLI or
-Codex. This is optional; the chats inside the two viewers work without it. See
-[Agent tools](#agent-tools). It takes two steps.
+Codex. This is optional; the chats inside the live viewer and pciSeq Viewer work without
+it. See [Agent tools](#agent-tools). It takes two steps.
 
 Install pciSeq with the `mcp` extra. This adds a program, `pciseq-mcp`, through which
-the assistant reads a run (MCP is the protocol these assistants use to call outside
-programs):
+the assistant reads the files a completed run saved (MCP is the protocol these
+assistants use to call outside programs):
 
 ```bash
 pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
@@ -145,7 +145,7 @@ these under `<output_path>/pciSeq/data/`:
 | --- | --- |
 | `cellData.tsv`, `geneData.tsv`, `cellBoundaries.tsv` | any downstream tool |
 | `spatialdata.zarr` | the scverse ecosystem ([SpatialData store](https://acycliq.github.io/pciSeq_3d/api/spatialdata-store)) |
-| `viewer_data/` | the desktop viewer |
+| `viewer_data/` | pciSeq Viewer |
 | `viewer_data/diagnostics/diagnostics.db` | the terms behind every call, the settings, and the documentation of the version that made the run |
 | `debug/pciSeq.pickle` | the fitted model, for `check_cell` and `check_spot` |
 
@@ -176,26 +176,26 @@ The mathematics is in [the model](https://acycliq.github.io/pciSeq_3d/the-model/
 
 ## Diagnostics
 
-pciSeq records, for every cell and every spot, the terms from which its assignment
-was computed. For a cell these are the log-likelihood of its gene counts under each
-class, the log prior of each class, and the contribution of the neighbouring cells.
-For a spot they are the distance to each candidate cell, the expression terms, and the
-background rate. The assignment probability follows from the sum of these terms, so
-any assignment can be decomposed into the quantities that produced it. The terms are
+pciSeq saves with its results, for every cell and every spot, the terms from which its
+assignment was computed. For a cell these are the log-likelihood of its gene counts
+under each class, the log prior of each class, and the contribution of the neighbouring
+cells. For a spot they are the distance to each candidate cell, the expression terms,
+and the background rate. The assignment probability follows from the sum of these terms,
+so any assignment can be decomposed into the quantities that produced it. The terms are
 accessible in two ways: through the agent, and through the functions `check_cell` and
 `check_spot`.
 
 ### Agent tools
 
-The agent is a language model equipped with functions that read the recorded terms
-of a run. Its purpose is to explain the assignments of the statistical model: why a
+The agent is a language model equipped with functions that read the files a completed
+run saved. Its purpose is to explain the assignments of the statistical model: why a
 cell was assigned to its class, why a spot was assigned to one cell rather than
 another, what value a setting took in a given run, and what a term such as the gene
-inefficiency denotes. Each answer is derived from the recorded terms of the run in
-question, not from the general knowledge of the language model. The agent performs no
-computation; every number it reports is returned by one of the functions. The method
-is described from the documentation stored in the run, so that an older run is
-explained by the version of pciSeq that produced it.
+inefficiency denotes. Each answer is derived from those files, not from the general
+knowledge of the language model. The agent performs no computation; every number it
+reports is returned by one of the functions. The method is described from the
+documentation saved with the run, so that an older run is explained by the version of
+pciSeq that produced it.
 
 Within pciSeq Viewer the agent can additionally control the display: move the view to
 a cell, open the diagnostics panel for a cell or a spot, and show or hide classes and
@@ -235,15 +235,15 @@ about the fit in progress; it requires an API key and ends when the run does.
 
 <p align="center"><sub><em>The chat panel in pciSeq Viewer, on cell 5016: asked to move
 to the cell and explain its class, then to open the diagnostics and describe them. The
-model is Claude Sonnet 5; pauses while it responds are cut to half.</em></sub></p>
+language model is Claude Sonnet 5; pauses while it responds are cut to half.</em></sub></p>
 
 The language model is chosen by the user. As of 6 October 2026, the live viewer's chat
 takes an API key from Anthropic or Z.ai (GLM); the chat panel in pciSeq Viewer takes
 either of those, or any endpoint that speaks the Anthropic Messages protocol, given its
-base URL. With an AI assistant the model is the assistant's own. The chat panel and the
-connection for assistants ship with the next release of pciSeq Viewer. In every case the
-run stays on your machine; only the results the agent asks for are sent to the language
-model.
+base URL. With an AI assistant the language model is the assistant's own. The chat panel
+and the connection for assistants ship with the next release of pciSeq Viewer. In every
+case the saved files stay on the user's machine; only the results the agent asks for are
+sent to the language model.
 
 ### Diagnostic figures
 

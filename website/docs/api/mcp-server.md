@@ -15,9 +15,9 @@ It is needed for that route only. The chats inside the live viewer and pciSeq Vi
 include the same functions and do not use it. It needs no viewer and no screen, so it
 also serves a run on a remote machine.
 
-The program reads the output folder of the run: `diagnostics.db` and the viewer files,
-which `fit` writes by default, and `cellData.tsv` and `geneData.tsv` when present. The
-fitted pickle is not used.
+The program reads the output folder of the run: `diagnostics.db` and the files for
+pciSeq Viewer, which `fit` writes by default, and `cellData.tsv` and `geneData.tsv` when
+present. The fitted pickle is not used.
 
 ## Quick start
 
@@ -100,7 +100,7 @@ cannot use a program that runs on the user's machine.
 
 ## Usage
 
-Questions are typed to the agent in natural language. The first call in a session is
+Questions are typed to the assistant in natural language. The first call in a session is
 `open_run` with the run folder; every other tool refers to the run that is open. With
 Claude Code:
 
@@ -112,7 +112,7 @@ claude
 Open the run in <output_path> and explain why spot 1642419 went to cell 18223.
 ```
 
-The agent calls `open_run` on the folder, then `explain_spot`, and answers from the
+The assistant calls `open_run` on the folder, then `explain_spot`, and answers from the
 result. Later questions in the same session need not name the run.
 
 ## Tools
@@ -123,8 +123,8 @@ result. The assistant reads the descriptions, decides which tools a question cal
 calls them, and composes its answer from what they return. The tools of `pciseq-mcp`
 are listed below.
 
-All tools take and return the cell labels of the input segmentation, the labels shown
-in the viewer. The internal labels pciSeq assigns when it renumbers a segmentation do
+All tools take and return the cell labels of the input segmentation, the labels shown in
+pciSeq Viewer. The internal labels pciSeq assigns when it renumbers a segmentation do
 not appear; see [Cell identifiers](./working-with-results.md#cell-identifiers).
 
 ### Run
@@ -159,12 +159,12 @@ not appear; see [Cell identifiers](./working-with-results.md#cell-identifiers).
 
 ### Images
 
-- `cell_image(label, context=False, plane=None, width=1200, channel=None, neighbours=False, save_as=None, mbtiles=None)`: a rendering of the cell on the tissue image, stitched from the viewer's `.mbtiles`: a close-up with the cell outlined in red and the other cells of the plane in blue, or with `context=True` the whole plane with the cell marked. `neighbours=True` outlines only the cells that enter the spatial term. `save_as` writes the PNG to a file.
+- `cell_image(label, context=False, plane=None, width=1200, channel=None, neighbours=False, save_as=None, mbtiles=None)`: a rendering of the cell on the tissue image, stitched from the `.mbtiles` of pciSeq Viewer: a close-up with the cell outlined in red and the other cells of the plane in blue, or with `context=True` the whole plane with the cell marked. `neighbours=True` outlines only the cells that enter the spatial term. `save_as` writes the PNG to a file.
 - `plane_image(plane=None, bbox=None, width=1200, channel=None, save_as=None, mbtiles=None)`: the tissue image of one plane, whole or restricted to `bbox` in image pixels. The plane defaults to the middle of the stack. When the run has several background images, `channel` selects one by name; without it the tool lists them.
 
 ### Arithmetic
 
-- `calculate(expression)`: evaluates an arithmetic expression: numbers, `+ - * / **`, brackets, and `exp`, `log`, `log10`, `sqrt`, `abs` and `round`. Anything else is refused. The agent is instructed to use it rather than compute in its reply, and not to use it to form quantities the other tools do not define.
+- `calculate(expression)`: evaluates an arithmetic expression: numbers, `+ - * / **`, brackets, and `exp`, `log`, `log10`, `sqrt`, `abs` and `round`. Anything else is refused. The assistant is instructed to use it rather than compute in its reply, and not to use it to form quantities the other tools do not define.
 
 ### Documentation
 
@@ -186,7 +186,7 @@ raised.
 
 `explain_cell` and `explain_spot` include a `narrative` field: the result in prose,
 generated from the numbers, with log-likelihood differences expressed as odds. The
-narrative is deterministic and is the same in the viewer's chat panel.
+narrative is deterministic and is the same in the chat panel of pciSeq Viewer.
 
 Two tools count the spots of a cell and give different numbers by design. `cell_counts`
 returns the sum of the assignment probabilities of the spots, the quantity stored as
@@ -203,7 +203,7 @@ precision.
 
 The run is the Espio section used throughout the documentation.
 
-**Why is cell 2413 `048 RHP-COA Ndnf Gaba`?** The agent calls `explain_cell(2413)`.
+**Why is cell 2413 `048 RHP-COA Ndnf Gaba`?** The assistant calls `explain_cell(2413)`.
 The result:
 
 ```
@@ -235,7 +235,7 @@ When the spatial term decides against the genes, the narrative states it. Cell 4
 assigned `022 L5 ET CTX Glut` although its genes favour `006 L4/5 IT CTX Glut` by about
 60 to one; the neighbouring cells are L5 ET and carry the assignment.
 
-**Why did spot 1642419 go to cell 18223?** The agent calls `explain_spot(1642419)`.
+**Why did spot 1642419 go to cell 18223?** The assistant calls `explain_spot(1642419)`.
 The top three candidates:
 
 ```
