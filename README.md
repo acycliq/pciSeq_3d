@@ -26,9 +26,9 @@ segmented planes.
 <img src="https://github.com/user-attachments/assets/dfcd8438-e637-4e34-ae73-4e8c445a982b" width="100%" alt="The live viewer during a fit">
 </p>
 
-<p align="center"><em>The live viewer during a fit, one frame per iteration. Cells are
+<p align="center"><sub><em>The live viewer during a fit, one frame per iteration. Cells are
 coloured by the class they are currently assigned to, and the chart at the bottom right
-tracks convergence.</em></p>
+tracks convergence.</em></sub></p>
 
 ## Overview
 
@@ -177,10 +177,9 @@ The agent is available in three places:
 <img src="https://github.com/user-attachments/assets/0daa6f49-a3df-4674-8d5f-5a40f9770043" width="100%" alt="The chat panel in pciSeq Viewer answering two questions about a cell">
 </p>
 
-<p align="center"><em>The chat panel in pciSeq Viewer, on cell 5016. It is asked to move
-to the cell and say why it got its class, then to open the diagnostics and say what they
-show. Waits for the language model are played at double speed; the language model is
-Claude Sonnet 5.</em></p>
+<p align="center"><sub><em>The chat panel in pciSeq Viewer, on cell 5016: asked to move
+to the cell and explain its class, then to open the diagnostics and describe them. The
+model is Claude Sonnet 5; pauses while it responds are cut to half.</em></sub></p>
 
 The live viewer and pciSeq Viewer include the functions and require no MCP server. An
 MCP client such as Claude Code or Claude Desktop obtains them from the `pciseq-mcp`
