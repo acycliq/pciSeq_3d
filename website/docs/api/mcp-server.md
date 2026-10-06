@@ -1,72 +1,102 @@
 ---
-description: An MCP server that exposes a finished pciSeq run to AI agents and other MCP clients.
+description: A program through which an AI assistant reads the files a completed pciSeq run saved.
 ---
 
 # MCP server
 
-pciSeq includes an MCP ([Model Context Protocol](https://modelcontextprotocol.io))
-server that exposes a finished run to AI agents and other MCP clients. The server
-provides tools for inspecting cell class assignments, spot assignments, counts,
-scale factors and images of one run over the standard MCP stdio transport. An agent such as Claude Code
-or Claude Desktop connects to it and answers questions about the run in natural
-language.
+pciSeq includes `pciseq-mcp`, a program through which an AI assistant such as Claude
+Code, Gemini CLI or Codex reads the files a completed run saved. The assistant
+calls its functions to inspect cell class assignments, spot assignments, counts, scale
+factors and images, and answers questions about the run in natural language. MCP
+([Model Context Protocol](https://modelcontextprotocol.io)) is the protocol such
+assistants use to call outside programs.
 
-The server reads the run's output folder: `diagnostics.db` and the viewer files, which
-`fit` writes by default, and `cellData.tsv` and `geneData.tsv` when present. The fitted
-pickle is not used.
+It is needed for that route only. The chats inside the live viewer and pciSeq Viewer
+include the same functions and do not use it. It needs no viewer and no screen, so it
+also serves a run on a remote machine.
+
+The program reads the output folder of the run: `diagnostics.db` and the viewer files,
+which `fit` writes by default, and `cellData.tsv` and `geneData.tsv` when present. The
+fitted pickle is not used.
+
+## Quick start
+
+```bash
+pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
+claude mcp add --scope user pciseq -- pciseq-mcp
+claude
+```
+
+```
+Open the run in <output_path> and explain why cell 100 was assigned to its class.
+```
+
+These are the three steps described below, in the form for Claude Code.
 
 ## Installation
 
-The server is an optional extra. It depends on the `mcp` Python package, which the
+The program is an optional extra. It depends on the `mcp` Python package, which the
 rest of pciSeq does not need:
 
 ```bash
 pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
 ```
 
-This installs the `pciseq-mcp` command.
+This installs the `pciseq-mcp` command, in lowercase. `which pciseq-mcp` prints its
+location. Run by hand it prints nothing and waits for an assistant; this is the
+expected behaviour, and Ctrl+C exits.
 
-## Registering the server
+## Registering with an assistant
 
-MCP clients start the server themselves as a subprocess and communicate with it over
-stdin and stdout, so the server is registered with the client once and never started
-by hand. Clients with a command line take one command:
+The program is registered with the assistant once. The assistant then starts it by
+itself each time it is needed; it is never started by hand.
 
 ```bash
-claude mcp add --scope user pciSeq -- pciseq-mcp    # Claude Code
-gemini mcp add --scope user pciSeq pciseq-mcp        # Gemini CLI
+claude mcp add --scope user pciseq -- pciseq-mcp             # Claude Code
+gemini mcp add --scope user pciseq pciseq-mcp                 # Gemini CLI
+codex mcp add pciseq -- pciseq-mcp                            # OpenAI Codex CLI and ChatGPT desktop app
+code --add-mcp '{"name":"pciseq","command":"pciseq-mcp"}'     # VS Code
 ```
 
-`--scope user` makes the server available in every project; without it both clients
-register the server for the current folder only.
+`pciseq` is the name under which the assistant lists the program and may be any name;
+`pciseq-mcp` is the command. `--scope user` makes it available in every folder; without
+it Claude Code and Gemini CLI register it for the current folder only. `claude mcp
+list`, `gemini mcp list` and `codex mcp list` show what is registered.
 
-The other clients take the same server as an entry in their settings file. For
-Claude Code the command above writes this to `~/.claude.json`:
+### Where the command is found
+
+The assistant runs `pciseq-mcp` as registered, so it must be started from a terminal in
+which that command is found. With conda or a virtual environment, that is the
+environment pciSeq is installed in. Registering the full path removes the dependence:
+
+```bash
+claude mcp add --scope user pciseq -- "$(which pciseq-mcp)"
+```
+
+### Assistants without a command
+
+Claude Desktop, Cursor and Zed are configured by adding an entry to a settings file,
+with the full path of the command:
 
 ```json
 {
   "mcpServers": {
-    "pciSeq": {"type": "stdio", "command": "pciseq-mcp", "args": []}
+    "pciseq": {"command": "/full/path/to/pciseq-mcp", "args": []}
   }
 }
 ```
 
-The entry is the same for every client, under the key the client expects:
-
-| Client | Configuration file | Key |
+| Assistant | Settings file | Key |
 | --- | --- | --- |
-| Claude Code | `~/.claude.json` | `mcpServers` |
-| Claude Desktop | `claude_desktop_config.json` in `~/Library/Application Support/Claude` (macOS), `%APPDATA%\Claude` (Windows), `~/.config/Claude` (Linux) | `mcpServers` |
-| Gemini CLI | `~/.gemini/settings.json` | `mcpServers` |
+| Claude Desktop | `claude_desktop_config.json`, opened from Settings, Developer, Edit Config | `mcpServers` |
 | Cursor | `~/.cursor/mcp.json`, or `.cursor/mcp.json` in the project | `mcpServers` |
-| VS Code with Copilot | `.vscode/mcp.json` in the workspace | `servers` |
-| Windsurf | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
 | Zed | the settings file | `context_servers` |
 
-Desktop applications do not usually inherit the shell's `PATH`; give the full path to
-`pciseq-mcp` there (`which pciseq-mcp` prints it). In Claude Desktop the server
-appears under **Connectors** once registered. The commands and locations above are the
-clients' as of October 2026; their own documentation is the reference.
+Claude Desktop must be restarted afterwards. The commands and locations above are the
+assistants' as of October 2026; their own documentation is the reference.
+
+Web applications such as ChatGPT and claude.ai connect to remote servers only and
+cannot use a program that runs on the user's machine.
 
 ## Usage
 
@@ -87,6 +117,12 @@ result. Later questions in the same session need not name the run.
 
 ## Tools
 
+*Tool* is the term MCP uses for a function that a program makes available to an
+assistant. Each tool has a name, a description and typed arguments, and returns a
+result. The assistant reads the descriptions, decides which tools a question calls for,
+calls them, and composes its answer from what they return. The tools of `pciseq-mcp`
+are listed below.
+
 All tools take and return the cell labels of the input segmentation, the labels shown
 in the viewer. The internal labels pciSeq assigns when it renumbers a segmentation do
 not appear; see [Cell identifiers](./working-with-results.md#cell-identifiers).
@@ -100,7 +136,7 @@ not appear; see [Cell identifiers](./working-with-results.md#cell-identifiers).
 ### Cells
 
 - `cell(label)`: the class probabilities, top genes, total counts and scale factor of one cell, and the neighbours that enter its spatial term.
-- `explain_cell(label, vs_class=None)`: the score of the assigned class against a second class, split into the gene log-likelihood, the class prior and the spatial term, with the genes contributing most to each side. Each gene is reported with the cell's count and the mean count over the cells assigned to either class. The shared genes are the cell's largest counts that the two classes fit about equally, the genes the two classes have in common. `vs_class` defaults to the runner-up.
+- `explain_cell(label, vs_class=None, top_n=10)`: the score of the assigned class against a second class, split into the gene log-likelihood, the class prior and the spatial term, with the genes contributing most to each side. Each gene is reported with the cell's count and the mean count over the cells assigned to either class. The shared genes are the cell's largest counts that the two classes fit about equally, the genes the two classes have in common. `vs_class` defaults to the runner-up.
 - `cell_counts(label, gene=None)`: the counts of a cell, in total or for one gene.
 - `spots_in_cell(label, gene=None)`: the spots whose pixel lies inside the cell's segmentation mask.
 - `spots_of_cell(label, min_prob=None, gene=None)`: the spots whose most probable parent is the cell, each with its probability. With `min_prob`, every spot with probability above it; with `gene`, only that gene's spots.
@@ -132,7 +168,7 @@ not appear; see [Cell identifiers](./working-with-results.md#cell-identifiers).
 
 ### Documentation
 
-- `docs(query, n=5)`: the paragraphs of this documentation matching a keyword query, each with its page and heading.
+- `docs(query='', page='', n=5)`: the paragraphs of this documentation matching a keyword query, each with its page and heading; with `page`, one whole page; with neither, the list of pages.
 
 Every page is also available as a resource named `pciseq-docs://<page>`, and
 `pciseq-docs://index` lists them. The pages are packed into the wheel at build time from
@@ -210,6 +246,23 @@ cell         class          Gaussian fit    class expr.  cell scale   cell-gene 
 background                                                                        0.01   misread -14.92
 ```
 
+and its `narrative`:
+
+> Spot 1642419 is a Synpr spot. It was assigned to cell 18223, fairly confidently, with
+> probability 0.74. The next candidates are cell 21574 (0.13), cell 17371 (0.10), and
+> the chance it is a misread is 0.01. pciSeq weighs each nearby cell on two things: how
+> close the spot is to the cell's centre (the Gaussian fit), and how well a Synpr spot
+> fits that cell, which combines whether the cell's class expresses Synpr (class
+> expression), whether the cell holds more reads overall than its class predicts (cell
+> scale), and whether it already holds more Synpr than its class predicts (cell-gene
+> scale). The background is scored on how often Synpr spots turn out to be misreads. The
+> best total wins. Cell 18223 is the nearest candidate: about 5 to one over cell 17371
+> and about 11 to one over cell 21574 on position alone. Every candidate is a 037 DG
+> Glut cell, so on class alone Synpr fits them all equally; what separates them is how
+> much each already holds. Between the top two, cell 21574 holds more reads overall than
+> its class predicts. So cell 21574 is the better fit for the gene, slightly, but cell
+> 18223 is closer, about 11 to one, and distance carries the call.
+
 The probabilities match [Table 3.1](../explaining-the-calls/why-a-spot-got-its-cell.md#table-3-1).
 All candidates are `037 DG Glut`, so the class term does not separate them; cell 18223
 is the nearest and the Gaussian term decides. The narrative states this as *distance
@@ -221,23 +274,5 @@ states *expression carries the call*.
 
 **Which spots belong to cell 18223?** `spots_of_cell(18223)` returns the 31 spots whose
 most probable parent is the cell, with probabilities from 0.81 to 0.295. `cell_row(18223)`
-lists 542 spots under `spot_id`, every spot with probability above 0.0001 on the cell;
+lists 506 spots under `spot_id`, every spot with probability above 0.0001 on the cell;
 their probabilities sum to the cell's 38.5 counts.
-
-## Notes
-
-Runs made before September 2026 have no `inside_cell` column, so `spots_in_cell`
-returns an error, and carry no settings or convergence record, so `run_info` returns
-the provenance only and `explain_spot` reports the scaled z without a plane. Runs made
-before the spatial term's neighbours were saved return no neighbours from `cell`, and
-`cell_image(neighbours=True)` outlines every cell near the one requested. The other
-tools work on any run with a `diagnostics.db`.
-
-The tools are plain Python functions in `pciSeq.src.mcp.tools` and can be called
-without the server:
-
-```python
-from pciSeq.src.mcp.tools import open_run
-run = open_run('<output_path>')
-run.explain_cell(2413)
-```
