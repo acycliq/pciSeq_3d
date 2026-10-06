@@ -42,8 +42,9 @@ tracks convergence.</em></sub></p>
   are taken in 3D with the voxel size accounted for.
 - **Diagnostics.** Ask an AI agent why a cell got its class or why a spot went to a cell,
   or call `check_cell` and `check_spot`. Both read the terms of the score.
-- **Live viewer.** A browser page shows the classes settling, iteration by iteration. pciSeq
-  Viewer, a desktop application, opens the saved files, in 2D and in 3D.
+- **Two viewers.** The live viewer, a browser page, shows the classes settling, iteration
+  by iteration. pciSeq Viewer, a desktop application, opens the saved files, in 2D and
+  in 3D.
 - **Output formats.** pandas DataFrames in memory; tsv, feather and a
   [SpatialData](https://spatialdata.scverse.org) zarr store on disk.
 
@@ -59,41 +60,14 @@ pip install git+https://github.com/acycliq/pciSeq_3d.git@dev_3d
 
 Python 3.10 or newer.
 
-pciSeq can also be queried from an AI assistant such as Claude Code, Gemini CLI or
-Codex. This is optional; the chats inside the live viewer and pciSeq Viewer work without
-it. See [Agent tools](#agent-tools). It takes two steps.
-
-Install pciSeq with the `mcp` extra. This adds a program, `pciseq-mcp`, through which
-the assistant reads the files a completed run saved (MCP is the protocol these
-assistants use to call outside programs):
+The `mcp` extra adds `pciseq-mcp`, the program through which an AI assistant such as
+Claude Code, Gemini CLI or Codex reads the files a completed run saved. It is optional;
+the chats inside the live viewer and pciSeq Viewer work without it. How the assistant is
+told about the program is in [Agent tools](#agent-tools).
 
 ```bash
 pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
 ```
-
-Tell the assistant about that program, once, with the line for the one in use:
-
-```bash
-claude mcp add --scope user pciseq -- pciseq-mcp             # Claude Code
-gemini mcp add --scope user pciseq pciseq-mcp                 # Gemini CLI
-codex mcp add pciseq -- pciseq-mcp                            # OpenAI Codex CLI and ChatGPT desktop app
-code --add-mcp '{"name":"pciseq","command":"pciseq-mcp"}'     # VS Code
-```
-
-The assistant must be started from a terminal in which the `pciseq-mcp` command is
-found. With conda or a virtual environment, that is the environment pciSeq is
-installed in. Then ask. The first question names the folder `pciSeq.fit` saved its
-results in, the `output_path` of the run:
-
-```
-Open the run in out/run1 and explain why cell 100 was assigned to its class.
-```
-
-Claude Desktop and Cursor have no such command; for these the program is added to a
-settings file by hand, as described in
-[MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server). ChatGPT and claude.ai
-in the browser cannot be used, since a web page cannot reach a program on the user's
-machine.
 
 ## Quick start
 
@@ -154,9 +128,10 @@ See [working with results](https://acycliq.github.io/pciSeq_3d/api/working-with-
 ## Method
 
 Every unknown is a latent variable of one Bayesian model: the cell of origin of each
-spot, the class of each cell, the detection efficiency of each gene, and the per-cell and
-per-gene scale factors. The joint posterior is approximated by variational inference and
-fitted by coordinate ascent, four updates repeated until the estimates stop changing.
+spot, the class of each cell, the detection efficiency of each gene, a scale factor per
+cell, and one per gene in each cell. The joint posterior is approximated by variational
+inference and fitted by coordinate ascent, four updates repeated until the estimates
+stop changing.
 
 1. **[Misread density.](https://acycliq.github.io/pciSeq_3d/how-it-works/misread-density)**
    The rate of background spots per gene, estimated from the spots currently assigned to
@@ -182,7 +157,7 @@ under each class, the log prior of each class, and the contribution of the neigh
 cells. For a spot they are the distance to each candidate cell, the expression terms,
 and the background rate. The assignment probability follows from the sum of these terms,
 so any assignment can be decomposed into the quantities that produced it. The terms are
-accessible in two ways: through the agent, and through the functions `check_cell` and
+accessible in two ways: through the agent, and through the methods `check_cell` and
 `check_spot`.
 
 ### Agent tools
@@ -197,12 +172,12 @@ reports is returned by one of the functions. The method is described from the
 documentation saved with the run, so that an older run is explained by the version of
 pciSeq that produced it.
 
-Within pciSeq Viewer the agent can additionally control the display: move the view to
-a cell, open the diagnostics panel for a cell or a spot, and show or hide classes and
-genes.
+Within pciSeq Viewer, the desktop application, the agent can additionally control the
+display: move the view to a cell, open the diagnostics panel for a cell or a spot, and
+show or hide classes and genes.
 
-The diagram shows what each way of asking uses. Select a way to see its parts; the person
-marks where the question is typed.
+The diagram shows the four ways of asking and what each one uses. Select a way to see its
+parts; the person marks where the question is typed.
 
 <details name="ways-to-ask" open>
 <summary>All</summary>
@@ -257,33 +232,81 @@ marks where the question is typed.
 <p align="center"><sub><em>The same diagram, with the ways switched in place, is in the
 <a href="https://acycliq.github.io/pciSeq_3d/accessing-the-ai-agent">documentation</a>.</em></sub></p>
 
-Once a run has completed there are three ways to ask. All three read the files
-`pciSeq.fit` saved and report the same numbers; they differ in what has to be set up
-and in whether the answer can be shown on screen.
+The diagram has four places where a question is typed, one person icon each. The four
+are described below by the arrows that leave them and by what has to be set up to draw
+those arrows.
 
-| | Reads | Controls pciSeq Viewer? | Requires |
-| --- | --- | --- | --- |
-| An AI assistant with `pciseq-mcp` | the saved files, from the output folder of the run | no | the `mcp` extra, see [Installation](#installation) |
-| An AI assistant connected to [pciSeq Viewer](https://github.com/acycliq/pciSeq_viewer) | the saved files, as loaded in pciSeq Viewer | yes | pciSeq Viewer running; its address registered with the assistant once |
-| The chat panel in pciSeq Viewer | the saved files, as loaded in pciSeq Viewer | yes | an API key |
+#### The live viewer's chat
 
-The first needs neither viewer, so it also serves a machine without a screen.
+The live viewer is the browser page `pciSeq.fit` serves while it runs, with
+`realtime_viewer` on. Its chat answers about the fit in progress. It sends the question
+and the function results to the language model, so it requires an API key, entered in
+the page. Nothing is installed or registered. The chat ends when the run does.
 
-The second connects an assistant to pciSeq Viewer, which accepts the connection at a
-local address while it has the saved files of a run loaded. Register that address with
-the assistant, once, by running in a terminal (the form for Claude Code):
+#### An AI assistant with `pciseq-mcp`
+
+Once the run has completed, an AI assistant reaches the saved files through
+`pciseq-mcp`, the program installed with the `mcp` extra (see
+[Installation](#installation)). The arrow "calls" is drawn once, by telling the
+assistant about the program, with the line for the one in use:
+
+```bash
+claude mcp add --scope user pciseq -- pciseq-mcp             # Claude Code
+gemini mcp add --scope user pciseq pciseq-mcp                 # Gemini CLI
+codex mcp add pciseq -- pciseq-mcp                            # OpenAI Codex CLI and ChatGPT desktop app
+code --add-mcp '{"name":"pciseq","command":"pciseq-mcp"}'     # VS Code
+```
+
+Claude Desktop and Cursor have no such command; for these the program is added to a
+settings file by hand, as described in
+[MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server). ChatGPT and claude.ai
+in the browser cannot be used, since a web page cannot reach a program on the user's
+machine.
+
+The assistant must be started from a terminal in which the `pciseq-mcp` command is
+found. With conda or a virtual environment, that is the environment pciSeq is
+installed in. The question names the folder `pciSeq.fit` saved its results in, the
+`output_path` of the run:
+
+```
+Open the run in out/run1 and explain why cell 100 was assigned to its class.
+```
+
+No viewer is involved, so this is the way for a machine without a screen.
+
+#### An AI assistant connected to pciSeq Viewer
+
+pciSeq Viewer is the desktop application that opens the saved files. While it has them
+loaded it accepts connections from an AI assistant at a local address. The arrow "calls
+and controls" is drawn once, by registering that address with the assistant (the form
+for Claude Code):
 
 ```bash
 claude mcp add --transport http pciseq-viewer http://127.0.0.1:8317/mcp
 ```
 
 Then load the saved files in pciSeq Viewer, by selecting the `viewer_data` folder of
-the run, start the assistant and ask. No folder is named in the question; the data on
-screen are the ones queried, and the assistant can control pciSeq Viewer as described
-above.
+the run, start the assistant and ask. The assistant reads the files as loaded in pciSeq
+Viewer and controls the display. The question names no folder; the data on screen are
+the ones queried. This way does not use `pciseq-mcp`, and the `mcp` extra is not
+needed.
 
-The third needs no assistant at all. During a run, the live viewer's chat answers
-about the fit in progress; it requires an API key and ends when the run does.
+#### The chat panel in pciSeq Viewer
+
+The chat panel reads the same loaded files and controls the display in the same way,
+with no assistant. It requires an API key, entered in pciSeq Viewer.
+
+#### Summary
+
+| | When | Reads | Controls pciSeq Viewer? | Requires |
+| --- | --- | --- | --- | --- |
+| The live viewer's chat | during the run | the fit in progress | no | an API key |
+| An AI assistant with `pciseq-mcp` | once the run has completed | the saved files, from the output folder of the run | no | the `mcp` extra and one `mcp add` |
+| An AI assistant connected to pciSeq Viewer | once the run has completed | the saved files, as loaded in pciSeq Viewer | yes | pciSeq Viewer running and one `mcp add` |
+| The chat panel in pciSeq Viewer | once the run has completed | the saved files, as loaded in pciSeq Viewer | yes | an API key |
+
+The three that read the saved files report the same numbers for the same cell or spot;
+they differ in what has to be set up and in whether the answer can be shown on screen.
 
 <p align="center">
 <img src="https://github.com/user-attachments/assets/0daa6f49-a3df-4674-8d5f-5a40f9770043" width="100%" alt="The chat panel in pciSeq Viewer answering two questions about a cell">
