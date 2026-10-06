@@ -410,6 +410,36 @@ def _picture(im, info, save_as):
 
 
 @_tool
+def list_source(dir: Annotated[str, Field(
+        description='Folder path, for example "pciSeq/src/core"; "" for the package.')] = '') -> dict:
+    """List a folder of the pciSeq source code, at the commit that made the open run.
+
+    The code shown is the code that produced the run's numbers: the files on GitHub
+    at that commit (needs internet). A run that does not record its commit is
+    refused. Use it to find the file a question is about; the model code is under
+    pciSeq/src/core.
+    """
+    from . import source as _source
+    return _source.list_source_for_run(_need_run().commit(), dir)
+
+
+@_tool
+def read_source(path: Annotated[str, Field(
+            description='For example "pciSeq/src/core/main.py". A path from the code '
+                        'map page works as it is.')],
+                start_line: Annotated[int, Field(description='First line to return, default 1.')] = 1) -> dict:
+    """Read a file of the pciSeq source code, with line numbers, at the commit that
+    made the open run, so it is the code that produced the numbers (see list_source
+    for where it comes from). Reach for it only when a question needs the actual
+    code, after the docs; never claim to run it. Long files come back in slices of
+    up to 400 lines, give start_line to read on. When you cite it, give the file and
+    the line.
+    """
+    from . import source as _source
+    return _source.read_source_for_run(_need_run().commit(), path, start_line)
+
+
+@_tool
 def docs(query: Annotated[str, Field(
              description='A few words, for example "rTheta" or "spatial term".')] = '',
          page: Annotated[str, Field(

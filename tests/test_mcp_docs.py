@@ -47,10 +47,9 @@ def test_read_page_and_title():
 
 
 def test_search_finds_the_page_that_defines_a_term():
-    hits = docs.search_docs('inside_cell')
-    assert hits and hits[0]['page'] in ('api/working-with-results.md', 'api/mcp-server.md',
-                                        'api/spatialdata-store.md')
-    assert all('inside_cell' in h['text'] for h in hits)
+    hits = docs.search_docs('CellGeneCount')
+    assert hits and hits[0]['page'] == 'api/working-with-results.md'
+    assert all('CellGeneCount' in h['text'] for h in hits)
 
     hits = docs.search_docs('segmentation label internal label')
     assert hits[0]['page'] == 'api/working-with-results.md'

@@ -25,15 +25,14 @@ is typed.
 | The chat panel in pciSeq Viewer | once the run has completed | the saved files, as loaded in pciSeq Viewer | an API key |
 | The chat of the [live viewer](./api/live-viewer.md) | during the run | the fit in progress | an API key |
 
-The agent can also show the source code behind a quantity, for example the adjustment
-for anisotropy. Through pciSeq Viewer, from its chat panel or from an AI assistant
-connected to it, the file is read from the pciSeq repository on GitHub at the commit
-that produced the run, so the code shown is the code that computed the saved numbers;
-this needs a network connection, and the request names a file and a commit and carries
-nothing from the run. The live viewer's chat reads the installed files, which are the
-code running the fit. An AI assistant with `pciseq-mcp` cannot yet be given the code
-that produced the run. The [code map](./api/code-map.md) names the function and line for
-each quantity.
+In every way the agent can also show the source code behind a quantity, for example
+the adjustment for anisotropy, and in every way the code shown is the code that produced
+the numbers. The live viewer's chat reads the installed files, which are the code
+running the fit. For a completed run, `pciseq-mcp` and pciSeq Viewer read the file at
+the commit the run recorded, from the pciSeq repository on GitHub. This needs a network
+connection; the request names a file and a commit and carries nothing from the run. A run that does not record its commit is refused rather than
+shown another version. The [code map](./api/code-map.md) names the function and line
+for each quantity.
 
 Where an API key is needed, it is saved on the user's machine. The files `pciSeq.fit`
 wrote for the run stay on that machine too; only the question and the results of the

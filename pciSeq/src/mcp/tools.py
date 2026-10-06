@@ -205,6 +205,11 @@ class Run:
 
     # --------------------------------------------------------------- tools
 
+    def commit(self):
+        """The commit of the pciSeq that made this run, or None for a run from before
+        it was recorded (the source tools refuse those rather than guess)."""
+        return self._meta('pciSeq_provenance', parse=True, default={}).get('commit') or None
+
     def summary(self):
         """What this run is: its size, the code that made it, and what it can answer."""
         prov = self._meta('pciSeq_provenance', parse=True, default={})

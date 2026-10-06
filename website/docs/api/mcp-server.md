@@ -167,6 +167,13 @@ not appear; see [Cell identifiers](./working-with-results.md#cell-identifiers).
 
 - `calculate(expression)`: evaluates an arithmetic expression: numbers, `+ - * / **`, brackets, and `exp`, `log`, `log10`, `sqrt`, `abs` and `round`. Anything else is refused. The assistant is instructed to use it rather than compute in its reply, and not to use it to form quantities the other tools do not define.
 
+### Source code
+
+- `list_source(dir='')`: a folder of the pciSeq source, folders and python files, at the commit that made the open run.
+- `read_source(path, start_line=1)`: a file of the source with line numbers, at most 400 lines from `start_line`, at the commit that made the open run. A path as the repository has it (`pciSeq/src/core/main.py`) or as the [code map](./code-map.md) writes it (`core/main.py`).
+
+Both serve the code that produced the run's numbers, read from GitHub at the run's commit, which needs a network connection. A run from before the commit was recorded is refused.
+
 ### Documentation
 
 - `docs(query='', page='', n=5)`: the paragraphs of this documentation matching a keyword query, each with its page and heading; with `page`, one whole page; with neither, the list of pages.

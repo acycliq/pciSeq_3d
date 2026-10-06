@@ -69,3 +69,69 @@ def test_the_chat_offers_both_and_runs_them():
     assert chat.call_tool(None, 'list_source', {})['dir'] == 'pciSeq'
     # a refusal reaches the model as an error it can read, not as an exception
     assert 'in the pciSeq source' in chat.call_tool(None, 'read_source', {'path': '../x.py'})['error']
+
+
+# ---- a finished run: the code at the commit that made it
+
+@pytest.fixture
+def github(monkeypatch):
+    """A fake GitHub holding one commit, and a record of what was asked for."""
+    files = {'pciSeq/src/core/main.py': 'import numpy\n' * 500,
+             'pciSeq/src/core/utils/geometry.py': 'def area():\n    return 1\n'}
+    asked = []
+
+    def fetch(url):
+        asked.append(url)
+        if url.startswith(source.RAW + 'abc1234/'):
+            path = url[len(source.RAW + 'abc1234/'):]
+            if path in files:
+                return files[path]
+        if url.startswith(source.CONTENTS) and '?ref=abc1234' in url:
+            d = url[len(source.CONTENTS):url.index('?')]
+            if d == 'pciSeq/src/core':
+                import json
+                return json.dumps([{'name': 'utils', 'type': 'dir'}, {'name': 'main.py', 'type': 'file'},
+                                   {'name': '__pycache__', 'type': 'dir'}, {'name': 'notes.txt', 'type': 'file'}])
+        raise FileNotFoundError(url)
+
+    monkeypatch.setattr(source, 'fetch_text', fetch)
+    return asked
+
+
+def test_a_run_reads_github_at_the_commit_that_made_it(github):
+    out = source.read_source_for_run('abc1234', 'core/main.py', start_line=401)
+    assert out['path'] == 'pciSeq/src/core/main.py' and out['commit'] == 'abc1234'
+    assert out['start_line'] == 401 and out['end_line'] == 500 and 'more' not in out
+    assert out['text'].split('\n')[0].startswith('401  import numpy')
+    assert 'GitHub at commit abc1234' in out['source_is']
+    assert github == [source.RAW + 'abc1234/pciSeq/src/core/main.py']
+
+
+def test_the_three_path_spellings_reach_github_too(github):
+    for spelling in ('pciSeq/src/core/utils/geometry.py', 'src/core/utils/geometry.py', 'core/utils/geometry.py'):
+        assert source.read_source_for_run('abc1234', spelling)['path'] == 'pciSeq/src/core/utils/geometry.py'
+    with pytest.raises(ValueError, match='not a path inside the repo'):
+        source.read_source_for_run('abc1234', 'pciSeq/../setup.py')
+    with pytest.raises(ValueError, match='only the python source'):
+        source.read_source_for_run('abc1234', 'README.md')
+
+
+def test_a_folder_on_github_lists_folders_and_python_files(github):
+    out = source.list_source_for_run('abc1234', 'core')
+    assert out['dir'] == 'pciSeq/src/core' and out['commit'] == 'abc1234'
+    assert out['entries'] == [{'name': 'utils', 'type': 'dir'}, {'name': 'main.py', 'type': 'file'}]
+
+
+def test_a_commit_that_is_not_on_github_is_refused_not_replaced(github):
+    with pytest.raises(FileNotFoundError, match='never pushed'):
+        source.read_source_for_run('0000000', 'core/main.py')
+    with pytest.raises(FileNotFoundError, match='never pushed'):
+        source.list_source_for_run('0000000', 'core')
+
+
+def test_a_run_without_a_commit_is_refused(github):
+    with pytest.raises(ValueError, match='does not record the commit'):
+        source.read_source_for_run(None, 'core/main.py')
+    with pytest.raises(ValueError, match='does not record the commit'):
+        source.list_source_for_run('', '')
+    assert github == []

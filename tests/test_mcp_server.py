@@ -22,7 +22,7 @@ from tests.test_label_identifiers import _run
 TOOLS = {'open_run', 'cell', 'explain_cell', 'explain_spot', 'cell_counts', 'spots_in_cell',
          'spots_of_cell', 'cell_row', 'spot_row', 'docs', 'run_info', 'cell_image',
          'plane_image', 'gene', 'theta', 'gamma', 'spot', 'neighbours', 'class_counts',
-         'find_cells', 'metadata', 'calculate'}
+         'find_cells', 'metadata', 'calculate', 'list_source', 'read_source'}
 
 
 def test_calculate_answers_and_refusals_reach_the_agent():
@@ -185,3 +185,26 @@ def test_missing_mcp_still_says_something_useful():
     src = (pathlib.Path(__file__).resolve().parents[1]
            / 'pciSeq/src/mcp/server.py').read_text()
     assert 'pciSeq_3d[mcp]' in src
+
+
+def test_the_source_tools_read_github_at_the_commit_that_made_the_run(run_folder, monkeypatch):
+    from pciSeq.src.mcp import source
+    call('open_run', path=str(run_folder))
+    commit = call('run_info')['commit']
+    asked = []
+
+    def fake_github(url):
+        asked.append(url)
+        if url == source.RAW + commit + '/pciSeq/src/core/main.py':
+            return 'line one\nline two\nline three\n'
+        raise FileNotFoundError(url)
+    monkeypatch.setattr(source, 'fetch_text', fake_github)
+
+    out = call('read_source', path='core/main.py', start_line=2)
+    assert out['path'] == 'pciSeq/src/core/main.py' and out['start_line'] == 2
+    assert out['commit'] == commit and 'made this run' in out['source_is']
+    assert asked == [source.RAW + commit + '/pciSeq/src/core/main.py']
+    # the refusals reach the agent with their message
+    assert 'not a path inside the repo' in error_of('read_source', path='../setup.py')
+    assert 'only the python source' in error_of('read_source', path='pciSeq/src/tiling/README.md')
+    assert 'never pushed' in error_of('read_source', path='core/nope.py')
