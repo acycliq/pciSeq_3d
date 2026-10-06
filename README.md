@@ -165,9 +165,9 @@ Within the viewer the agent can additionally operate on the display: move the vi
 a cell, open the diagnostics panel for a cell or a spot, and show or hide classes and
 genes.
 
-The functions are exposed through three interfaces:
+The agent is available in three places:
 
-| Interface | When | Requires |
+| Where | When | Requires |
 | --- | --- | --- |
 | The live viewer's chat | during the run | an API key for the language model |
 | The chat panel in [pciSeq Viewer](https://github.com/acycliq/pciSeq_viewer) | after the run | an API key for the language model |
@@ -182,12 +182,11 @@ to the cell and say why it got its class, then to open the diagnostics and say w
 show. Waits for the language model are played at double speed; the language model is
 Claude Sonnet 5.</em></p>
 
-The first two interfaces need no MCP server; the functions are built into the live
-viewer and into pciSeq Viewer. The third is for an MCP client, such as Claude Code or
-Claude Desktop, which starts `pciseq-mcp` itself and obtains the same functions through
-it ([MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server)). It needs the
-functions to run next to the data, so it does not work from the claude.ai website or
-the phone app.
+The live viewer and pciSeq Viewer include the functions and require no MCP server. An
+MCP client such as Claude Code or Claude Desktop obtains them from the `pciseq-mcp`
+server, described in [MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server).
+Since the functions read the run from disk, an MCP client must run on the machine that
+holds the data.
 
 The language model is chosen by the user. As of 6 October 2026, the live viewer's chat
 takes an API key from Anthropic or Z.ai (GLM); the chat panel in pciSeq Viewer takes
