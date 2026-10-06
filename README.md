@@ -20,75 +20,35 @@
 pciSeq assigns each RNA spot of an imaging-based spatial transcriptomics experiment to a
 cell, and each cell to a cell type. The two assignments are estimated jointly: the type of
 a cell depends on the spots inside it, and the cell of a spot depends on the types of the
-cells around it. Both come back as probabilities. This branch works in 3D, on a stack of
+cells around it. Both come back as probabilities. pciSeq_3d works on a stack of
 segmented planes.
 
 https://github.com/user-attachments/assets/ab9867e4-866e-4f81-88e5-359bdf7d7a64
 
-<p align="center"><em>The live viewer during a fit, one picture per iteration. Cells are
+<p align="center"><em>The live viewer during a fit, one frame per iteration. Cells are
 coloured by the class they are currently assigned to, and the chart at the bottom right
 tracks convergence.</em></p>
 
 ## Overview
 
-<table>
-<tr>
-<td width="33%" valign="top">
+- **Joint assignment.** A spot is assigned to a cell given the cell's class, and a cell is
+  given a class from the spots assigned to it. The two are updated in turn until they
+  agree.
+- **Probabilistic output.** A spot on the boundary of two cells gets probability on both.
+  A spot no cell explains goes to the background. A cell's count of a gene is an expected
+  count, such as 4.3.
+- **3D.** Spots carry a plane, the segmentation is a stack, and the neighbours of a cell
+  are taken in 3D with the voxel size accounted for.
+- **Diagnostics.** Ask an AI agent why a cell got its class or why a spot went to a cell,
+  or call `check_cell` and `check_spot`. Both read the terms of the score.
+- **Live viewer.** A browser page shows the classes settling, iteration by iteration. The
+  desktop viewer opens the saved result, in 2D and in 3D.
+- **Output formats.** pandas DataFrames in memory; tsv, feather and a
+  [SpatialData](https://spatialdata.scverse.org) zarr store on disk.
 
-**Spots and cells, fitted together**
-
-A spot is assigned to a cell given the cell's class, and a cell is given a class from
-the spots assigned to it. The two are updated in turn until they agree.
-
-</td>
-<td width="33%" valign="top">
-
-**Probabilities, not labels**
-
-A spot on the boundary of two cells gets probability on both. A spot no cell explains
-goes to the background. A cell's count of a gene is an expected count, such as 4.3.
-
-</td>
-<td width="33%" valign="top">
-
-**3D**
-
-Spots carry a plane, the segmentation is a stack, and the neighbours of a cell are
-taken in 3D with the voxel size accounted for.
-
-</td>
-</tr>
-<tr>
-<td valign="top">
-
-**Every call can be explained**
-
-Ask an AI agent why a cell got its class or why a spot went to a cell, or call
-`check_cell` and `check_spot`. Both read the terms the model added up.
-
-</td>
-<td valign="top">
-
-**Watch it run**
-
-The live viewer shows the classes settling in a browser, iteration by iteration. The
-desktop viewer opens the saved result, in 2D and in 3D.
-
-</td>
-<td valign="top">
-
-**Results in standard formats**
-
-pandas DataFrames in memory; tsv, feather and a
-[SpatialData](https://spatialdata.scverse.org) zarr store on disk.
-
-</td>
-</tr>
-</table>
-
-**Size and speed.** A 3D coppaFISH dataset of mouse hippocampus with 3,018,812
-spots, 25,254 cells, 90 planes, 205 genes and 38 cell types converged in 75 iterations,
-12 minutes, on a 4-core laptop CPU (Intel i7-1165G7) with no GPU.
+A 3D coppaFISH dataset of mouse hippocampus, 3,018,812 spots, 25,254 cells, 90 planes,
+205 genes and 38 cell types, converged in 75 iterations and 12 minutes on a 4-core
+laptop CPU (Intel i7-1165G7), without a GPU.
 
 ## Installation
 
@@ -188,20 +148,16 @@ The mathematics is in [the model](https://acycliq.github.io/pciSeq_3d/the-model/
 
 ## Diagnostics
 
-Every run saves the terms the model added up to reach a call, for every cell and every
+Every run saves the terms of the score behind every call, for every cell and every
 spot. There are two ways to read them: ask an agent, or call the functions yourself.
 
-Questions an agent takes:
+The agent answers questions about the calls, the run and the method: why a cell has its
+class, why a spot went to one cell and not another, what value a setting took in this
+run, what a term such as gene inefficiency means.
 
-> Why is this cell assigned to its class?
-> Why did this spot go to that cell and not to the one next to it?
-> Which cells are called `037 DG Glut` on plane 40?
-> What does rTheta do, and what did this run use?
-
-Two things keep the answers checkable. The agent computes nothing: every number comes
-from a tool that reads what the fit saved. And the method is explained from the
-documentation saved inside the run, so a run is explained by the version of pciSeq that
-produced it, not by a newer one.
+The agent computes nothing; every number comes from a function that reads the saved
+output. The method is explained from the documentation saved inside the run, so a run
+is described by the version of pciSeq that produced it, not by a newer one.
 
 ### Agent tools
 
@@ -219,12 +175,12 @@ interfaces provide them:
 <img src="https://github.com/user-attachments/assets/0daa6f49-a3df-4674-8d5f-5a40f9770043" width="100%" alt="The chat panel in pciSeq Viewer answering two questions about a cell">
 </p>
 
-<p align="center"><em>The chat panel in pciSeq Viewer, on cell 5016. It is asked to fly
+<p align="center"><em>The chat panel in pciSeq Viewer, on cell 5016. It is asked to move
 to the cell and say why it got its class, then to open the diagnostics and say what they
-show. Waits for the language model are played at double speed; it is Claude Sonnet 5
-here.</em></p>
+show. Waits for the language model are played at double speed; the language model is
+Claude Sonnet 5.</em></p>
 
-The live viewer's chat ends when the run does. The MCP route needs the functions to run
+The live viewer's chat ends when the run does. The MCP interface needs the functions to run
 next to the data, so it does not work from the claude.ai website or the phone app. The
 chat panel ships with the next release of pciSeq Viewer. In all three the run stays on
 your machine; only the results the agent asks for are sent to the language model.
@@ -234,12 +190,13 @@ your machine; only the results the agent asks for are sent to the language model
 [`check_cell`](https://acycliq.github.io/pciSeq_3d/api/reference#check-cell) and
 [`check_spot`](https://acycliq.github.io/pciSeq_3d/api/reference#check-spot) are methods
 of the fitted model. They draw the same terms the agent reads: for a cell, the genes
-arguing for each of two classes and the three parts of its score; for a spot, one bar
-per candidate cell and the background, split into the parts of the score.
+contributing most to each of two classes and the three terms of its score; for a spot,
+one bar per candidate cell and the background, split into the terms of the score. The
+second argument of `check_cell` is the class to compare the call against.
 
 ```python
 obj = pd.read_pickle("out/run1/pciSeq/data/debug/pciSeq.pickle")
-obj.check_cell(cell_label, "a class to compare against")
+obj.check_cell(cell_label, class_name)
 obj.check_spot(spot_id)
 ```
 
@@ -265,7 +222,7 @@ and
 | --- | --- |
 | [Running pciSeq](https://acycliq.github.io/pciSeq_3d/running-pciseq) | from Python, from the command line, the settings and how to tune them |
 | [How it works](https://acycliq.github.io/pciSeq_3d/how-it-works/overview) | the four steps of the loop, in words and figures |
-| [Explaining the calls](https://acycliq.github.io/pciSeq_3d/explaining-the-calls/overview) | `check_cell` and `check_spot`, followed through on a real cell and a real spot |
+| [Explaining the calls](https://acycliq.github.io/pciSeq_3d/explaining-the-calls/overview) | `check_cell` and `check_spot`, followed through on one cell and one spot |
 | [The model](https://acycliq.github.io/pciSeq_3d/the-model/overview) | the mathematics |
 | [API](https://acycliq.github.io/pciSeq_3d/api/reference) | the reference, and a [code map](https://acycliq.github.io/pciSeq_3d/api/code-map) from each model quantity to the line that computes it |
 
