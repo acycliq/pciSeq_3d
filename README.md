@@ -197,17 +197,37 @@ computation; every number it reports is returned by one of the functions. The me
 is described from the documentation stored in the run, so that an older run is
 explained by the version of pciSeq that produced it.
 
-Within the viewer the agent can additionally operate on the display: move the view to
+Within pciSeq Viewer the agent can additionally control the display: move the view to
 a cell, open the diagnostics panel for a cell or a spot, and show or hide classes and
 genes.
 
-The agent is available in three places:
+Once a run has completed there are three ways to ask. All three read the files
+`pciSeq.fit` saved and report the same numbers; they differ in what has to be set up
+and in whether the answer can be shown on screen.
 
-| Where | When | Requires |
-| --- | --- | --- |
-| The live viewer's chat | during the run | an API key for the language model |
-| The chat panel in [pciSeq Viewer](https://github.com/acycliq/pciSeq_viewer) | after the run | an API key for the language model |
-| An AI assistant such as Claude Code, Gemini CLI or Codex | after the run | the `mcp` extra, see [Installation](#installation) |
+| | Reads | Controls pciSeq Viewer? | Requires |
+| --- | --- | --- | --- |
+| An AI assistant with `pciseq-mcp` | the saved files, from the output folder of the run | no | the `mcp` extra, see [Installation](#installation) |
+| An AI assistant connected to [pciSeq Viewer](https://github.com/acycliq/pciSeq_viewer) | the saved files, as loaded in pciSeq Viewer | yes | pciSeq Viewer running; its address registered with the assistant once |
+| The chat panel in pciSeq Viewer | the saved files, as loaded in pciSeq Viewer | yes | an API key |
+
+The first needs neither viewer, so it also serves a machine without a screen.
+
+The second connects an assistant to pciSeq Viewer, which accepts the connection at a
+local address while it has the saved files of a run loaded. Register that address with
+the assistant, once, by running in a terminal (the form for Claude Code):
+
+```bash
+claude mcp add --transport http pciseq-viewer http://127.0.0.1:8317/mcp
+```
+
+Then load the saved files in pciSeq Viewer, by selecting the `viewer_data` folder of
+the run, start the assistant and ask. No folder is named in the question; the data on
+screen are the ones queried, and the assistant can control pciSeq Viewer as described
+above.
+
+The third needs no assistant at all. During a run, the live viewer's chat answers
+about the fit in progress; it requires an API key and ends when the run does.
 
 <p align="center">
 <img src="https://github.com/user-attachments/assets/0daa6f49-a3df-4674-8d5f-5a40f9770043" width="100%" alt="The chat panel in pciSeq Viewer answering two questions about a cell">
@@ -217,19 +237,13 @@ The agent is available in three places:
 to the cell and explain its class, then to open the diagnostics and describe them. The
 model is Claude Sonnet 5; pauses while it responds are cut to half.</em></sub></p>
 
-The live viewer and pciSeq Viewer include the functions and need nothing more. An AI
-assistant such as Claude Code obtains them from `pciseq-mcp`, the program installed
-with the `mcp` extra ([MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server)).
-Since the functions read the run from disk, the assistant must run on the machine that
-holds the data.
-
 The language model is chosen by the user. As of 6 October 2026, the live viewer's chat
 takes an API key from Anthropic or Z.ai (GLM); the chat panel in pciSeq Viewer takes
 either of those, or any endpoint that speaks the Anthropic Messages protocol, given its
-base URL. With an AI assistant the model is the assistant's own. The live viewer's chat
-ends when the run does. The chat panel ships with the next release of pciSeq Viewer. In
-all three the run stays on your machine; only the results the agent asks for are sent to
-the language model.
+base URL. With an AI assistant the model is the assistant's own. The chat panel and the
+connection for assistants ship with the next release of pciSeq Viewer. In every case the
+run stays on your machine; only the results the agent asks for are sent to the language
+model.
 
 ### Diagnostic figures
 
