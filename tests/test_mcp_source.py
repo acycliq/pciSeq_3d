@@ -42,9 +42,9 @@ def test_nothing_outside_the_package_is_read(bad):
 
 
 def test_only_python_files_are_read():
-    # the vendored javascript of the live viewer is real, but it is not the model
-    with pytest.raises(ValueError):
-        source.read_source('pciSeq/src/realtime_viewer/static')
+    # a real file inside the package that is not python
+    with pytest.raises(ValueError, match='only the python source'):
+        source.read_source('pciSeq/src/tiling/README.md')
     with pytest.raises(ValueError, match='is a folder'):
         source.read_source('pciSeq/src/core')
 
