@@ -308,13 +308,16 @@ with no assistant. It requires an API key, entered in pciSeq Viewer.
 The three that read the saved files report the same numbers for the same cell or spot;
 they differ in what has to be set up and in whether the answer can be shown on screen.
 
-<p align="center">
+<table align="center" width="100%">
+<tr><th>The chat panel in pciSeq Viewer</th></tr>
+<tr><td>
 <img src="https://github.com/user-attachments/assets/0daa6f49-a3df-4674-8d5f-5a40f9770043" width="100%" alt="The chat panel in pciSeq Viewer answering two questions about a cell">
-</p>
+</td></tr>
+</table>
 
-<p align="center"><sub><em>The chat panel in pciSeq Viewer, on cell 5016: asked to move
-to the cell and explain its class, then to open the diagnostics and describe them. The
-language model is Claude Sonnet 5; pauses while it responds are cut to half.</em></sub></p>
+<p align="center"><sub><em>Cell 5016: the panel is asked to move to the cell and explain
+its class, then to open the diagnostics and describe them. The language model is Claude
+Sonnet 5; pauses while it responds are cut to half.</em></sub></p>
 
 The language model is chosen by the user. As of 6 October 2026, the live viewer's chat
 takes an API key from Anthropic; the chat panel in pciSeq Viewer takes that, or any
