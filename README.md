@@ -59,23 +59,41 @@ pip install git+https://github.com/acycliq/pciSeq_3d.git@dev_3d
 
 Python 3.10 or newer.
 
-The MCP server is an optional extra. It is needed only to ask about a run from Claude
-Code, Claude Desktop or another MCP client; the chats inside the two viewers do not use
-it. See [Agent tools](#agent-tools).
+pciSeq can also be queried from an AI assistant such as Claude Code, Gemini CLI or
+Codex. This is optional; the chats inside the two viewers work without it. See
+[Agent tools](#agent-tools). It takes two steps.
+
+Install pciSeq with the `mcp` extra. This adds a program, `pciseq-mcp`, through which
+the assistant reads a run (MCP is the protocol these assistants use to call outside
+programs):
 
 ```bash
 pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
 ```
 
-Then register it with the client, once. For Claude Code:
+Tell the assistant about that program, once, with the line for the one in use:
 
 ```bash
-claude mcp add --scope user pciSeq -- pciseq-mcp
+claude mcp add --scope user pciseq -- pciseq-mcp             # Claude Code
+gemini mcp add --scope user pciseq pciseq-mcp                 # Gemini CLI
+codex mcp add pciseq -- pciseq-mcp                            # OpenAI Codex CLI and ChatGPT desktop app
+code --add-mcp '{"name":"pciseq","command":"pciseq-mcp"}'     # VS Code
 ```
 
-Claude Desktop, Cursor and the other clients take the same server in their settings
-file; [MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server) gives the entry
-for each.
+The assistant must be started from a terminal in which the `pciseq-mcp` command is
+found. With conda or a virtual environment, that is the environment pciSeq is
+installed in. Then ask. The first question names the folder `pciSeq.fit` saved its
+results in, the `output_path` of the run:
+
+```
+Open the run in out/run1 and explain why cell 100 was assigned to its class.
+```
+
+Claude Desktop and Cursor have no such command; for these the program is added to a
+settings file by hand, as described in
+[MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server). ChatGPT and claude.ai
+in the browser cannot be used, since a web page cannot reach a program on the user's
+machine.
 
 ## Quick start
 
@@ -189,7 +207,7 @@ The agent is available in three places:
 | --- | --- | --- |
 | The live viewer's chat | during the run | an API key for the language model |
 | The chat panel in [pciSeq Viewer](https://github.com/acycliq/pciSeq_viewer) | after the run | an API key for the language model |
-| Claude Code, Claude Desktop or another MCP client | after the run | the `pciseq-mcp` server, registered with the client |
+| An AI assistant such as Claude Code, Gemini CLI or Codex | after the run | the `mcp` extra, see [Installation](#installation) |
 
 <p align="center">
 <img src="https://github.com/user-attachments/assets/0daa6f49-a3df-4674-8d5f-5a40f9770043" width="100%" alt="The chat panel in pciSeq Viewer answering two questions about a cell">
@@ -199,19 +217,19 @@ The agent is available in three places:
 to the cell and explain its class, then to open the diagnostics and describe them. The
 model is Claude Sonnet 5; pauses while it responds are cut to half.</em></sub></p>
 
-The live viewer and pciSeq Viewer include the functions and require no MCP server. An
-MCP client such as Claude Code or Claude Desktop obtains them from the `pciseq-mcp`
-server, described in [MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server).
-Since the functions read the run from disk, an MCP client must run on the machine that
+The live viewer and pciSeq Viewer include the functions and need nothing more. An AI
+assistant such as Claude Code obtains them from `pciseq-mcp`, the program installed
+with the `mcp` extra ([MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server)).
+Since the functions read the run from disk, the assistant must run on the machine that
 holds the data.
 
 The language model is chosen by the user. As of 6 October 2026, the live viewer's chat
 takes an API key from Anthropic or Z.ai (GLM); the chat panel in pciSeq Viewer takes
-either of those, or any endpoint that speaks the Anthropic Messages protocol, given
-its base URL. Over MCP the model is the client's own. The live viewer's chat ends when
-the run does. The chat panel ships with
-the next release of pciSeq Viewer. In all three the run stays on your machine; only the
-results the agent asks for are sent to the language model.
+either of those, or any endpoint that speaks the Anthropic Messages protocol, given its
+base URL. With an AI assistant the model is the assistant's own. The live viewer's chat
+ends when the run does. The chat panel ships with the next release of pciSeq Viewer. In
+all three the run stays on your machine; only the results the agent asks for are sent to
+the language model.
 
 ### Diagnostic figures
 
