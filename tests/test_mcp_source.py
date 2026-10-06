@@ -1,5 +1,7 @@
 """The live viewer's chat can read the pciSeq source: the files on this machine,
 which are the ones running the fit. No model and no fit needed for any of this."""
+import urllib.request
+
 import pytest
 
 from pciSeq.src.mcp import chat, source
@@ -135,3 +137,33 @@ def test_a_run_without_a_commit_is_refused(github):
     with pytest.raises(ValueError, match='does not record the commit'):
         source.list_source_for_run('', '')
     assert github == []
+
+
+def test_no_network_is_a_plain_message_not_a_crash(monkeypatch):
+    import urllib.error
+    import urllib.request
+
+    def down(req, timeout=0):
+        raise urllib.error.URLError('Name or service not known')
+    monkeypatch.setattr(urllib.request, 'urlopen', down)
+    source.fetch_text.cache_clear()
+    with pytest.raises(RuntimeError, match='could not reach GitHub'):
+        source.read_source_for_run('abc1234', 'core/main.py')
+
+
+def test_a_file_is_fetched_once_however_many_slices(monkeypatch):
+    calls = []
+
+    def one_file(req, timeout=0):
+        calls.append(req.full_url)
+        class R:
+            def __enter__(self): return self
+            def __exit__(self, *a): pass
+            def read(self): return ('x\n' * 900).encode()
+        return R()
+    monkeypatch.setattr(urllib.request, 'urlopen', one_file)
+    source.fetch_text.cache_clear()
+    for start in (1, 401, 801):
+        assert source.read_source_for_run('abc1234', 'core/main.py', start)['start_line'] == start
+    assert len(calls) == 1
+    source.fetch_text.cache_clear()

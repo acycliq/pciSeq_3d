@@ -15,7 +15,9 @@ A path can be given three ways and all of them land on the same file:
     src/core/main.py            from the package folder
     core/main.py                as the code map page of the docs writes it
 """
+import functools
 import json
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -106,8 +108,12 @@ def _slice(content, start_line, shown):
 
 # ---- a finished run: the code at the commit that made it
 
+@functools.lru_cache(maxsize=64)
 def fetch_text(url):
-    """GET a url and return its text. The tests put a fake in its place."""
+    """GET a url and return its text. The tests put a fake in its place.
+
+    Cached, so reading a long file slice by slice fetches it once, and a folder
+    listed twice costs one call against GitHub's rate limit."""
     req = urllib.request.Request(url, headers={'User-Agent': 'pciseq-mcp'})
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
@@ -116,6 +122,9 @@ def fetch_text(url):
         if e.code == 404:
             raise FileNotFoundError(url) from e
         raise RuntimeError('GitHub answered %d for %s' % (e.code, url)) from e
+    except urllib.error.URLError as e:
+        raise RuntimeError('could not reach GitHub (%s), so the code that made this run '
+                           'cannot be shown from this machine' % e.reason) from e
 
 
 def _repo_path(path):
