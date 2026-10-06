@@ -1,10 +1,10 @@
 ---
-description: The four ways to ask an AI agent about a run, and what each one uses.
+description: The four ways to access the AI agent that explains a run, and what each one uses.
 # standard column and margins; only the diagram runs wide, as on the scaling factors demo
 pageClass: demo-wide
 ---
 
-# Asking about a run
+# Accessing the AI agent
 
 pciSeq saves with its results, for every cell and every spot, the terms from which its
 assignment was computed. An agent, a language model equipped with functions that read
@@ -25,6 +25,6 @@ is typed.
 | The chat panel in pciSeq Viewer | once the run has completed | the saved files, as loaded in pciSeq Viewer | an API key |
 | The chat of the [live viewer](./api/live-viewer.md) | during the run | the fit in progress | an API key |
 
-The two assistant ways use the language model of the assistant. The two chats take an
-API key from Anthropic. In every case the saved files stay on the user's machine; only
-the question and the results of the functions are sent to the language model.
+Where an API key is needed, it is saved on the user's machine. The files `pciSeq.fit`
+wrote for the run stay on that machine too; only the question and the results of the
+functions are sent to the language model.

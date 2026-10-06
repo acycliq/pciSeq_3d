@@ -255,7 +255,7 @@ marks where the question is typed.
 </details>
 
 <p align="center"><sub><em>The same diagram, with the ways switched in place, is in the
-<a href="https://acycliq.github.io/pciSeq_3d/asking-about-a-run">documentation</a>.</em></sub></p>
+<a href="https://acycliq.github.io/pciSeq_3d/accessing-the-ai-agent">documentation</a>.</em></sub></p>
 
 Once a run has completed there are three ways to ask. All three read the files
 `pciSeq.fit` saved and report the same numbers; they differ in what has to be set up

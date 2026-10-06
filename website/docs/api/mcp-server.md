@@ -13,7 +13,7 @@ assistants use to call outside programs.
 
 It is needed for that route only. The chats inside the live viewer and pciSeq Viewer
 include the same functions and do not use it. It needs no viewer and no screen, so it
-also serves a run on a remote machine. [Asking about a run](../asking-about-a-run.md)
+also serves a run on a remote machine. [Accessing the AI agent](../accessing-the-ai-agent.md)
 shows the four ways side by side.
 
 The program reads the output folder of the run: `diagnostics.db` and the files for
