@@ -29,3 +29,6 @@ CLAUDE.md
 AGENTS.md
 # packed by setup.py from website/docs, never committed
 pciSeq/src/mcp/_docs/
+
+# local run scripts at the repo root, one got committed by mistake once
+/run_*.py
