@@ -135,6 +135,34 @@ TOOLS = [
             'run. Use it for "what settings is this using", "what is the tolerance".',
         'input_schema': {'type': 'object', 'properties': {}},
     },
+    {
+        'name': 'list_source',
+        'description':
+            'List a folder of the pciSeq source code, the code that is running this '
+            'fit. Use it to find the file a question is about; the model code is under '
+            'pciSeq/src/core.',
+        'input_schema': {
+            'type': 'object',
+            'properties': {'dir': {'type': 'string', 'description': 'Folder path, "" for the top.'}},
+        },
+    },
+    {
+        'name': 'read_source',
+        'description':
+            'Read a file of the pciSeq source code, the code that is running this fit, '
+            'with line numbers. Reach for it only when a question needs the actual '
+            'code, after the docs; never claim to run it. Long files come back in '
+            'slices of up to 400 lines, give start_line to read on. When you cite it, '
+            'give the file and the line. A path from the code map page works as it is.',
+        'input_schema': {
+            'type': 'object',
+            'properties': {
+                'path': {'type': 'string', 'description': 'For example "pciSeq/src/core/main.py".'},
+                'start_line': {'type': 'integer', 'description': 'First line to return, default 1.'},
+            },
+            'required': ['path'],
+        },
+    },
 ]
 
 
@@ -179,6 +207,12 @@ def call_tool(live, name, args):
             hits = docs_mod.search_docs(args.get('query', ''), n=args.get('n', 5))
             return {'query': args.get('query', ''), 'hits': hits,
                     'docs_are': docs_mod.source()}
+        if name == 'list_source':
+            from . import source as source_mod
+            return source_mod.list_source(args.get('dir', ''))
+        if name == 'read_source':
+            from . import source as source_mod
+            return source_mod.read_source(args['path'], args.get('start_line', 1))
         return {'error': 'unknown tool %s' % name}
     except Exception as e:
         return {'error': '%s' % e}
