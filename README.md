@@ -123,15 +123,6 @@ spot, the class of each cell, the detection efficiency of each gene, and the per
 per-gene scale factors. The joint posterior is approximated by variational inference and
 fitted by coordinate ascent, four updates repeated until the estimates stop changing.
 
-```mermaid
-flowchart LR
-    A["<b>1. Misread density</b><br/>background rate per gene"]
-    B["<b>2. Warp the definitions</b><br/>rescale the reference<br/>to this experiment"]
-    C["<b>3. Cell to class</b><br/>score every cell<br/>against every class"]
-    D["<b>4. Spots to cells</b><br/>assign every spot to a cell<br/>or to the background"]
-    A --> B --> C --> D --> A
-```
-
 1. **[Misread density.](https://acycliq.github.io/pciSeq_3d/how-it-works/misread-density)**
    The rate of background spots per gene, estimated from the spots currently assigned to
    the background.
@@ -150,28 +141,38 @@ The mathematics is in [the model](https://acycliq.github.io/pciSeq_3d/the-model/
 
 ## Diagnostics
 
-Every run saves the terms of the score behind every call, for every cell and every
-spot. There are two ways to read them: ask an agent, or call the functions yourself.
-
-The agent answers questions about the calls, the run and the method: why a cell has its
-class, why a spot went to one cell and not another, what value a setting took in this
-run, what a term such as gene inefficiency means.
-
-The agent computes nothing; every number comes from a function that reads the saved
-output. The method is explained from the documentation saved inside the run, so a run
-is described by the version of pciSeq that produced it, not by a newer one.
+pciSeq records, for every cell and every spot, the terms from which its assignment
+was computed. For a cell these are the log-likelihood of its gene counts under each
+class, the log prior of each class, and the contribution of the neighbouring cells.
+For a spot they are the distance to each candidate cell, the expression terms, and the
+background rate. The assignment probability follows from the sum of these terms, so
+any assignment can be decomposed into the quantities that produced it. The terms are
+accessible in two ways: through the agent, and through the functions `check_cell` and
+`check_spot`.
 
 ### Agent tools
 
-The agent answers by calling functions that read the run: class probabilities, spot
-assignments, gene efficiencies, settings. It has no other access to the run. Three
-interfaces provide them:
+The agent is a language model equipped with functions that read the recorded terms
+of a run. Its purpose is to explain the assignments of the statistical model: why a
+cell was assigned to its class, why a spot was assigned to one cell rather than
+another, what value a setting took in a given run, and what a term such as the gene
+inefficiency denotes. Each answer is derived from the recorded terms of the run in
+question, not from the general knowledge of the language model. The agent performs no
+computation; every number it reports is returned by one of the functions. The method
+is described from the documentation stored in the run, so that an older run is
+explained by the version of pciSeq that produced it.
 
-| When | Where | What it needs |
+Within the viewer the agent can additionally operate on the display: move the view to
+a cell, open the diagnostics panel for a cell or a spot, and show or hide classes and
+genes.
+
+The functions are exposed through three interfaces:
+
+| Interface | When | Requires |
 | --- | --- | --- |
-| During the run | the live viewer's chat, which answers about the fit in progress | an API key for the language model |
-| After the run | the chat panel in [pciSeq Viewer](https://github.com/acycliq/pciSeq_viewer), which can also move the view to the cell it is describing, open the diagnostics, and show or hide classes and genes | an API key for the language model |
-| After the run | Claude Code, Claude Desktop or another MCP client | the `pciseq-mcp` server, registered with the client ([MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server)) |
+| The live viewer's chat | during the run | an API key for the language model |
+| The chat panel in [pciSeq Viewer](https://github.com/acycliq/pciSeq_viewer) | after the run | an API key for the language model |
+| Claude Code, Claude Desktop or another MCP client | after the run | the `pciseq-mcp` server, registered with the client |
 
 <p align="center">
 <img src="https://github.com/user-attachments/assets/0daa6f49-a3df-4674-8d5f-5a40f9770043" width="100%" alt="The chat panel in pciSeq Viewer answering two questions about a cell">
@@ -182,10 +183,14 @@ to the cell and say why it got its class, then to open the diagnostics and say w
 show. Waits for the language model are played at double speed; the language model is
 Claude Sonnet 5.</em></p>
 
-The live viewer's chat ends when the run does. The MCP interface needs the functions to run
-next to the data, so it does not work from the claude.ai website or the phone app. The
-chat panel ships with the next release of pciSeq Viewer. In all three the run stays on
-your machine; only the results the agent asks for are sent to the language model.
+The first two interfaces need no MCP server; the functions are built into the live
+viewer and into pciSeq Viewer. The third is for an MCP client, such as Claude Code or
+Claude Desktop, which starts `pciseq-mcp` itself and obtains the same functions through
+it ([MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server)). It needs the
+functions to run next to the data, so it does not work from the claude.ai website or
+the phone app. The live viewer's chat ends when the run does. The chat panel ships with
+the next release of pciSeq Viewer. In all three the run stays on your machine; only the
+results the agent asks for are sent to the language model.
 
 ### Diagnostic figures
 
