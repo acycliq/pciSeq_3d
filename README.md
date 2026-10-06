@@ -23,7 +23,9 @@ a cell depends on the spots inside it, and the cell of a spot depends on the typ
 cells around it. Both come back as probabilities. pciSeq_3d works on a stack of
 segmented planes.
 
-https://github.com/user-attachments/assets/ab9867e4-866e-4f81-88e5-359bdf7d7a64
+<p align="center">
+<img src="https://github.com/user-attachments/assets/dfcd8438-e637-4e34-ae73-4e8c445a982b" width="100%" alt="The live viewer during a fit">
+</p>
 
 <p align="center"><em>The live viewer during a fit, one frame per iteration. Cells are
 coloured by the class they are currently assigned to, and the chart at the bottom right
@@ -88,7 +90,7 @@ pciseq run analysis.yaml --set rTheta=5 --set mrf_beta=0
 
 ### Inputs
 
-| Input | What it is |
+| Input | Description |
 | --- | --- |
 | **Spots** | A table of detected RNA spots with gene identity and position: `gene_name`, `x`, `y`, and `z_plane` for 3D data. |
 | **Segmentation** | A label image giving the cell each pixel belongs to, typically from a DAPI nuclear stain. One label matrix per plane. |
@@ -96,7 +98,7 @@ pciseq run analysis.yaml --set rTheta=5 --set mrf_beta=0
 
 ### Outputs
 
-| Output | What it is |
+| Output | Description |
 | --- | --- |
 | **`cellData`** | For every cell, a probability distribution over the cell types, and its expected gene counts. |
 | **`geneData`** | For every spot, a probability distribution over its candidate parent cells and the background. |
@@ -218,7 +220,7 @@ and
 
 ## Documentation
 
-| Section | What is in it |
+| Section | Description |
 | --- | --- |
 | [Running pciSeq](https://acycliq.github.io/pciSeq_3d/running-pciseq) | from Python, from the command line, the settings and how to tune them |
 | [How it works](https://acycliq.github.io/pciSeq_3d/how-it-works/overview) | the four steps of the loop, in words and figures |
