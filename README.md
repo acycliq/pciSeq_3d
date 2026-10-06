@@ -12,8 +12,7 @@
 [Documentation](https://acycliq.github.io/pciSeq_3d/) ·
 [Quick start](#quick-start) ·
 [Method](#method) ·
-[Diagnostics](#diagnostics) ·
-[Viewers](#viewers)
+[Diagnostics](#diagnostics)
 
 </div>
 
@@ -188,7 +187,13 @@ viewer and into pciSeq Viewer. The third is for an MCP client, such as Claude Co
 Claude Desktop, which starts `pciseq-mcp` itself and obtains the same functions through
 it ([MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server)). It needs the
 functions to run next to the data, so it does not work from the claude.ai website or
-the phone app. The live viewer's chat ends when the run does. The chat panel ships with
+the phone app.
+
+The language model is chosen by the user. As of 6 October 2026, the live viewer's chat
+takes an API key from Anthropic or Z.ai (GLM); the chat panel in pciSeq Viewer takes
+either of those, or any endpoint that speaks the Anthropic Messages protocol, given
+its base URL. Over MCP the model is the client's own. The live viewer's chat ends when
+the run does. The chat panel ships with
 the next release of pciSeq Viewer. In all three the run stays on your machine; only the
 results the agent asks for are sent to the language model.
 
@@ -211,17 +216,6 @@ Both are walked through in the documentation:
 [how a cell's call was made](https://acycliq.github.io/pciSeq_3d/explaining-the-calls/why-a-cell-got-its-type)
 and
 [how a spot's call was made](https://acycliq.github.io/pciSeq_3d/explaining-the-calls/why-a-spot-got-its-cell).
-
-## Viewers
-
-| | When | What |
-| --- | --- | --- |
-| **[Live viewer](https://acycliq.github.io/pciSeq_3d/api/live-viewer)** | while `fit` is running | A browser page that redraws the cells at every iteration, with a convergence chart and a chat for questions about the fit in progress. Set `realtime_viewer` to `True`. It closes when the run ends. |
-| **[pciSeq Viewer](https://github.com/acycliq/pciSeq_viewer)** | after the run | A desktop application for Windows, macOS and Linux. Spots and cells over the background image, plane by plane, a 3D voxel view, and the same diagnostics as `check_cell` and `check_spot` by clicking on a cell or a spot. |
-
-<p align="center">
-<img src="https://github.com/user-attachments/assets/f67a473a-0f84-48e7-9b4f-27be841778aa" width="85%" alt="pciSeq Viewer">
-</p>
 
 ## Documentation
 
