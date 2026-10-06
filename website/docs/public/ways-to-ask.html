@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ways to ask about a pciSeq run</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* light, then dark twice: once for a browser set to dark, once for the docs toggle,
+     which the host page passes in (see the script at the end) */
+  :root {
+    --bg: #ffffff; --ink: #1f2933; --mute: #6b7785; --line: #9aa5b1; --fill: #f5f7fa;
+    --files: #e3f6ee; --files-line: #059669; --llm: #b4530a; --accent: #059669;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1b1f; --ink: #e6e8eb; --mute: #98a2b0; --line: #5c6672; --fill: #26282d;
+      --files: #14342a; --files-line: #34d399; --llm: #f0a35c; --accent: #34d399;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1b1f; --ink: #e6e8eb; --mute: #98a2b0; --line: #5c6672; --fill: #26282d;
+    --files: #14342a; --files-line: #34d399; --llm: #f0a35c; --accent: #34d399;
+  }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+  fieldset { border: 0; padding: 0; margin: 0 0 6px; display: flex; flex-wrap: wrap; gap: 6px 8px; }
+  legend { padding: 0; margin-bottom: 8px; font-size: 13px; color: var(--mute); letter-spacing: .04em; text-transform: uppercase; }
+  .opt { position: relative; }
+  .opt input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .opt span { display: block; padding: 6px 12px; font-size: 14px; border: 1px solid var(--line); border-radius: 3px;
+              background: var(--bg); color: var(--ink); transition: background .15s, border-color .15s, color .15s; }
+  .opt input:checked + span { border-color: var(--accent); background: var(--files); font-weight: 600; }
+  .opt input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  #about { min-height: 2.6em; margin: 8px 0 4px; font-size: 14px; line-height: 1.3; color: var(--mute); }
+  #about code { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; color: var(--ink); }
+
+  svg { display: block; width: 100%; height: auto; }
+  text { font-family: inherit; fill: var(--ink); }
+  .mono { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .t  { font-size: 14px; }
+  .b  { font-size: 14px; font-weight: 700; }
+  .s  { font-size: 11px; fill: var(--mute); }
+  .cap { font-size: 10.5px; fill: var(--mute); letter-spacing: .06em; }
+  .capb { font-size: 10.5px; fill: var(--mute); letter-spacing: .06em; font-weight: 700; }
+  .lab { font-size: 11px; fill: var(--mute); paint-order: stroke; stroke: var(--bg); stroke-width: 7px; stroke-linejoin: round; }
+  .box   { fill: var(--bg);   stroke: var(--line); stroke-width: 1; }
+  .sub   { fill: var(--fill); stroke: var(--line); stroke-width: 1; }
+  .files { fill: var(--files); stroke: var(--files-line); stroke-width: 1.2; }
+  .llm   { fill: var(--bg);   stroke: var(--llm); stroke-width: 1.2; }
+  .frame { fill: none; stroke: var(--line); stroke-width: 1; stroke-dasharray: 5 4; }
+  .divider { stroke: var(--line); stroke-width: 1; stroke-dasharray: 1 4; stroke-linecap: round; }
+  .data { fill: none; stroke: var(--ink); stroke-width: 1.2; marker-end: url(#ah); }
+  .out  { fill: none; stroke: var(--llm); stroke-width: 1.2; stroke-dasharray: 5 4; marker-end: url(#ahl); }
+  #ah path { fill: var(--ink); }  #ahl path { fill: var(--llm); }
+  .user circle { fill: var(--ink); }  .user .g { fill: var(--bg); }
+
+  /* a part is lit when it lists the chosen way, or when everything is shown */
+  [data-w] { transition: opacity .28s ease; }
+  svg:not([data-way="all"]) [data-w] { opacity: .13; }
+  svg[data-way="live"]   [data-w~="live"],
+  svg[data-way="mcp"]    [data-w~="mcp"],
+  svg[data-way="viewer"] [data-w~="viewer"],
+  svg[data-way="panel"]  [data-w~="panel"] { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { [data-w], .opt span { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <fieldset id="ways">
+    <legend>Show</legend>
+    <label class="opt"><input type="radio" name="way" value="all" checked><span>All</span></label>
+    <label class="opt"><input type="radio" name="way" value="mcp"><span>An AI assistant with pciseq-mcp</span></label>
+    <label class="opt"><input type="radio" name="way" value="viewer"><span>An AI assistant connected to pciSeq Viewer</span></label>
+    <label class="opt"><input type="radio" name="way" value="panel"><span>The chat panel in pciSeq Viewer</span></label>
+    <label class="opt"><input type="radio" name="way" value="live"><span>The live viewer's chat</span></label>
+  </fieldset>
+  <p id="about" aria-live="polite"></p>
+
+  <svg id="fig" data-way="all" viewBox="0 -22 1045 530" role="img" aria-labelledby="figtitle figdesc">
+    <title id="figtitle">The ways to ask about a pciSeq run</title>
+    <desc id="figdesc">pciSeq.fit serves the live viewer during a run and writes the saved files. Once the run has completed,
+      pciseq-mcp reads the saved files and pciSeq Viewer loads them. An AI assistant calls pciseq-mcp, or calls and controls
+      pciSeq Viewer. The user types the question into the live viewer's chat, the chat panel or the assistant, and each sends the question and the function results
+      to a language model over the network.</desc>
+    <defs>
+      <marker id="ah"  viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9 Z"/></marker>
+      <marker id="ahl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9 Z"/></marker>
+    </defs>
+
+    <!-- the user's machine -->
+    <text class="capb" x="12" y="-6">THE USER'S MACHINE</text>
+    <rect class="frame" x="8" y="6" width="830" height="452" rx="8"/>
+    <line class="divider" x1="257" y1="14" x2="257" y2="450"/>
+    <text class="cap" x="26" y="32" data-w="live">DURING THE RUN</text>
+    <text class="cap" x="290" y="32" data-w="mcp viewer panel">ONCE THE RUN HAS COMPLETED</text>
+
+    <!-- arrows first, so the boxes sit on top of their ends -->
+    <g data-w="live"><path class="data" d="M115,227 L115,143"/><text class="lab" x="115" y="188" text-anchor="middle">serves</text></g>
+    <g data-w="mcp viewer panel"><path class="data" d="M190,255 L286,255"/><text class="lab" x="238" y="259" text-anchor="middle">writes</text></g>
+    <g data-w="mcp"><path class="data" d="M395,382 L395,297"/><text class="lab" x="395" y="343" text-anchor="middle">reads</text></g>
+    <g data-w="viewer panel"><path class="data" d="M583,255 L504,255"/><text class="lab" x="544" y="259" text-anchor="middle">loads</text></g>
+    <g data-w="mcp"><path class="data" d="M585,410 L472,410"/><text class="lab" x="528" y="414" text-anchor="middle">calls</text></g>
+
+    <g data-w="live"><path class="out" d="M190,105 L895,105"/><text class="lab" x="628" y="109" text-anchor="middle">question and function results</text></g>
+    <g data-w="panel"><path class="out" d="M795,227.5 L895,227.5"/></g>
+    <g data-w="mcp viewer"><path class="out" d="M805,410 L895,410"/></g>
+
+    <!-- during the run -->
+    <g data-w="live">
+      <text x="28" y="62"><tspan class="b">Live viewer</tspan><tspan class="s" dx="8">browser page</tspan></text>
+      <rect class="box" x="28" y="69" width="174" height="72" rx="4"/>
+      <rect class="sub" x="40" y="85" width="150" height="40" rx="3"/>
+      <text class="t" x="115" y="110" text-anchor="middle">Chat</text>
+      <g class="user"><circle cx="40" cy="85" r="11"/><circle class="g" cx="40" cy="81.6" r="3.3"/><path class="g" d="M33.8,91.6 a6.2,5.6 0 0 1 12.4,0 Z"/></g>
+    </g>
+    <g data-w="live mcp viewer panel">
+      <rect class="box" x="40" y="227" width="150" height="56" rx="3"/>
+      <text class="b" x="115" y="252" text-anchor="middle">pciSeq.fit</text>
+      <text class="s" x="115" y="269" text-anchor="middle">the run</text>
+    </g>
+
+    <!-- once the run has completed -->
+    <g data-w="mcp viewer panel">
+      <rect class="files" x="288" y="215" width="214" height="80" rx="3"/>
+      <text class="b" x="395" y="241" text-anchor="middle">Saved files</text>
+      <text class="s mono" x="395" y="260" text-anchor="middle">diagnostics.db, viewer_data/,</text>
+      <text class="s mono" x="395" y="275" text-anchor="middle">cellData.tsv, geneData.tsv</text>
+    </g>
+    <g data-w="mcp">
+      <rect class="box" x="320" y="382" width="150" height="56" rx="3"/>
+      <text class="b mono" x="395" y="407" text-anchor="middle">pciseq-mcp</text>
+      <text class="s" x="395" y="424" text-anchor="middle">program</text>
+    </g>
+
+    <g data-w="viewer panel">
+      <text x="583" y="184"><tspan class="b">pciSeq Viewer</tspan><tspan class="s" dx="8">desktop application</tspan></text>
+      <rect class="box" x="583" y="191" width="224" height="128" rx="4"/>
+    </g>
+    <g data-w="viewer"><path class="data" d="M695,382 L695,304"/><text class="lab" x="695" y="356" text-anchor="middle">calls and controls</text></g>
+    <g data-w="panel">
+      <rect class="sub" x="595" y="207.5" width="200" height="40" rx="3"/>
+      <text class="t" x="695" y="232" text-anchor="middle">Chat panel</text>
+      <g class="user"><circle cx="595" cy="207.5" r="11"/><circle class="g" cx="595" cy="204.1" r="3.3"/><path class="g" d="M588.8,214.1 a6.2,5.6 0 0 1 12.4,0 Z"/></g>
+    </g>
+    <g data-w="viewer">
+      <rect class="sub" x="595" y="262.5" width="200" height="40" rx="3"/>
+      <text class="t" x="695" y="287" text-anchor="middle">Connection for assistants</text>
+    </g>
+
+    <g data-w="mcp viewer">
+      <rect class="box" x="585" y="382" width="220" height="56" rx="3"/>
+      <text class="b" x="695" y="407" text-anchor="middle">AI assistant</text>
+      <text class="s" x="695" y="424" text-anchor="middle">Claude Code, Gemini CLI, Codex</text>
+      <g class="user"><circle cx="585" cy="382" r="11"/><circle class="g" cx="585" cy="378.6" r="3.3"/><path class="g" d="M578.8,388.6 a6.2,5.6 0 0 1 12.4,0 Z"/></g>
+    </g>
+
+    <!-- over the network -->
+    <g data-w="live mcp viewer panel">
+      <text class="capb" x="965" y="68" text-anchor="middle">OVER THE NETWORK</text>
+      <rect class="llm" x="897" y="77" width="136" height="361" rx="3"/>
+      <text class="b" x="965" y="250" text-anchor="middle">Language model</text>
+      <text class="s" x="965" y="270" text-anchor="middle">Anthropic, OpenAI,</text>
+      <text class="s" x="965" y="284" text-anchor="middle">Google and others</text>
+    </g>
+
+    <!-- legend -->
+    <g>
+      <path class="data" d="M12,484 L52,484"/><text class="s" x="62" y="488">read, written or called on the machine</text>
+      <path class="out" d="M300,484 L340,484"/><text class="s" x="350" y="488">sent to the language model</text>
+      <g class="user"><circle cx="541" cy="484" r="11"/><circle class="g" cx="541" cy="480.6" r="3.3"/><path class="g" d="M534.8,490.6 a6.2,5.6 0 0 1 12.4,0 Z"/></g><text class="s" x="560" y="488">where the user types the question</text>
+    </g>
+  </svg>
+</div>
+
+<script>
+  // what each way needs, the same wording as the README's table
+  const ABOUT = {
+    all:    'Four ways to ask. Choose one to see what it uses.',
+    mcp:    'Needs no viewer, so it also serves a machine without a screen. Requires the <code>mcp</code> extra, and <code>pciseq-mcp</code> registered with the assistant once. The language model is the assistant\'s own.',
+    viewer: 'The assistant reads the files loaded in pciSeq Viewer and can control it: move the view to a cell, open its diagnostics. Requires pciSeq Viewer running and its address registered with the assistant once. The language model is the assistant\'s own.',
+    panel:  'Needs no assistant. Requires an API key, from Anthropic, entered in the panel.',
+    live:   'Answers about the fit in progress, and ends when the run does. Requires an API key, from Anthropic.',
+  };
+  const fig = document.getElementById('fig'), about = document.getElementById('about');
+  function show(way) {
+    if (!ABOUT[way]) way = 'all';
+    fig.dataset.way = way;
+    about.innerHTML = ABOUT[way];
+    const r = document.querySelector('input[name="way"][value="' + way + '"]');
+    if (r) r.checked = true;
+  }
+  document.getElementById('ways').addEventListener('change', e => {
+    show(e.target.value);
+    try { history.replaceState(null, '', '#' + e.target.value); } catch (_) {}
+  });
+  // #mcp, #viewer, #panel or #live in the address opens on that way
+  show(location.hash.slice(1) || 'all');
+  window.addEventListener('hashchange', () => show(location.hash.slice(1) || 'all'));
+
+  // Embedded in the docs this page sits in an iframe, which cannot size itself, so it
+  // posts its height out and the host resizes it. The host also says which theme it is
+  // in, since prefers-color-scheme knows nothing about the docs toggle. Same protocol
+  // as cells-demo.html, see .vitepress/theme/DemoFrame.vue.
+  (function embedded() {
+    if (window.parent === window) return;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.background = 'transparent';
+    const wrap = document.querySelector('.wrap');
+    wrap.style.maxWidth = 'none';
+    wrap.style.padding = '0';
+    const send = () => {
+      // the body, not the html element, which stretches to the height just given
+      parent.postMessage({ demoHeight: Math.ceil(document.body.getBoundingClientRect().height) + 1 }, '*');
+    };
+    window.addEventListener('load', send);
+    window.addEventListener('resize', send);
+    if (window.ResizeObserver) new ResizeObserver(send).observe(document.body);
+    window.addEventListener('message', ev => {
+      const t = ev.data && ev.data.theme;
+      if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+      send();
+    });
+  })();
+</script>
+</body>
+</html>

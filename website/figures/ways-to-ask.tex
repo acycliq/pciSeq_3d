@@ -1,0 +1,142 @@
+% The ways to ask about a run, as static figures. These are the pictures in the README;
+% the docs site has the same thing as a page you can click (docs/public/ways-to-ask.html).
+% If you change one, change the other too, nothing keeps them in step.
+%
+% One picture per way and per theme: \way picks which parts stay dark, the rest fade,
+% and \theme{dark} draws light on dark for readers who have github in dark mode. The dark
+% ones have no background of their own, so they sit on whatever dark the page is.
+% To rebuild all ten, from this folder:
+%     for w in all mcp viewer panel live; do
+%       pdflatex -jobname=w "\def\way{$w}\input{ways-to-ask.tex}"
+%       pdftocairo -png -r 200 -singlefile w.pdf ../docs/public/ways-to-ask-$w
+%       pdflatex -jobname=w "\def\way{$w}\def\theme{dark}\input{ways-to-ask.tex}"
+%       pdftocairo -png -transp -r 200 -singlefile w.pdf ../docs/public/ways-to-ask-$w-dark
+%     done
+\documentclass[tikz,border=6pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage[default]{sourcesanspro}
+\usepackage{xstring}
+\usetikzlibrary{positioning,arrows.meta,calc}
+\providecommand{\theme}{light}
+\IfStrEq{\theme}{dark}{%
+  \definecolor{ink}{HTML}{E6E8EB}\definecolor{mute}{HTML}{98A2B0}\definecolor{line}{HTML}{5C6672}
+  \definecolor{fill}{HTML}{21262D}\definecolor{paper}{HTML}{0D1117}
+  \definecolor{files}{HTML}{14342A}\definecolor{filesline}{HTML}{34D399}\definecolor{llm}{HTML}{F0A35C}
+}{%
+  \definecolor{ink}{HTML}{1F2933}\definecolor{mute}{HTML}{6B7785}\definecolor{line}{HTML}{9AA5B1}
+  \definecolor{fill}{HTML}{F5F7FA}\definecolor{paper}{HTML}{FFFFFF}
+  \definecolor{files}{HTML}{E6F4EA}\definecolor{filesline}{HTML}{0A7D5A}\definecolor{llm}{HTML}{B4530A}
+}
+
+\providecommand{\way}{all}
+% \lit{live,mcp} sets \op to 1 when \way is all or one of the listed ways, else faded
+\newcommand{\lit}[1]{\IfStrEq{\way}{all}{\def\op{1}}{\IfSubStr{,#1,}{,\way,}{\def\op{1}}{\def\op{0.13}}}}
+
+% the little person, where the user types the question
+\newcommand{\user}[1]{%
+  \fill[ink] (#1) circle (2.3mm);
+  \fill[paper] ($(#1)+(0,0.72mm)$) circle (0.7mm);
+  \fill[paper] ($(#1)+(-1.3mm,-1.4mm)$) arc[start angle=180, end angle=0, x radius=1.3mm, y radius=1.2mm] -- cycle;}
+
+\begin{document}
+\begin{tikzpicture}[
+    font=\small, text=ink,
+    box/.style={draw=line, line width=0.6pt, rounded corners=2pt, fill=paper,
+                align=center, inner sep=6pt, minimum height=9mm},
+    sub/.style={box, fill=fill, minimum width=40mm, minimum height=8mm, inner sep=4pt},
+    group/.style={draw=line, line width=0.6pt, rounded corners=3pt, fill=paper},
+    title/.style={font=\small\bfseries, text=ink, anchor=south west, inner sep=1pt},
+    data/.style={-{Stealth[length=5pt,width=4.5pt]}, line width=0.7pt, draw=ink},
+    tollm/.style={-{Stealth[length=5pt,width=4.5pt]}, line width=0.7pt, draw=llm, dashed},
+    lab/.style={font=\scriptsize, text=mute, fill=paper, inner sep=1.5pt},
+    era/.style={font=\scriptsize\scshape, text=mute, anchor=west, inner sep=0pt},
+  ]
+
+  % ---- the machine, and the line between the two eras
+  \draw[line, dashed, line width=0.6pt, rounded corners=5pt] (-2.17,-4.07) rectangle (14.27,5.1);
+  \draw[line, line width=0.5pt, dotted] (2.85,4.9) -- (2.85,-3.9);
+  \node[font=\scriptsize\bfseries, text=mute, anchor=south west] at (-2.1,5.13) {THE USER'S MACHINE};
+
+  % ---- the boxes. The frames come first so what sits in them is drawn on top.
+  \lit{live}\begin{scope}[opacity=\op]
+    \node[era] at (-1.75,4.55) {during the run};
+    \draw[group] (-1.75,2.28) rectangle (1.75,3.72);
+    \node[title] at (-1.75,3.755) {Live viewer\ \ {\normalfont\scriptsize\color{mute}browser page}};
+    \node[sub, minimum width=30mm] (livechat) at (0,3.0) {Chat};
+    \user{livechat.north west}
+  \end{scope}
+
+  \lit{live,mcp,viewer,panel}\begin{scope}[opacity=\op]
+    \node[box, minimum width=30mm] (fit) at (0,0) {\textbf{pciSeq.fit}\\[-1pt]{\scriptsize\color{mute}the run}};
+  \end{scope}
+
+  \lit{mcp,viewer,panel}\begin{scope}[opacity=\op]
+    \node[era] at (3.55,4.55) {once the run has completed};
+    \node[box, draw=filesline, fill=files, minimum width=38mm, minimum height=16mm] (files) at (5.6,0)
+        {\textbf{Saved files}\\[1pt]{\scriptsize\color{mute}\texttt{diagnostics.db}, \texttt{viewer\_data/},}\\[-2pt]
+         {\scriptsize\color{mute}\texttt{cellData.tsv}, \texttt{geneData.tsv}}};
+  \end{scope}
+
+  \lit{mcp}\begin{scope}[opacity=\op]
+    \node[box, minimum width=30mm] (mcp) at (5.6,-3.1) {\textbf{\texttt{pciseq-mcp}}\\[-1pt]{\scriptsize\color{mute}program}};
+  \end{scope}
+
+  \lit{viewer,panel}\begin{scope}[opacity=\op]
+    \draw[group] (9.35,-1.27) rectangle (13.85,1.27);
+    \node[title] at (9.35,1.305) {pciSeq Viewer\ \ {\normalfont\scriptsize\color{mute}desktop application}};
+  \end{scope}
+  \lit{panel}\begin{scope}[opacity=\op]
+    \node[sub] (panel) at (11.6,0.55) {Chat panel};
+    \user{panel.north west}
+  \end{scope}
+  \lit{viewer}\begin{scope}[opacity=\op]
+    \node[sub] (conn) at (11.6,-0.55) {Connection for assistants};
+  \end{scope}
+
+  \lit{mcp,viewer}\begin{scope}[opacity=\op]
+    \node[box, minimum width=44mm] (assistant) at (11.6,-3.1)
+        {\textbf{AI assistant}\\[-1pt]{\scriptsize\color{mute}Claude Code, Gemini CLI, Codex}};
+    \user{assistant.north west}
+  \end{scope}
+
+  % ---- the language model, outside the machine, part of every way
+  \node[box, draw=llm, minimum width=27mm, minimum height=72mm, text width=24mm] (llm) at (17.0,-0.05)
+      {\textbf{Language model}\\[3pt]{\scriptsize\color{mute}Anthropic, OpenAI, Google and others}};
+  \node[font=\scriptsize\bfseries, text=mute, anchor=south] at ($(llm.north)+(0,1pt)$) {OVER THE NETWORK};
+
+  % ---- arrows on the machine
+  \lit{live}\begin{scope}[opacity=\op]
+    \draw[data] (fit.north) -- node[lab] {serves} (0,2.28);
+  \end{scope}
+  \lit{mcp,viewer,panel}\begin{scope}[opacity=\op]
+    \draw[data] (fit) -- node[lab] {writes} (files);
+  \end{scope}
+  \lit{mcp}\begin{scope}[opacity=\op]
+    \draw[data] (mcp) -- node[lab] {reads} (files);
+    \draw[data] (assistant) -- node[lab] {calls} (mcp);
+  \end{scope}
+  \lit{viewer,panel}\begin{scope}[opacity=\op]
+    \draw[data] (9.35,0) -- node[lab] {loads} (files);
+  \end{scope}
+  \lit{viewer}\begin{scope}[opacity=\op]
+    \draw[data] (assistant.north) -- node[lab, pos=0.38] {calls and controls} (conn.south);
+  \end{scope}
+
+  % ---- what is sent to the language model
+  \lit{live}\begin{scope}[opacity=\op]
+    \draw[tollm] (livechat.east) -- node[lab, pos=0.62] {question and function results} (livechat.east -| llm.west);
+  \end{scope}
+  \lit{panel}\begin{scope}[opacity=\op]
+    \draw[tollm] (panel.east) -- (panel.east -| llm.west);
+  \end{scope}
+  \lit{mcp,viewer}\begin{scope}[opacity=\op]
+    \draw[tollm] (assistant.east) -- (assistant.east -| llm.west);
+  \end{scope}
+
+  % ---- legend
+  \node[anchor=north west, font=\scriptsize, text=mute, align=left] at (-2.17,-4.32)
+      {\tikz[baseline=-0.6ex]{\draw[data] (0,0)--(0.7,0);}\ \ read, written or called on the machine\qquad
+       \tikz[baseline=-0.6ex]{\draw[tollm] (0,0)--(0.7,0);}\ \ sent to the language model\qquad
+       \tikz[baseline=-0.6ex]{\user{0,0}}\ \ where the user types the question};
+\end{tikzpicture}
+\end{document}

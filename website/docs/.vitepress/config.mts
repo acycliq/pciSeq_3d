@@ -98,6 +98,7 @@ export default defineConfig({
           { text: "How a spot's call was made", link: '/explaining-the-calls/why-a-spot-got-its-cell' },
         ],
       },
+      { text: 'Asking about a run', link: '/asking-about-a-run' },
       {
         text: 'pciSeq Viewer',
         link: '/viewer/overview',

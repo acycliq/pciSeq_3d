@@ -201,6 +201,62 @@ Within pciSeq Viewer the agent can additionally control the display: move the vi
 a cell, open the diagnostics panel for a cell or a spot, and show or hide classes and
 genes.
 
+The diagram shows what each way of asking uses. Select a way to see its parts; the person
+marks where the question is typed.
+
+<details name="ways-to-ask" open>
+<summary>All</summary>
+<p align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/ways-to-ask-all-dark.png">
+<img src="website/docs/public/ways-to-ask-all.png" width="100%" alt="pciSeq.fit, the saved files, pciseq-mcp, pciSeq Viewer, an AI assistant and the language model, with every way of asking shown">
+</picture>
+</p>
+</details>
+
+<details name="ways-to-ask">
+<summary>An AI assistant with <code>pciseq-mcp</code></summary>
+<p align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/ways-to-ask-mcp-dark.png">
+<img src="website/docs/public/ways-to-ask-mcp.png" width="100%" alt="The parts used when an AI assistant calls pciseq-mcp, which reads the saved files">
+</picture>
+</p>
+</details>
+
+<details name="ways-to-ask">
+<summary>An AI assistant connected to pciSeq Viewer</summary>
+<p align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/ways-to-ask-viewer-dark.png">
+<img src="website/docs/public/ways-to-ask-viewer.png" width="100%" alt="The parts used when an AI assistant calls and controls pciSeq Viewer, which has the saved files loaded">
+</picture>
+</p>
+</details>
+
+<details name="ways-to-ask">
+<summary>The chat panel in pciSeq Viewer</summary>
+<p align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/ways-to-ask-panel-dark.png">
+<img src="website/docs/public/ways-to-ask-panel.png" width="100%" alt="The parts used by the chat panel of pciSeq Viewer, which has the saved files loaded">
+</picture>
+</p>
+</details>
+
+<details name="ways-to-ask">
+<summary>The live viewer's chat</summary>
+<p align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/ways-to-ask-live-dark.png">
+<img src="website/docs/public/ways-to-ask-live.png" width="100%" alt="The parts used by the chat of the live viewer, during the run">
+</picture>
+</p>
+</details>
+
+<p align="center"><sub><em>The same diagram, with the ways switched in place, is in the
+<a href="https://acycliq.github.io/pciSeq_3d/asking-about-a-run">documentation</a>.</em></sub></p>
+
 Once a run has completed there are three ways to ask. All three read the files
 `pciSeq.fit` saved and report the same numbers; they differ in what has to be set up
 and in whether the answer can be shown on screen.
@@ -238,12 +294,11 @@ to the cell and explain its class, then to open the diagnostics and describe the
 language model is Claude Sonnet 5; pauses while it responds are cut to half.</em></sub></p>
 
 The language model is chosen by the user. As of 6 October 2026, the live viewer's chat
-takes an API key from Anthropic or Z.ai (GLM); the chat panel in pciSeq Viewer takes
-either of those, or any endpoint that speaks the Anthropic Messages protocol, given its
-base URL. With an AI assistant the language model is the assistant's own. The chat panel
-and the connection for assistants ship with the next release of pciSeq Viewer. In every
-case the saved files stay on the user's machine; only the results the agent asks for are
-sent to the language model.
+takes an API key from Anthropic; the chat panel in pciSeq Viewer takes that, or any
+endpoint that speaks the Anthropic Messages protocol, given its base URL. With an AI
+assistant the language model is the assistant's own. In every case the saved files stay
+on the user's machine; only the results the agent asks for are sent to the language
+model.
 
 ### Diagnostic figures
 
