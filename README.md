@@ -6,14 +6,13 @@
 
 [![Documentation](https://img.shields.io/badge/docs-acycliq.github.io-0a7d5a)](https://acycliq.github.io/pciSeq_3d/)
 [![Tests](https://github.com/acycliq/pciSeq_3d/actions/workflows/pytest.yaml/badge.svg?branch=dev_3d)](https://github.com/acycliq/pciSeq_3d/actions/workflows/pytest.yaml)
-[![Python](https://img.shields.io/badge/python-3.10%2B-3776ab)](#install)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776ab)](#installation)
 [![Licence](https://img.shields.io/badge/licence-MIT-lightgrey)](LICENSE)
 
 [Documentation](https://acycliq.github.io/pciSeq_3d/) ·
 [Quick start](#quick-start) ·
-[How it works](#how-it-works) ·
-[Explaining a call](#explaining-a-call) ·
-[Ask the run](#ask-in-plain-words) ·
+[Method](#method) ·
+[Diagnostics](#diagnostics) ·
 [Viewers](#viewers)
 
 </div>
@@ -30,7 +29,7 @@ https://github.com/user-attachments/assets/ab9867e4-866e-4f81-88e5-359bdf7d7a64
 coloured by the class they are currently assigned to, and the chart at the bottom right
 tracks convergence.</em></p>
 
-## At a glance
+## Overview
 
 <table>
 <tr>
@@ -87,11 +86,11 @@ pandas DataFrames in memory; tsv, feather and a
 </tr>
 </table>
 
-**Size and speed, measured.** A 3D coppaFISH dataset of mouse hippocampus with 3,018,812
+**Size and speed.** A 3D coppaFISH dataset of mouse hippocampus with 3,018,812
 spots, 25,254 cells, 90 planes, 205 genes and 38 cell types converged in 75 iterations,
 12 minutes, on a 4-core laptop CPU (Intel i7-1165G7) with no GPU.
 
-## Install
+## Installation
 
 ```bash
 pip install git+https://github.com/acycliq/pciSeq_3d.git@dev_3d
@@ -142,7 +141,8 @@ pciseq run analysis.yaml --set rTheta=5 --set mrf_beta=0
 | **`cellData`** | For every cell, a probability distribution over the cell types, and its expected gene counts. |
 | **`geneData`** | For every spot, a probability distribution over its candidate parent cells and the background. |
 
-Both come back as pandas DataFrames. With `save_data` on, the default, a run also writes:
+Both come back as pandas DataFrames. With `save_data` on, the default, a run also writes
+these under `<output_path>/pciSeq/data/`:
 
 | File | For |
 | --- | --- |
@@ -154,7 +154,7 @@ Both come back as pandas DataFrames. With `save_data` on, the default, a run als
 
 See [working with results](https://acycliq.github.io/pciSeq_3d/api/working-with-results).
 
-## How it works
+## Method
 
 Every unknown is a latent variable of one Bayesian model: the cell of origin of each
 spot, the class of each cell, the detection efficiency of each gene, and the per-cell and
@@ -186,176 +186,62 @@ flowchart LR
 
 The mathematics is in [the model](https://acycliq.github.io/pciSeq_3d/the-model/overview).
 
-## Explaining a call
+## Diagnostics
 
-A probability is only useful if you can see where it came from. pciSeq does not ask you
-to trust a call: every run saves the terms the model added up to reach it, for every cell
-and every spot, and there are two ways to read them. You can ask, or you can call the
-functions yourself.
+Every run saves the terms the model added up to reach a call, for every cell and every
+spot. There are two ways to read them: ask an agent, or call the functions yourself.
 
-The example is cell 18223, at the tip of the upper blade of the dentate gyrus. Fitted
-without the spatial term it is called a cortical class, `030 L6 CT CTX Glut`. With it,
-the cell is called `037 DG Glut`.
+Questions an agent takes:
 
-<p align="center">
-<img src="website/docs/public/explaining-the-calls/cell-18223-map.png" width="100%" alt="Cell 18223 in the section and up close with its nine nearest cells">
-</p>
+> Why is this cell assigned to its class?
+> Why did this spot go to that cell and not to the one next to it?
+> Which cells are called `037 DG Glut` on plane 40?
+> What does rTheta do, and what did this run use?
 
-### Ask in plain words
+Two things keep the answers checkable. The agent computes nothing: every number comes
+from a tool that reads what the fit saved. And the method is explained from the
+documentation saved inside the run, so a run is explained by the version of pciSeq that
+produced it, not by a newer one.
+
+### Agent tools
+
+The agent answers by calling functions that read the run: class probabilities, spot
+assignments, gene efficiencies, settings. It has no other access to the run. Three
+interfaces provide them:
+
+| When | Where | What it needs |
+| --- | --- | --- |
+| During the run | the live viewer's chat, which answers about the fit in progress | an API key for the language model |
+| After the run | the chat panel in [pciSeq Viewer](https://github.com/acycliq/pciSeq_viewer), which can also move the view to the cell it is describing, open the diagnostics, and show or hide classes and genes | an API key for the language model |
+| After the run | Claude Code, Claude Desktop or another MCP client | the `pciseq-mcp` server, registered with the client ([MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server)) |
 
 <p align="center">
 <img src="https://github.com/user-attachments/assets/0daa6f49-a3df-4674-8d5f-5a40f9770043" width="100%" alt="The chat panel in pciSeq Viewer answering two questions about a cell">
 </p>
 
-<p align="center"><em>The chat panel in pciSeq Viewer, on another cell, 5016. It is asked to fly
+<p align="center"><em>The chat panel in pciSeq Viewer, on cell 5016. It is asked to fly
 to the cell and say why it got its class, then to open the diagnostics and say what they
-show. The waits for the model are played at double speed; the model here is Claude
-Sonnet 5.</em></p>
+show. Waits for the language model are played at double speed; it is Claude Sonnet 5
+here.</em></p>
 
-pciSeq gives an AI agent the tools to explain a run, so you can ask a question the way
-you would ask a colleague:
+The live viewer's chat ends when the run does. The MCP route needs the functions to run
+next to the data, so it does not work from the claude.ai website or the phone app. The
+chat panel ships with the next release of pciSeq Viewer. In all three the run stays on
+your machine; only the results the agent asks for are sent to the language model.
 
-> **Why is cell 18223 assigned to its class?**
-
-and it answers from the saved numbers. For this cell:
-
-> Cell 18223 was called 037 DG Glut, with probability 1.00. The closest alternative was
-> 030 L6 CT CTX Glut, at less than 0.01. [...] The genes point to 037 DG Glut, about 100 to
-> one. The strongest evidence comes from Synpr and Sema5a: the cell holds these in amounts
-> that fit what the cell type definitions give for a 037 DG Glut cell, and not for a
-> 030 L6 CT CTX Glut cell. [...] A few genes, Neurod6, Rgs4 and Gng12, look more like
-> 030 L6 CT CTX Glut, but they are outweighed. The prior treats the two classes alike. The
-> neighbouring cells are overwhelmingly 037 DG Glut, which strengthens the call. So the
-> neighbourhood settled it. The genes agreed, but only mildly; the surrounding cells made
-> the difference.
-
-Other questions it takes:
-
-> Why did spot 1642419 go to cell 18223 and not to the cell next to it?
-> Which cells are called `037 DG Glut` on plane 40?
-> What does rTheta do, and what did this run use?
-
-Three things keep the answers checkable:
-
-- **The agent computes nothing.** Every number comes from a tool that reads what the fit
-  saved. The paragraph above is assembled by code from those numbers, and the agent
-  retells it in its own words.
-- **The method is explained from the documentation saved inside the run**, so a run is
-  explained by the version of pciSeq that produced it, not by a newer one.
-- **The figures below show the same numbers.** Anything the agent says about a cell can
-  be checked against `check_cell`.
-
-#### Where the agent is
-
-The agent is available in three places. In each, a language model is given the pciSeq
-tools, and the tools are what give it access to the run; a general assistant without
-them has no knowledge of it.
-
-| When | Where | Requires |
-| --- | --- | --- |
-| During the run | the live viewer | an API key for the model |
-| After the run | pciSeq Viewer (recommended) | an API key for the model |
-| After the run | Claude Code, Claude Desktop or another MCP client | the `pciseq-mcp` server, registered with the client |
-
-**During the run: in the live viewer.**
-
-The live viewer's page has a chat of its own. It answers about the fit in progress: how
-far it has got, what a cell is called right now, which cells changed class since the
-last iteration. It needs an API key for the model, set on the page.
-
-This chat is alive only while the run is. When `fit` returns, the live viewer shuts down
-and the connection is lost, along with the conversation. To keep asking, open the saved
-run in pciSeq Viewer and use the chat there.
-
-**After the run: in pciSeq Viewer, the best way. No MCP, nothing to install or connect.**
-
-The desktop viewer has the agent built in, as a chat panel docked under the map.
-
-1. Open your run in [pciSeq Viewer](https://github.com/acycliq/pciSeq_viewer).
-2. Click the chat bubble at the top right.
-3. The first time, paste an API key for the model (Anthropic or Z.ai) in the panel's
-   Connection tab. It is stored encrypted on your machine.
-4. Ask. There is no run to name: it is the one on screen.
-
-Because it sits inside the viewer, it does more than answer. It can fly the map to the
-cell it is talking about, open the cell or spot diagnostics, open the cell in 3D with its
-neighbours, and show or hide classes and genes, so you see what it is explaining.
-
-The chat panel ships with the next release of the viewer.
-
-**After the run: from Claude Code or Claude Desktop, through MCP.**
-
-For those who already work in one of these, or for a machine with no screen. Here the
-agent is your AI client plus `pciseq-mcp`, a small server included in pciSeq that hands
-the client the same tools.
-
-```mermaid
-flowchart LR
-    U["<b>You</b><br/>ask a question"] --> C["<b>Claude Code</b> or<br/><b>Claude Desktop</b><br/>on your machine"]
-    C -- "MCP" --> S["<b>pciseq-mcp</b><br/>the pciSeq tools"]
-    S --> R["<b>your run folder</b><br/>what the fit saved"]
-```
-
-Install pciSeq with the agent tools, in the environment you run pciSeq in:
-
-```bash
-pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
-```
-
-Tell your AI client about them, once. For Claude Code, add to `~/.claude.json`:
-
-```json
-{
-  "mcpServers": {
-    "pciSeq": {"type": "stdio", "command": "pciseq-mcp", "args": []}
-  }
-}
-```
-
-Claude Desktop, Cursor, VS Code and others take the same entry in their own settings
-file, listed on the [MCP server](https://acycliq.github.io/pciSeq_3d/api/mcp-server)
-page. Then ask, naming the run folder the first time:
-
-```
-Open the run in out/run1 and explain why cell 18223 got its class.
-```
-
-This route does not work from the claude.ai website or the phone app, because the tools
-have to run next to your data.
-
-In all three, the run stays on your machine; only the tool results the agent asks for are
-sent to the model.
-
-### The same, as figures
+### Diagnostic figures
 
 [`check_cell`](https://acycliq.github.io/pciSeq_3d/api/reference#check-cell) and
 [`check_spot`](https://acycliq.github.io/pciSeq_3d/api/reference#check-spot) are methods
-of the fitted model. They draw the terms the agent reads.
+of the fitted model. They draw the same terms the agent reads: for a cell, the genes
+arguing for each of two classes and the three parts of its score; for a spot, one bar
+per candidate cell and the background, split into the parts of the score.
 
 ```python
 obj = pd.read_pickle("out/run1/pciSeq/data/debug/pciSeq.pickle")
-obj.check_cell(18223, "030 L6 CT CTX Glut")
-obj.check_spot(1642419)
+obj.check_cell(cell_label, "a class to compare against")
+obj.check_spot(spot_id)
 ```
-
-<table>
-<tr>
-<td width="50%" valign="top">
-<img src="website/docs/public/explaining-the-calls/cell-18223-mrf.png" alt="check_cell for cell 18223">
-<br/>
-<sub><b>check_cell.</b> Top: the ten genes arguing hardest for each of the two classes.
-Bottom left: the three terms of the score, side by side. The genes alone leave the two
-classes close; the neighbours decide it.</sub>
-</td>
-<td width="50%" valign="top">
-<img src="website/docs/public/explaining-the-calls/spot-1642419-mrf-scores.png" alt="check_spot for spot 1642419">
-<br/>
-<sub><b>check_spot.</b> One bar per candidate cell of a Synpr spot, plus the background,
-split into the terms of the score. The distance to the cell dominates; the black line is
-the total.</sub>
-</td>
-</tr>
-</table>
 
 Both are walked through in the documentation:
 [how a cell's call was made](https://acycliq.github.io/pciSeq_3d/explaining-the-calls/why-a-cell-got-its-type)
