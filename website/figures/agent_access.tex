@@ -53,42 +53,42 @@
     title/.style={font=\small\bfseries, text=ink, anchor=south west, inner sep=1pt},
     data/.style={-{Stealth[length=5pt,width=4.5pt]}, line width=0.7pt, draw=ink},
     tollm/.style={-{Stealth[length=5pt,width=4.5pt]}, line width=0.7pt, draw=llm, dashed},
-    lab/.style={font=\scriptsize, text=mute, fill=paper, inner sep=1.5pt},
-    era/.style={font=\scriptsize\scshape, text=mute, anchor=west, inner sep=0pt},
+    lab/.style={font=\small, text=mute, fill=paper, inner sep=1.5pt},
+    era/.style={font=\small\scshape, text=mute, anchor=west, inner sep=0pt},
   ]
 
   % ---- the machine, and the line between the two eras
   \draw[line, dashed, line width=0.6pt, rounded corners=5pt] (-2.17,-4.07) rectangle (14.27,5.1);
   \draw[line, line width=0.5pt, dotted] (2.85,4.9) -- (2.85,-3.9);
-  \node[font=\scriptsize\bfseries, text=mute, anchor=south west] at (-2.1,5.13) {THE USER'S MACHINE};
+  \node[font=\small\bfseries, text=mute, anchor=south west] at (-2.1,5.13) {THE USER'S MACHINE};
 
   % ---- the boxes. The frames come first so what sits in them is drawn on top.
   \lit{live}\begin{scope}[opacity=\op]
     \node[era] at (-1.75,4.55) {during the run};
     \draw[group] (-1.75,2.28) rectangle (1.75,3.72);
-    \node[title] at (-1.75,3.755) {Live viewer\ \ {\normalfont\scriptsize\color{mute}browser page}};
+    \node[title] at (-1.75,3.755) {Live viewer\ \ {\normalfont\small\color{mute}browser page}};
     \node[sub, minimum width=30mm] (livechat) at (0,3.0) {Chat};
     \user{livechat.north west}
   \end{scope}
 
   \lit{live,mcp,viewer,panel}\begin{scope}[opacity=\op]
-    \node[box, minimum width=30mm] (fit) at (0,0) {\textbf{pciSeq.fit}\\[-1pt]{\scriptsize\color{mute}the run}};
+    \node[box, minimum width=30mm] (fit) at (0,0) {\textbf{pciSeq.fit}\\[-1pt]{\small\color{mute}the run}};
   \end{scope}
 
   \lit{mcp,viewer,panel}\begin{scope}[opacity=\op]
     \node[era] at (3.55,4.55) {once the run has completed};
     \node[box, draw=filesline, fill=files, minimum width=38mm, minimum height=16mm] (files) at (5.6,0)
-        {\textbf{Saved files}\\[1pt]{\scriptsize\color{mute}\texttt{diagnostics.db}, \texttt{viewer\_data/},}\\[-2pt]
-         {\scriptsize\color{mute}\texttt{cellData.tsv}, \texttt{geneData.tsv}}};
+        {\textbf{Saved files}\\[1pt]{\small\color{mute}\texttt{diagnostics.db}, \texttt{viewer\_data/},}\\[-2pt]
+         {\small\color{mute}\texttt{cellData.tsv}, \texttt{geneData.tsv}}};
   \end{scope}
 
   \lit{mcp}\begin{scope}[opacity=\op]
-    \node[box, minimum width=30mm] (mcp) at (5.6,-3.1) {\textbf{\texttt{pciseq-mcp}}\\[-1pt]{\scriptsize\color{mute}program}};
+    \node[box, minimum width=30mm] (mcp) at (5.6,-3.1) {\textbf{\texttt{pciseq-mcp}}\\[-1pt]{\small\color{mute}program}};
   \end{scope}
 
   \lit{viewer,panel}\begin{scope}[opacity=\op]
     \draw[group] (9.35,-1.27) rectangle (13.85,1.27);
-    \node[title] at (9.35,1.305) {pciSeq Viewer\ \ {\normalfont\scriptsize\color{mute}desktop application}};
+    \node[title] at (9.35,1.305) {pciSeq Viewer\ \ {\normalfont\small\color{mute}desktop application}};
   \end{scope}
   \lit{panel}\begin{scope}[opacity=\op]
     \node[sub] (panel) at (11.6,0.55) {Chat panel};
@@ -100,14 +100,14 @@
 
   \lit{mcp,viewer}\begin{scope}[opacity=\op]
     \node[box, minimum width=44mm] (assistant) at (11.6,-3.1)
-        {\textbf{AI assistant}\\[-1pt]{\scriptsize\color{mute}Claude Code, Gemini CLI, Codex}};
+        {\textbf{AI assistant}\\[-1pt]{\small\color{mute}Claude Code, Gemini CLI, Codex}};
     \user{assistant.north west}
   \end{scope}
 
   % ---- the language model, outside the machine, part of every way
-  \node[box, draw=llm, minimum width=27mm, minimum height=72mm, text width=24mm] (llm) at (17.0,-0.05)
-      {\textbf{Language model}\\[3pt]{\scriptsize\color{mute}Anthropic, OpenAI, Google and others}};
-  \node[font=\scriptsize\bfseries, text=mute, anchor=south] at ($(llm.north)+(0,1pt)$) {OVER THE NETWORK};
+  \node[box, draw=llm, minimum width=31mm, minimum height=72mm, text width=28mm] (llm) at (17.2,-0.05)
+      {\textbf{Language model}\\[3pt]{\small\color{mute}Anthropic, OpenAI,\\[-1pt]Google and others}};
+  \node[font=\small\bfseries, text=mute, anchor=south] at ($(llm.north)+(0,1pt)$) {OVER THE NETWORK};
 
   % ---- arrows on the machine
   \lit{live}\begin{scope}[opacity=\op]
@@ -139,7 +139,7 @@
   \end{scope}
 
   % ---- legend
-  \node[anchor=north west, font=\scriptsize, text=mute, align=left] at (-2.17,-4.32)
+  \node[anchor=north west, font=\small, text=mute, align=left] at (-2.17,-4.32)
       {\tikz[baseline=-0.6ex]{\draw[data] (0,0)--(0.7,0);}\ \ read, written or called on the machine\qquad
        \tikz[baseline=-0.6ex]{\draw[tollm] (0,0)--(0.7,0);}\ \ sent to the language model\qquad
        \tikz[baseline=-0.6ex]{\user{0,0}}\ \ where the user types the question};
