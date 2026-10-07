@@ -182,50 +182,40 @@ parts; the person marks where the question is typed.
 <details name="agent_access" open>
 <summary>All</summary>
 <p align="center">
-<picture>
-<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/agent_access-all-dark.svg">
-<img src="website/docs/public/agent_access-all.svg" width="100%" alt="pciSeq.fit, the saved files, pciseq-mcp, pciSeq Viewer, an AI assistant and the language model, with every way of asking shown">
-</picture>
+<a href="website/docs/public/agent_access-all.svg#gh-light-mode-only"><img src="website/docs/public/agent_access-all.svg" width="100%" alt="pciSeq.fit, the saved files, pciseq-mcp, pciSeq Viewer, an AI assistant and the language model, with every way of asking shown"></a>
+<a href="website/docs/public/agent_access-all-dark.svg#gh-dark-mode-only"><img src="website/docs/public/agent_access-all-dark.svg" width="100%" alt="pciSeq.fit, the saved files, pciseq-mcp, pciSeq Viewer, an AI assistant and the language model, with every way of asking shown"></a>
 </p>
 </details>
 
 <details name="agent_access">
 <summary>An AI assistant with <code>pciseq-mcp</code></summary>
 <p align="center">
-<picture>
-<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/agent_access-mcp-dark.svg">
-<img src="website/docs/public/agent_access-mcp.svg" width="100%" alt="The parts used when an AI assistant calls pciseq-mcp, which reads the saved files">
-</picture>
+<a href="website/docs/public/agent_access-mcp.svg#gh-light-mode-only"><img src="website/docs/public/agent_access-mcp.svg" width="100%" alt="The parts used when an AI assistant calls pciseq-mcp, which reads the saved files"></a>
+<a href="website/docs/public/agent_access-mcp-dark.svg#gh-dark-mode-only"><img src="website/docs/public/agent_access-mcp-dark.svg" width="100%" alt="The parts used when an AI assistant calls pciseq-mcp, which reads the saved files"></a>
 </p>
 </details>
 
 <details name="agent_access">
 <summary>An AI assistant connected to pciSeq Viewer</summary>
 <p align="center">
-<picture>
-<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/agent_access-viewer-dark.svg">
-<img src="website/docs/public/agent_access-viewer.svg" width="100%" alt="The parts used when an AI assistant calls and controls pciSeq Viewer, which has the saved files loaded">
-</picture>
+<a href="website/docs/public/agent_access-viewer.svg#gh-light-mode-only"><img src="website/docs/public/agent_access-viewer.svg" width="100%" alt="The parts used when an AI assistant calls and controls pciSeq Viewer, which has the saved files loaded"></a>
+<a href="website/docs/public/agent_access-viewer-dark.svg#gh-dark-mode-only"><img src="website/docs/public/agent_access-viewer-dark.svg" width="100%" alt="The parts used when an AI assistant calls and controls pciSeq Viewer, which has the saved files loaded"></a>
 </p>
 </details>
 
 <details name="agent_access">
 <summary>The chat panel in pciSeq Viewer</summary>
 <p align="center">
-<picture>
-<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/agent_access-panel-dark.svg">
-<img src="website/docs/public/agent_access-panel.svg" width="100%" alt="The parts used by the chat panel of pciSeq Viewer, which has the saved files loaded">
-</picture>
+<a href="website/docs/public/agent_access-panel.svg#gh-light-mode-only"><img src="website/docs/public/agent_access-panel.svg" width="100%" alt="The parts used by the chat panel of pciSeq Viewer, which has the saved files loaded"></a>
+<a href="website/docs/public/agent_access-panel-dark.svg#gh-dark-mode-only"><img src="website/docs/public/agent_access-panel-dark.svg" width="100%" alt="The parts used by the chat panel of pciSeq Viewer, which has the saved files loaded"></a>
 </p>
 </details>
 
 <details name="agent_access">
 <summary>The live viewer's chat</summary>
 <p align="center">
-<picture>
-<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/agent_access-live-dark.svg">
-<img src="website/docs/public/agent_access-live.svg" width="100%" alt="The parts used by the chat of the live viewer, during the run">
-</picture>
+<a href="website/docs/public/agent_access-live.svg#gh-light-mode-only"><img src="website/docs/public/agent_access-live.svg" width="100%" alt="The parts used by the chat of the live viewer, during the run"></a>
+<a href="website/docs/public/agent_access-live-dark.svg#gh-dark-mode-only"><img src="website/docs/public/agent_access-live-dark.svg" width="100%" alt="The parts used by the chat of the live viewer, during the run"></a>
 </p>
 </details>
 
