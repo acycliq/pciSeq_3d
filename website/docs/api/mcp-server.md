@@ -179,8 +179,14 @@ Both serve the code that produced the run's numbers, read from GitHub at the run
 - `docs(query='', page='', n=5)`: the paragraphs of this documentation matching a keyword query, each with its page and heading; with `page`, one whole page; with neither, the list of pages.
 
 Every page is also available as a resource named `pciseq-docs://<page>`, and
-`pciseq-docs://index` lists them. The pages are packed into the wheel at build time from
-`website/docs`; in a repository checkout the folder itself is read.
+`pciseq-docs://index` lists them.
+
+With a run open, the pages are those saved inside its `diagnostics.db` when it was
+fitted, so that a run is described by the documentation of the version that produced
+it. A run that carries no pages is refused: `docs` and the resources report that no
+documentation is available. With no run open, the pages are those of the installed
+pciSeq, packed into the wheel at build time from `website/docs`; in a repository
+checkout the folder itself is read.
 
 `explain_cell` and `explain_spot` return the same numbers as
 [`check_cell`](./reference.md#check-cell) and [`check_spot`](./reference.md#check-spot),
