@@ -195,7 +195,8 @@ def call_tool(live, name, args):
             }
         if name == 'docs':
             from . import docs as docs_mod
-            # a run being fitted has no saved docs yet, so these are this machine's
+            # a run being fitted has no saved docs yet, so these are this machine's,
+            # the pages of the pciSeq doing the fit
             page = args.get('page')
             if page:
                 try:

@@ -200,8 +200,8 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 |---|---|---|
 | `export_diagnostics` | 14 | Export diagnostics data (check_cell and check_spot) to a single SQLite database. |
 | `export_docs` | 358 | Save the documentation pages (markdown only) into the docs table. |
-| `export_db_tables` | 378 | Export all database tables to CSV files. |
-| `export_db_table` | 391 | Export single database table to CSV. |
+| `export_db_tables` | 379 | Export all database tables to CSV files. |
+| `export_db_table` | 392 | Export single database table to CSV. |
 
 </details>
 
@@ -466,7 +466,7 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 |---|---|---|
 | `system_prompt` | 169 |  |
 | `call_tool` | 173 | Run one tool against the live model. Errors come back as a dict the model |
-| `run_turn` | 221 | One turn: the model, its tool calls, and the answer. |
+| `run_turn` | 222 | One turn: the model, its tool calls, and the answer. |
 
 </details>
 
@@ -489,15 +489,15 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 
 | Name | Line | Description |
 |---|---|---|
-| `use_run_pages` | 32 | Read the documentation from these pages until told otherwise. Called with the |
-| `source` | 39 | Where the pages being served come from, in words, for the agent. |
-| `docs_root` | 50 | The folder holding the markdown pages, or None when there is none. |
-| `list_pages` | 68 | Every page, as its path relative to the docs root, sorted. Includes and |
-| `read_page` | 82 | The markdown of one page. Raises KeyError for a path that is not a page. |
-| `page_title` | 94 | The first heading of a page, or its description from the frontmatter. |
-| `page_summary` | 103 | What a page is about, in one line. The description in the frontmatter is |
-| `_paragraphs` | 123 | (heading, paragraph) pairs, heading being the nearest one above. Frontmatter |
-| `search_docs` | 151 | Paragraphs matching a query, best first. |
+| `use_run_pages` | 35 | Read the documentation from these pages until told otherwise. Called with the |
+| `source` | 42 | Where the pages being served come from, in words, for the agent. |
+| `docs_root` | 52 | The folder holding the markdown pages, or None when there is none. |
+| `list_pages` | 70 | Every page, as its path relative to the docs root, sorted. Includes and |
+| `read_page` | 84 | The markdown of one page. Raises KeyError for a path that is not a page. |
+| `page_title` | 96 | The first heading of a page, or its description from the frontmatter. |
+| `page_summary` | 105 | What a page is about, in one line. The description in the frontmatter is |
+| `_paragraphs` | 125 | (heading, paragraph) pairs, heading being the nearest one above. Frontmatter |
+| `search_docs` | 153 | Paragraphs matching a query, best first. |
 
 </details>
 
@@ -532,34 +532,35 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 | `_need_run` | 65 |  |
 | `_tool` | 79 |  |
 | `open_run` | 92 | Open a finished pciSeq run so the other tools can answer questions about it. |
-| `run_info` | 109 | What produced the open run and how it ended: pciSeq version, commit and its |
-| `cell` | 121 | The headline facts about one cell: its class probabilities, its top genes, its |
-| `explain_cell` | 132 | Why a cell was given its class, gene by gene. |
-| `explain_spot` | 157 | Why a spot was assigned to the cell it was, term by term. |
-| `cell_counts` | 174 | How many reads a cell holds, in total or for one gene. |
-| `spots_in_cell` | 185 | How many spots physically sit inside a cell's segmentation mask. |
-| `spots_of_cell` | 197 | Which spots belong to a cell, with their probabilities, sorted highest first. |
-| `gene` | 215 | One gene across the run: its efficiency eta and inefficiency, its misread |
-| `theta` | 228 | The cell scale factor theta of one cell: the overall value, and theta_bar |
-| `gamma` | 238 | The cell-gene scale factors gamma_bar of one cell under its assigned class, |
-| `spot` | 250 | One spot: its gene, position and plane, the cell it was assigned to with the |
-| `neighbours` | 262 | The cells whose classes enter the spatial (mrf) term of one cell, nearest |
-| `class_counts` | 272 | How many cells each class has: hard (the number of cells whose most probable |
-| `find_cells` | 285 | The cells matching the filters given: assigned class, plane of the centroid, |
-| `metadata` | 302 | The metadata table of diagnostics.db. Without a key: every key with the kind |
-| `cell_row` | 312 | The cellData.tsv row of one cell, value for value: Cell_Num, X, Y, Z, |
-| `spot_row` | 320 | The geneData.tsv row of one spot, value for value: gene, position, plane, |
-| `cell_image` | 328 | A picture of a cell on the background image (DAPI or another stain), for 'show |
-| `plane_image` | 370 | The background image (DAPI or another stain) of one plane with nothing drawn |
-| `_picture` | 400 | What an image tool hands back: the png itself, so the agent can look at it, |
-| `list_source` | 413 | List a folder of the pciSeq source code, at the commit that made the open run. |
-| `read_source` | 427 | Read a file of the pciSeq source code, with line numbers, at the commit that |
-| `docs` | 443 | The pciSeq documentation, three ways. |
-| `calculate` | 488 | Do arithmetic instead of doing it in your head. |
-| `docs_index` | 508 |  |
-| `_page_reader` | 521 |  |
-| `_register_pages` | 529 |  |
-| `main` | 540 | Run the server over stdio, which is what every MCP client does. |
+| `run_info` | 110 | What produced the open run and how it ended: pciSeq version, commit and its |
+| `cell` | 122 | The headline facts about one cell: its class probabilities, its top genes, its |
+| `explain_cell` | 133 | Why a cell was given its class, gene by gene. |
+| `explain_spot` | 158 | Why a spot was assigned to the cell it was, term by term. |
+| `cell_counts` | 175 | How many reads a cell holds, in total or for one gene. |
+| `spots_in_cell` | 186 | How many spots physically sit inside a cell's segmentation mask. |
+| `spots_of_cell` | 198 | Which spots belong to a cell, with their probabilities, sorted highest first. |
+| `gene` | 216 | One gene across the run: its efficiency eta and inefficiency, its misread |
+| `theta` | 229 | The cell scale factor theta of one cell: the overall value, and theta_bar |
+| `gamma` | 239 | The cell-gene scale factors gamma_bar of one cell under its assigned class, |
+| `spot` | 251 | One spot: its gene, position and plane, the cell it was assigned to with the |
+| `neighbours` | 263 | The cells whose classes enter the spatial (mrf) term of one cell, nearest |
+| `class_counts` | 273 | How many cells each class has: hard (the number of cells whose most probable |
+| `find_cells` | 286 | The cells matching the filters given: assigned class, plane of the centroid, |
+| `metadata` | 303 | The metadata table of diagnostics.db. Without a key: every key with the kind |
+| `cell_row` | 313 | The cellData.tsv row of one cell, value for value: Cell_Num, X, Y, Z, |
+| `spot_row` | 321 | The geneData.tsv row of one spot, value for value: gene, position, plane, |
+| `cell_image` | 329 | A picture of a cell on the background image (DAPI or another stain), for 'show |
+| `plane_image` | 371 | The background image (DAPI or another stain) of one plane with nothing drawn |
+| `_picture` | 401 | What an image tool hands back: the png itself, so the agent can look at it, |
+| `list_source` | 414 | List a folder of the pciSeq source code, at the commit that made the open run. |
+| `read_source` | 428 | Read a file of the pciSeq source code, with line numbers, at the commit that |
+| `_run_has_no_docs` | 451 | True when a run is open and it carries no documentation pages. |
+| `docs` | 457 | The pciSeq documentation, three ways. |
+| `calculate` | 505 | Do arithmetic instead of doing it in your head. |
+| `docs_index` | 525 |  |
+| `_page_reader` | 540 |  |
+| `_register_pages` | 550 |  |
+| `main` | 561 | Run the server over stdio, which is what every MCP client does. |
 
 </details>
 

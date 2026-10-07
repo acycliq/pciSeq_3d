@@ -98,3 +98,39 @@ def test_resources_list_and_read():
 
     page = asyncio.run(srv.server.read_resource('pciseq-docs://api/mcp-server.md'))
     assert '# MCP server' in list(page)[0].content
+
+
+class _FakeRun:
+    """Just enough of a Run for the docs tool: the pages it carries, or None."""
+    def __init__(self, pages):
+        self._pages = pages
+
+    def docs_pages(self):
+        return self._pages
+
+
+def test_a_run_without_saved_docs_gets_no_docs(monkeypatch):
+    """The docs must be those of the pciSeq that made the run. A run from before the
+    pages were saved has none, and the pages on this machine are not handed over in
+    their place: the tool and the resources all say there is no documentation."""
+    monkeypatch.setattr(srv, '_run', _FakeRun(None))
+    for args in ({'query': 'misread density'}, {'page': 'api/mcp-server.md'}, {}):
+        body = json.loads(asyncio.run(srv.server.call_tool('docs', args)).content[0].text)
+        assert 'no documentation saved inside it' in body['error']
+        assert not ({'hits', 'contents', 'text'} & set(body))
+    for uri in ('pciseq-docs://index', 'pciseq-docs://api/mcp-server.md'):
+        text = list(asyncio.run(srv.server.read_resource(uri)))[0].content
+        assert text == srv._NO_DOCS
+
+
+def test_a_run_with_saved_docs_reads_its_own(monkeypatch):
+    """The pages inside the run are the ones served, and the answer says so."""
+    pages = {'index.md': '# pciSeq\n\nThe zzqq of the run.\n'}
+    monkeypatch.setattr(srv, '_run', _FakeRun(pages))
+    docs.use_run_pages(pages)
+    try:
+        body = json.loads(asyncio.run(srv.server.call_tool('docs', {'query': 'zzqq'})).content[0].text)
+        assert [h['page'] for h in body['hits']] == ['index.md']
+        assert 'saved inside this run' in body['docs_are']
+    finally:
+        docs.use_run_pages(None)

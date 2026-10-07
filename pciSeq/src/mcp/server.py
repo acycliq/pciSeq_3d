@@ -100,7 +100,8 @@ def open_run(path: str) -> dict:
     global _run
     _run = _open(path)
     # the run carries the documentation of the commit that fitted it; read that one
-    # rather than whatever is on this machine (docs.use_run_pages)
+    # rather than whatever is on this machine (docs.use_run_pages). A run without
+    # it gets no documentation at all, see _run_has_no_docs
     _docs.use_run_pages(_run.docs_pages())
     return _run.summary()
 
@@ -439,6 +440,19 @@ def read_source(path: Annotated[str, Field(
     return _source.read_source_for_run(_need_run().commit(), path, start_line)
 
 
+# What the agent is told for a run fitted before pciSeq saved its pages with the run.
+# The pages on this machine belong to the pciSeq installed here, which may be newer
+# than the one that made the run, so they are not offered in their place.
+_NO_DOCS = ('this run has no documentation saved inside it (it was fitted before '
+            'pciSeq saved its pages with the run), so there are no pages to read. Say '
+            'so, and do not answer from memory as if from the documentation.')
+
+
+def _run_has_no_docs():
+    """True when a run is open and it carries no documentation pages."""
+    return _run is not None and not _run.docs_pages()
+
+
 @_tool
 def docs(query: Annotated[str, Field(
              description='A few words, for example "rTheta" or "spatial term".')] = '',
@@ -459,6 +473,9 @@ def docs(query: Annotated[str, Field(
     setting such as rTheta, mrf_beta or Inefficiency, and name the page you took the
     answer from.
     """
+    if _run_has_no_docs():
+        return {'error': _NO_DOCS}
+
     def contents():
         return [{'page': p, 'title': _docs.page_title(_docs.read_page(p)),
                  'about': _docs.page_summary(_docs.read_page(p))} for p in _docs.list_pages()]
@@ -506,6 +523,8 @@ def calculate(expression: Annotated[str, Field(
                              'words literally: pick the page by its subject instead.',
                  mime_type='text/markdown')
 def docs_index() -> str:
+    if _run_has_no_docs():
+        return _NO_DOCS
     lines = ['# pciSeq documentation', '']
     for page in _docs.list_pages():
         text = _docs.read_page(page)
@@ -522,6 +541,8 @@ def _page_reader(page):
     # a static resource's function must take no arguments, so the page is closed
     # over here rather than passed in
     def reader() -> str:
+        if _run_has_no_docs():
+            return _NO_DOCS
         return _docs.read_page(page)
     return reader
 

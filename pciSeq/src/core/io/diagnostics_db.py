@@ -362,7 +362,8 @@ def export_docs(cursor: Any) -> None:
     that made the numbers, with no internet and no drift. About 280 kB. The pages
     come from docs.list_pages(), the repo checkout or the copy packed into a pip
     install, and pages kept out on purpose (docs.LEFT_OUT) stay out. When no docs
-    are found the table is still made, empty, and the viewer falls back to GitHub.
+    are found the table is still made, empty, and the viewer reads the pages at the
+    run's commit from GitHub.
     """
     from pciSeq.src.mcp import docs
 

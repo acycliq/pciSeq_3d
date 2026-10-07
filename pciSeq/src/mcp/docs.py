@@ -4,12 +4,15 @@ Two things the server builds on: the list of pages and their text, exposed as MC
 resources, and a keyword search over them, exposed as a tool. Both are plain
 functions here so they can be tested and used without mcp.
 
-Where the pages come from, in order: the copy saved inside the open run, so a run
-is explained by the documentation of the pciSeq that produced it; failing that the
-website/docs folder of a repo checkout, found by walking up from this file; failing
-that a copy setup.py packs into the wheel at build time (pciSeq/src/mcp/_docs), so
-a pip install has them. No index, no embeddings: the whole corpus is a few dozen
-pages, it is searched on the spot.
+Where the pages come from. With a finished run open: the copy saved inside it, so
+a run is explained by the documentation of the pciSeq that produced it. A run with
+no copy inside gets no documentation, the server refuses (server.py
+_run_has_no_docs) rather than hand over pages of another version. With no finished
+run open (pciSeq.fit saving the pages into a new run, the live viewer's chat):
+the pages of the pciSeq installed here, which is the website/docs folder of a repo
+checkout, found by walking up from this file, or the copy setup.py packs into the
+wheel at build time (pciSeq/src/mcp/_docs), so a pip install has them. No index, no
+embeddings: the whole corpus is a few dozen pages, it is searched on the spot.
 """
 import re
 from pathlib import Path
@@ -43,8 +46,7 @@ def source():
                 'describes the pciSeq that produced these numbers')
     if docs_root() is None:
         return 'no documentation pages were found on this machine'
-    return ('the documentation on this machine, not the run\'s own copy, so a page may '
-            'describe a newer pciSeq than the run')
+    return 'the documentation of the pciSeq installed on this machine'
 
 
 def docs_root():
