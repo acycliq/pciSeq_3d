@@ -5,27 +5,31 @@
 % One picture per way and per theme: \way picks which parts stay dark, the rest fade,
 % and \theme{dark} draws light on dark for readers who have github in dark mode. The dark
 % ones have no background of their own, so they sit on whatever dark the page is.
+% svg rather than png so github can draw them sharp at any width; the text is outlines.
 % To rebuild all ten, from this folder:
 %     for w in all mcp viewer panel live; do
 %       pdflatex -jobname=w "\def\way{$w}\input{agent_access.tex}"
-%       pdftocairo -png -r 200 -singlefile w.pdf ../docs/public/agent_access-$w
+%       pdftocairo -svg w.pdf ../docs/public/agent_access-$w.svg
 %       pdflatex -jobname=w "\def\way{$w}\def\theme{dark}\input{agent_access.tex}"
-%       pdftocairo -png -transp -r 200 -singlefile w.pdf ../docs/public/agent_access-$w-dark
+%       pdftocairo -svg w.pdf ../docs/public/agent_access-$w-dark.svg
 %     done
 \documentclass[tikz,border=6pt]{standalone}
 \usepackage[T1]{fontenc}
 \usepackage[default]{sourcesanspro}
 \usepackage{xstring}
-\usetikzlibrary{positioning,arrows.meta,calc}
+\usetikzlibrary{positioning,arrows.meta,calc,backgrounds}
 \providecommand{\theme}{light}
 \IfStrEq{\theme}{dark}{%
   \definecolor{ink}{HTML}{E6E8EB}\definecolor{mute}{HTML}{D0D7DE}\definecolor{line}{HTML}{7A8591}
   \definecolor{fill}{HTML}{21262D}\definecolor{paper}{HTML}{0D1117}
   \definecolor{files}{HTML}{14342A}\definecolor{filesline}{HTML}{34D399}\definecolor{llm}{HTML}{F0A35C}
+  \tikzset{sheet/.style={}}
 }{%
   \definecolor{ink}{HTML}{1F2933}\definecolor{mute}{HTML}{6B7785}\definecolor{line}{HTML}{9AA5B1}
   \definecolor{fill}{HTML}{F5F7FA}\definecolor{paper}{HTML}{FFFFFF}
   \definecolor{files}{HTML}{E6F4EA}\definecolor{filesline}{HTML}{0A7D5A}\definecolor{llm}{HTML}{B4530A}
+  % a white sheet under the light one, so it still reads if a dark page shows it
+  \tikzset{sheet/.style={show background rectangle, background rectangle/.style={fill=paper, draw=none}}}
 }
 
 \providecommand{\way}{all}
@@ -40,6 +44,7 @@
 
 \begin{document}
 \begin{tikzpicture}[
+    sheet,
     font=\small, text=ink,
     box/.style={draw=line, line width=0.6pt, rounded corners=2pt, fill=paper,
                 align=center, inner sep=6pt, minimum height=9mm},
