@@ -15,7 +15,7 @@ There are four ways to put a question to it. The diagram shows what each one use
 Choosing a way keeps its parts and fades the rest; the person marks where the question
 is typed.
 
-<DemoFrame src="/ways-to-ask.html" wide :min="420"
+<DemoFrame src="/agent_access.html" wide :min="420"
            title="The ways to ask about a run" />
 
 | Way | When | Reads | Requires |

@@ -179,52 +179,52 @@ show or hide classes and genes.
 The diagram shows the four ways of asking and what each one uses. Select a way to see its
 parts; the person marks where the question is typed.
 
-<details name="ways-to-ask" open>
+<details name="agent_access" open>
 <summary>All</summary>
 <p align="center">
 <picture>
-<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/ways-to-ask-all-dark.png">
-<img src="website/docs/public/ways-to-ask-all.png" width="100%" alt="pciSeq.fit, the saved files, pciseq-mcp, pciSeq Viewer, an AI assistant and the language model, with every way of asking shown">
+<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/agent_access-all-dark.png">
+<img src="website/docs/public/agent_access-all.png" width="100%" alt="pciSeq.fit, the saved files, pciseq-mcp, pciSeq Viewer, an AI assistant and the language model, with every way of asking shown">
 </picture>
 </p>
 </details>
 
-<details name="ways-to-ask">
+<details name="agent_access">
 <summary>An AI assistant with <code>pciseq-mcp</code></summary>
 <p align="center">
 <picture>
-<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/ways-to-ask-mcp-dark.png">
-<img src="website/docs/public/ways-to-ask-mcp.png" width="100%" alt="The parts used when an AI assistant calls pciseq-mcp, which reads the saved files">
+<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/agent_access-mcp-dark.png">
+<img src="website/docs/public/agent_access-mcp.png" width="100%" alt="The parts used when an AI assistant calls pciseq-mcp, which reads the saved files">
 </picture>
 </p>
 </details>
 
-<details name="ways-to-ask">
+<details name="agent_access">
 <summary>An AI assistant connected to pciSeq Viewer</summary>
 <p align="center">
 <picture>
-<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/ways-to-ask-viewer-dark.png">
-<img src="website/docs/public/ways-to-ask-viewer.png" width="100%" alt="The parts used when an AI assistant calls and controls pciSeq Viewer, which has the saved files loaded">
+<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/agent_access-viewer-dark.png">
+<img src="website/docs/public/agent_access-viewer.png" width="100%" alt="The parts used when an AI assistant calls and controls pciSeq Viewer, which has the saved files loaded">
 </picture>
 </p>
 </details>
 
-<details name="ways-to-ask">
+<details name="agent_access">
 <summary>The chat panel in pciSeq Viewer</summary>
 <p align="center">
 <picture>
-<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/ways-to-ask-panel-dark.png">
-<img src="website/docs/public/ways-to-ask-panel.png" width="100%" alt="The parts used by the chat panel of pciSeq Viewer, which has the saved files loaded">
+<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/agent_access-panel-dark.png">
+<img src="website/docs/public/agent_access-panel.png" width="100%" alt="The parts used by the chat panel of pciSeq Viewer, which has the saved files loaded">
 </picture>
 </p>
 </details>
 
-<details name="ways-to-ask">
+<details name="agent_access">
 <summary>The live viewer's chat</summary>
 <p align="center">
 <picture>
-<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/ways-to-ask-live-dark.png">
-<img src="website/docs/public/ways-to-ask-live.png" width="100%" alt="The parts used by the chat of the live viewer, during the run">
+<source media="(prefers-color-scheme: dark)" srcset="website/docs/public/agent_access-live-dark.png">
+<img src="website/docs/public/agent_access-live.png" width="100%" alt="The parts used by the chat of the live viewer, during the run">
 </picture>
 </p>
 </details>

@@ -1,5 +1,5 @@
 % The ways to ask about a run, as static figures. These are the pictures in the README;
-% the docs site has the same thing as a page you can click (docs/public/ways-to-ask.html).
+% the docs site has the same thing as a page you can click (docs/public/agent_access.html).
 % If you change one, change the other too, nothing keeps them in step.
 %
 % One picture per way and per theme: \way picks which parts stay dark, the rest fade,
@@ -7,10 +7,10 @@
 % ones have no background of their own, so they sit on whatever dark the page is.
 % To rebuild all ten, from this folder:
 %     for w in all mcp viewer panel live; do
-%       pdflatex -jobname=w "\def\way{$w}\input{ways-to-ask.tex}"
-%       pdftocairo -png -r 200 -singlefile w.pdf ../docs/public/ways-to-ask-$w
-%       pdflatex -jobname=w "\def\way{$w}\def\theme{dark}\input{ways-to-ask.tex}"
-%       pdftocairo -png -transp -r 200 -singlefile w.pdf ../docs/public/ways-to-ask-$w-dark
+%       pdflatex -jobname=w "\def\way{$w}\input{agent_access.tex}"
+%       pdftocairo -png -r 200 -singlefile w.pdf ../docs/public/agent_access-$w
+%       pdflatex -jobname=w "\def\way{$w}\def\theme{dark}\input{agent_access.tex}"
+%       pdftocairo -png -transp -r 200 -singlefile w.pdf ../docs/public/agent_access-$w-dark
 %     done
 \documentclass[tikz,border=6pt]{standalone}
 \usepackage[T1]{fontenc}
@@ -19,7 +19,7 @@
 \usetikzlibrary{positioning,arrows.meta,calc}
 \providecommand{\theme}{light}
 \IfStrEq{\theme}{dark}{%
-  \definecolor{ink}{HTML}{E6E8EB}\definecolor{mute}{HTML}{98A2B0}\definecolor{line}{HTML}{5C6672}
+  \definecolor{ink}{HTML}{E6E8EB}\definecolor{mute}{HTML}{D0D7DE}\definecolor{line}{HTML}{7A8591}
   \definecolor{fill}{HTML}{21262D}\definecolor{paper}{HTML}{0D1117}
   \definecolor{files}{HTML}{14342A}\definecolor{filesline}{HTML}{34D399}\definecolor{llm}{HTML}{F0A35C}
 }{%
