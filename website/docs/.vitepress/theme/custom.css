@@ -329,3 +329,43 @@
 .vp-doc .wide-table th {
   white-space: normal;
 }
+
+/* the path of a question (accessing-the-ai-agent.md). Same colours as the diagram of
+   the ways to ask above it: orange and dashed is what goes to the language model,
+   green is the saved files. */
+.vp-doc figure.diagram .aq-box { fill: var(--vp-c-bg-soft); stroke: var(--vp-c-text-3); stroke-width: 1; }
+.vp-doc figure.diagram .aq-machine { fill: none; stroke: var(--vp-c-text-3); stroke-width: 1; stroke-dasharray: 5 4; }
+.vp-doc figure.diagram .aq-files { fill: #e3f6ee; stroke: #059669; }
+.vp-doc figure.diagram .aq-llm-box { fill: none; stroke: #b4530a; }
+.vp-doc figure.diagram .aq-net { stroke: #b4530a; stroke-width: 1.3; stroke-dasharray: 5 4; }
+.vp-doc figure.diagram .aq-net-head { fill: #b4530a; }
+.vp-doc figure.diagram .aq-local { stroke: currentColor; stroke-width: 1.3; }
+.vp-doc figure.diagram .aq-local-head { fill: currentColor; }
+.vp-doc figure.diagram .aq-title { font-size: 15px; font-weight: 600; fill: currentColor; }
+.vp-doc figure.diagram .aq-sub { font-size: 12.5px; fill: var(--vp-c-text-2); }
+.vp-doc figure.diagram .aq-label { font-size: 13px; fill: var(--vp-c-text-2); }
+.vp-doc figure.diagram .aq-num { font-weight: 700; fill: currentColor; }
+.vp-doc figure.diagram .aq-cap { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; fill: var(--vp-c-text-2); }
+.dark .vp-doc figure.diagram .aq-files { fill: #14342a; stroke: #34d399; }
+.dark .vp-doc figure.diagram .aq-llm-box { stroke: #f0a35c; }
+.dark .vp-doc figure.diagram .aq-net { stroke: #f0a35c; }
+.dark .vp-doc figure.diagram .aq-net-head { fill: #f0a35c; }
+/* the steps of the path of a question: a row of buttons, and what is not in the
+   picked step fades, the same 0.13 as the diagram of the ways to ask */
+.vp-doc figure.diagram .aq-steps { display: flex; flex-wrap: wrap; gap: 6px 7px; margin: 0 0 14px; }
+.vp-doc figure.diagram .aq-steps button {
+  font: inherit; font-size: 13px; line-height: 1; padding: 7px 11px; border-radius: 5px;
+  border: 1px solid var(--vp-c-divider); background: var(--vp-c-bg); color: var(--vp-c-text-1);
+  cursor: pointer;
+}
+.vp-doc figure.diagram .aq-steps button:hover { border-color: var(--vp-c-brand-1); }
+.vp-doc figure.diagram .aq-steps button.on {
+  border-color: var(--vp-c-brand-1); background: var(--vp-c-brand-soft); font-weight: 600;
+}
+.vp-doc figure.diagram .aq-steps ~ svg g { transition: opacity 0.2s; }
+.vp-doc figure.diagram .aq-dim { opacity: 0.13; }
+/* the list of functions inside the figure: names in the code font, and the row
+   the language model picked gets a tint in steps 2 and 3 */
+.vp-doc figure.diagram svg text.aq-mono { font-family: var(--vp-font-family-mono); font-size: 12px; fill: currentColor; }
+.vp-doc figure.diagram .aq-pick { fill: transparent; transition: fill 0.2s; }
+.vp-doc figure.diagram .aq-pick.on { fill: var(--vp-c-brand-soft); stroke: var(--vp-c-brand-1); stroke-width: 1; }

@@ -4,6 +4,22 @@ description: The four ways to access the AI agent that explains a run, and what 
 pageClass: demo-wide
 ---
 
+<script setup>
+import { ref } from 'vue'
+
+// the path of a question: which step is picked, 0 is all of them
+const step = ref(0)
+const steps = [
+  { name: 'All', says: 'The path of one question. Dashed arrows cross the network to the language model; solid arrows stay on the user\'s machine.' },
+  { name: '1 Question', says: 'The question is sent to the language model with the list of functions: the name, the description and the arguments of each.' },
+  { name: '2 Function to call', says: 'The language model picks one from the list and replies with its name and arguments, here explain_cell for cell 5016.' },
+  { name: '3 Function runs', says: 'The function is run on the user\'s machine and reads the saved files.' },
+  { name: '4 Result', says: 'The result of the function is sent to the language model.' },
+  { name: '5 Answer', says: 'The language model writes the answer from that result.' },
+]
+const lit = (...on) => step.value === 0 || on.includes(step.value)
+</script>
+
 # Accessing the AI agent
 
 pciSeq saves with its results, for every cell and every spot, the terms from which its
@@ -24,6 +40,104 @@ is typed.
 | An AI assistant connected to [pciSeq Viewer](./viewer/overview.md) | once the run has completed | the saved files, as loaded in pciSeq Viewer | pciSeq Viewer running; its address registered with the assistant once |
 | The chat panel in pciSeq Viewer | once the run has completed | the saved files, as loaded in pciSeq Viewer | an API key |
 | The chat of the [live viewer](./api/live-viewer.md) | during the run | the fit in progress | an API key |
+
+## The path of a question
+
+In every way a question is answered in the same five steps. The language model does
+not read the files of the run. It names a function, and the function is run on the
+user's machine. Choosing a step keeps its parts and fades the rest.
+
+The language model has no knowledge of these functions of its own. The list of them is
+sent with every question, and the language model chooses from the descriptions in it.
+
+<figure class="diagram">
+<div class="aq-steps" role="group" aria-label="Step to show">
+  <button v-for="(b, i) in steps" :key="i" type="button" :class="{ on: step === i }" :aria-pressed="step === i" @click="step = i">{{ b.name }}</button>
+</div>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 392" role="img" aria-label="The path of one question: it is sent to the language model with the list of functions, the language model names one, that function is run on the user's machine and reads the saved files, and its result goes back for the answer">
+  <rect class="aq-machine" x="14" y="26" width="536" height="352" rx="7" />
+  <text class="aq-cap" x="16" y="16">THE USER'S MACHINE</text>
+  <text class="aq-cap" x="670" y="16" text-anchor="middle">OVER THE NETWORK</text>
+  <g :class="{ 'aq-dim': !lit(1, 2, 3, 4, 5) }">
+    <rect class="aq-box" x="34" y="46" width="196" height="150" rx="4" />
+    <text class="aq-title" x="132.0" y="117.0" text-anchor="middle">Chat or AI assistant</text>
+    <text class="aq-sub" x="132.0" y="136.0" text-anchor="middle">where the question is typed</text>
+  </g>
+  <g :class="{ 'aq-dim': !lit(1, 2, 4, 5) }">
+    <rect class="aq-box aq-llm-box" x="590" y="46" width="160" height="150" rx="4" />
+    <text class="aq-title" x="670.0" y="126.0" text-anchor="middle">Language model</text>
+  </g>
+  <g :class="{ 'aq-dim': !lit(1) }">
+    <line class="aq-net" x1="230" y1="72" x2="582" y2="72" />
+    <polygon class="aq-net-head" points="590,72 581,67.5 581,76.5" />
+    <text class="aq-label" x="410.0" y="65" text-anchor="middle"><tspan class="aq-num">1</tspan>  question, with the list of functions</text>
+  </g>
+  <g :class="{ 'aq-dim': !lit(2) }">
+    <line class="aq-net" x1="590" y1="107" x2="238" y2="107" />
+    <polygon class="aq-net-head" points="230,107 239,102.5 239,111.5" />
+    <text class="aq-label" x="410.0" y="100" text-anchor="middle"><tspan class="aq-num">2</tspan>  function to call</text>
+  </g>
+  <g :class="{ 'aq-dim': !lit(4) }">
+    <line class="aq-net" x1="230" y1="142" x2="582" y2="142" />
+    <polygon class="aq-net-head" points="590,142 581,137.5 581,146.5" />
+    <text class="aq-label" x="410.0" y="135" text-anchor="middle"><tspan class="aq-num">4</tspan>  result of the function</text>
+  </g>
+  <g :class="{ 'aq-dim': !lit(5) }">
+    <line class="aq-net" x1="590" y1="177" x2="238" y2="177" />
+    <polygon class="aq-net-head" points="230,177 239,172.5 239,181.5" />
+    <text class="aq-label" x="410.0" y="170" text-anchor="middle"><tspan class="aq-num">5</tspan>  answer</text>
+  </g>
+  <g :class="{ 'aq-dim': !lit(1, 2, 3) }">
+    <rect class="aq-box" x="34" y="244" width="330" height="120" rx="4" />
+    <text class="aq-title" x="48" y="266">Functions</text>
+    <text class="aq-sub" x="124" y="266">a name, a description and arguments each</text>
+    <rect class="aq-pick" :class="{ on: step === 2 || step === 3 }" x="42" y="276" width="314" height="22" rx="3" />
+    <text class="aq-mono" x="50" y="292">explain_cell</text>
+    <text class="aq-sub" x="146" y="292">why a cell was assigned to its class</text>
+    <text class="aq-mono" x="50" y="314">explain_spot</text>
+    <text class="aq-sub" x="146" y="314">why a spot was assigned to its cell</text>
+    <text class="aq-mono" x="50" y="336">find_cells</text>
+    <text class="aq-sub" x="146" y="336">the cells matching a filter</text>
+    <text class="aq-sub" x="50" y="356">and the rest of them</text>
+  </g>
+  <g :class="{ 'aq-dim': !lit(3) }">
+    <line class="aq-local" x1="132" y1="196" x2="132" y2="236" />
+    <polygon class="aq-local-head" points="132,244 127.5,235 136.5,235" />
+    <text class="aq-label" x="142" y="225"><tspan class="aq-num">3</tspan>  runs the function</text>
+    <line class="aq-local" x1="364" y1="304" x2="402" y2="304" />
+    <polygon class="aq-local-head" points="410,304 401,299.5 401,308.5" />
+    <text class="aq-label" x="386" y="296" text-anchor="middle">reads</text>
+    <rect class="aq-box aq-files" x="410" y="281" width="124" height="46" rx="4" />
+    <text class="aq-title" x="472.0" y="309.0" text-anchor="middle">Saved files</text>
+  </g>
+</svg>
+<figcaption>{{ steps[step].says }}</figcaption>
+</figure>
+
+1. The question is sent to the language model, together with the list of functions it
+   may call. An entry of the list is a name, a description and the arguments the
+   function takes. This is the entry for `explain_cell`, the description shortened:
+
+   ```
+   name         explain_cell
+   description  Why a cell was given its class, gene by gene. [...] Use this for
+                questions like 'why is cell 2413 Ndnf Gaba' or 'why is cell 18223
+                not CA1'.
+   arguments    label     The cell label, as in the segmentation.
+                vs_class  Class to compare against. Defaults to the runner up.
+                top_n     How many genes to list for each side, default 10.
+   ```
+
+   An AI assistant receives the same list when it connects to `pciseq-mcp` or to
+   pciSeq Viewer.
+2. The language model replies with the function to call and its arguments, for example
+   `explain_cell` for cell 5016.
+3. The function is run on the user's machine. It reads the saved files, or, in the
+   live viewer's chat, the fit in progress.
+4. The result of the function is sent to the language model.
+5. The language model writes the answer from that result.
+
+Steps 2 to 4 are repeated when an answer needs more than one function.
 
 In every way the agent can also show the source code behind a quantity, for example
 the adjustment for anisotropy, and in every way the code shown is the code that produced

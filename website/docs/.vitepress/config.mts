@@ -98,7 +98,14 @@ export default defineConfig({
           { text: "How a spot's call was made", link: '/explaining-the-calls/why-a-spot-got-its-cell' },
         ],
       },
-      { text: 'Accessing the AI agent', link: '/accessing-the-ai-agent' },
+      {
+        text: 'AI agent',
+        link: '/accessing-the-ai-agent',
+        items: [
+          { text: 'Accessing the AI agent', link: '/accessing-the-ai-agent' },
+          { text: 'The path of a question', link: '/accessing-the-ai-agent#the-path-of-a-question' },
+        ],
+      },
       {
         text: 'pciSeq Viewer',
         link: '/viewer/overview',
