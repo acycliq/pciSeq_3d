@@ -666,7 +666,7 @@ the whole (nC, nG, nK) array. Questions about gamma under a different class need
 the pickle.
 
 ::: tip Obtaining a Run
-[`open_run`](#open-run) builds one from a run's output folder. The methods below are the tools the [MCP server](./mcp-server) exposes to an agent, under the same names and with the same arguments, so an answer obtained through the agent can be reproduced here and the other way round.
+[`open_run`](#open-run) builds one from the output folder. Many of the methods below are also functions the agent can call, under the same names. The [MCP server](./mcp-server) page lists the agent's functions.
 
 ```python
 from pciSeq.src.mcp.tools import open_run
