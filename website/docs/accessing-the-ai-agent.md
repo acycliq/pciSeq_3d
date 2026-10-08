@@ -39,7 +39,7 @@ is typed.
 
 | Way | When | Reads | Requires |
 | :--- | :--- | :--- | :--- |
-| An AI assistant with `pciseq-mcp` | once the run has completed | the saved files, from the output folder of the run | two steps, see <a href="#connecting-an-ai-assistant" @click="way = 'mcp'">With pciseq-mcp</a> |
+| An AI assistant with `pciseq-mcp` | once the run has completed | the saved files, from the output folder | two steps, see <a href="#connecting-an-ai-assistant" @click="way = 'mcp'">With pciseq-mcp</a> |
 | An AI assistant connected to [pciSeq Viewer](./viewer/overview.md) | once the run has completed | the saved files, as loaded in pciSeq Viewer | two steps, see <a href="#connecting-an-ai-assistant" @click="way = 'viewer'">With pciSeq Viewer</a> |
 | The chat panel in pciSeq Viewer | once the run has completed | the saved files, as loaded in pciSeq Viewer | an API key |
 | The chat of the [live viewer](./api/live-viewer.md) | during the run | the fit in progress | an API key |
@@ -51,14 +51,14 @@ language model and supports the Model Context Protocol (MCP), such as Claude Cod
 CLI or Codex.
 
 The assistant is told once where the pciSeq functions are. This is called registering,
-and it is one command. What is registered depends on whether the run is open in pciSeq
-Viewer.
+and it is one command. What is registered depends on whether the output folder is open in
+pciSeq Viewer.
 
-| | The run is open in pciSeq Viewer | Without pciSeq Viewer |
+| | The output folder is open in pciSeq Viewer | Without pciSeq Viewer |
 | :--- | :--- | :--- |
 | `mcp` extra | not needed | required |
 | Registered with the assistant | the address of pciSeq Viewer | the `pciseq-mcp` program |
-| Then | start the assistant and ask | start the assistant and name the output folder of the run in the question |
+| Then | start the assistant and ask | start the assistant and name the output folder in the question |
 | Steps | tab "With pciSeq Viewer" | tab "With pciseq-mcp" |
 
 "Without pciSeq Viewer" covers a machine where it is not installed or not used, for
@@ -82,7 +82,7 @@ registration command differs.
    claude mcp add --transport http pciseq-viewer http://127.0.0.1:8317/mcp
    ```
 
-2. Open pciSeq Viewer and load the run, by selecting its `viewer_data` folder.
+2. Open pciSeq Viewer and select the `viewer_data` folder inside the output folder.
 
 Then start the assistant and ask. Neither `pciseq-mcp` nor the `mcp` extra is used.
 
@@ -96,14 +96,14 @@ Then start the assistant and ask. Neither `pciseq-mcp` nor the `mcp` extra is us
    pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
    ```
 
-2. Register the program with the assistant, once. The assistant then starts it by itself
-   when needed.
+2. Register the program with the assistant, once. The assistant runs `pciseq-mcp` when
+   needed.
 
    ```bash
    claude mcp add --scope user pciseq -- pciseq-mcp
    ```
 
-Then start the assistant and name the output folder of the run in the question. The
+Then start the assistant and name the output folder in the question. The
 commands for other assistants are on the [MCP server](./api/mcp-server.md) page.
 
 </div>
@@ -112,7 +112,7 @@ commands for other assistants are on the [MCP server](./api/mcp-server.md) page.
 ## The path of a question
 
 In every way a question is answered in the same five steps. The language model does
-not read the files of the run. It names a function, and the function is run on the
+not read the saved files. It names a function, and the function is run on the
 user's machine. Choosing a step keeps its parts and fades the rest.
 
 The language model has no knowledge of these functions of its own. The list of them is
@@ -217,5 +217,5 @@ shown another version. The [code map](./api/code-map.md) names the function and 
 for each quantity.
 
 Where an API key is needed, it is saved on the user's machine. The files `pciSeq.fit`
-wrote for the run stay on that machine too; only the question and the results of the
+saved stay on that machine too; only the question and the results of the
 functions are sent to the language model.
