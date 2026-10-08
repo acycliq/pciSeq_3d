@@ -10,29 +10,36 @@
   :root {
     --bg: #ffffff; --ink: #1f2933; --mute: #6b7785; --line: #9aa5b1; --fill: #f5f7fa;
     --files: #e3f6ee; --files-line: #059669; --llm: #b4530a; --accent: #059669;
+    --edge: #e2e2e3;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #1b1b1f; --ink: #e6e8eb; --mute: #d0d7de; --line: #7a8591; --fill: #26282d;
-      --files: #14342a; --files-line: #34d399; --llm: #f0a35c; --accent: #34d399;
+      --files: #14342a; --files-line: #34d399; --llm: #f0a35c; --accent: #34d399; --edge: #3c3f44;
     }
   }
   :root[data-theme="dark"] {
     --bg: #1b1b1f; --ink: #e6e8eb; --mute: #d0d7de; --line: #7a8591; --fill: #26282d;
-    --files: #14342a; --files-line: #34d399; --llm: #f0a35c; --accent: #34d399;
+    --files: #14342a; --files-line: #34d399; --llm: #f0a35c; --accent: #34d399; --edge: #3c3f44;
   }
   html, body { margin: 0; background: var(--bg); color: var(--ink); }
   body { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
   .wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
 
-  fieldset { border: 0; padding: 0; margin: 0 0 6px; display: flex; flex-wrap: wrap; gap: 6px 7px; }
-  legend { padding: 0; margin-bottom: 8px; font-size: 13px; color: var(--mute); letter-spacing: .04em; text-transform: uppercase; }
-  .opt { position: relative; }
+  /* the ways as folder tabs standing on the frame of the figure, the look of the tabs
+     in the docs page (custom.css, .way-tabs) */
+  fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; }
+  legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .opt { position: relative; margin: 0 -1px -1px 0; }
   .opt input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
-  .opt span { display: block; padding: 6px 10px; font-size: 13.5px; white-space: nowrap; border: 1px solid var(--line); border-radius: 3px;
-              background: var(--bg); color: var(--ink); transition: background .15s, border-color .15s, color .15s; }
-  .opt input:checked + span { border-color: var(--accent); background: var(--files); font-weight: 600; }
+  .opt span { display: block; padding: 11px 10px; font-size: 13px; font-weight: 500; white-space: nowrap;
+              border: 1px solid var(--edge); border-top-width: 2px; border-radius: 8px 8px 0 0;
+              background: var(--fill); color: var(--mute); transition: background .15s, border-color .15s, color .15s; }
+  .opt:hover span { color: var(--ink); }
+  .opt:has(input:checked) { z-index: 1; }
+  .opt input:checked + span { color: var(--accent); background: var(--bg); border-top-color: var(--accent); border-bottom-color: var(--bg); }
   .opt input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .pane { border: 1px solid var(--edge); border-radius: 0 8px 8px 8px; padding: 10px 12px 12px; }
   #about { min-height: 2.6em; margin: 8px 0 4px; font-size: 14px; line-height: 1.3; color: var(--mute); }
   #about b { color: var(--ink); font-weight: 600; }
   #about code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: var(--ink); }
@@ -77,6 +84,7 @@
     <label class="opt"><input type="radio" name="way" value="panel"><span>Chat panel</span></label>
     <label class="opt"><input type="radio" name="way" value="live"><span>Live viewer's chat</span></label>
   </fieldset>
+  <div class="pane">
   <p id="about" aria-live="polite"></p>
 
   <svg id="fig" data-way="all" viewBox="0 -22 1045 530" role="img" aria-labelledby="figtitle figdesc">
@@ -173,6 +181,7 @@
       <g class="user"><circle cx="541" cy="484" r="11"/><circle class="g" cx="541" cy="480.6" r="3.3"/><path class="g" d="M534.8,490.6 a6.2,5.6 0 0 1 12.4,0 Z"/></g><text class="s" x="560" y="488">where the user types the question</text>
     </g>
   </svg>
+  </div>
 </div>
 
 <script>
