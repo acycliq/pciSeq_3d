@@ -369,3 +369,20 @@
 .vp-doc figure.diagram svg text.aq-mono { font-family: var(--vp-font-family-mono); font-size: 12px; fill: currentColor; }
 .vp-doc figure.diagram .aq-pick { fill: transparent; transition: fill 0.2s; }
 .vp-doc figure.diagram .aq-pick.on { fill: var(--vp-c-brand-soft); stroke: var(--vp-c-brand-1); stroke-width: 1; }
+
+/* accessing-the-ai-agent: the two ways to connect an AI assistant, as folder tabs.
+   The tabs stand on top of the frame; nothing is drawn to the right of the last one. */
+.vp-doc .way-box { margin: 20px 0 24px; }
+.vp-doc .way-tabs { display: flex; }
+.vp-doc .way-tabs button {
+  font: 500 14px/1 var(--vp-font-family-base); padding: 12px 18px; margin: 0 -1px -1px 0; cursor: pointer;
+  color: var(--vp-c-text-2); background: var(--vp-c-bg-soft);
+  border: 1px solid var(--vp-c-divider); border-top: 2px solid var(--vp-c-divider);
+  border-radius: 8px 8px 0 0;
+}
+.vp-doc .way-tabs button:hover { color: var(--vp-c-text-1); }
+.vp-doc .way-tabs button.on {
+  color: var(--vp-c-brand-1); background: var(--vp-c-bg); position: relative; z-index: 1;
+  border-top-color: var(--vp-c-brand-1); border-bottom-color: var(--vp-c-bg);
+}
+.vp-doc .way-panel { padding: 4px 20px 6px; border: 1px solid var(--vp-c-divider); border-radius: 0 8px 8px 8px; }

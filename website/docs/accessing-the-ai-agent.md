@@ -18,6 +18,9 @@ const steps = [
   { name: '5 Answer', says: 'The language model writes the answer from that result.' },
 ]
 const lit = (...on) => step.value === 0 || on.includes(step.value)
+
+// connecting an AI assistant: which of the two ways is shown
+const way = ref('viewer')
 </script>
 
 # Accessing the AI agent
@@ -36,10 +39,71 @@ is typed.
 
 | Way | When | Reads | Requires |
 | :--- | :--- | :--- | :--- |
-| An AI assistant with `pciseq-mcp` | once the run has completed | the saved files, from the output folder of the run | the `mcp` extra, see [MCP server](./api/mcp-server.md) |
-| An AI assistant connected to [pciSeq Viewer](./viewer/overview.md) | once the run has completed | the saved files, as loaded in pciSeq Viewer | pciSeq Viewer running; its address registered with the assistant once |
+| An AI assistant with `pciseq-mcp` | once the run has completed | the saved files, from the output folder of the run | two steps, see <a href="#connecting-an-ai-assistant" @click="way = 'mcp'">With pciseq-mcp</a> |
+| An AI assistant connected to [pciSeq Viewer](./viewer/overview.md) | once the run has completed | the saved files, as loaded in pciSeq Viewer | two steps, see <a href="#connecting-an-ai-assistant" @click="way = 'viewer'">With pciSeq Viewer</a> |
 | The chat panel in pciSeq Viewer | once the run has completed | the saved files, as loaded in pciSeq Viewer | an API key |
 | The chat of the [live viewer](./api/live-viewer.md) | during the run | the fit in progress | an API key |
+
+## Connecting an AI assistant
+
+An AI assistant such as Claude Code is told once where the pciSeq functions are. This is
+called registering, and it is one command. What is registered depends on whether the run
+is open in pciSeq Viewer.
+
+| | The run is open in pciSeq Viewer | Without pciSeq Viewer |
+| :--- | :--- | :--- |
+| `mcp` extra | not needed | required |
+| Registered with the assistant | the address of pciSeq Viewer | the `pciseq-mcp` program |
+| Then | start the assistant and ask | start the assistant and name the output folder of the run in the question |
+| Steps | tab "With pciSeq Viewer" | tab "With pciseq-mcp" |
+
+"Without pciSeq Viewer" covers a machine where it is not installed or not used, for
+example a remote machine reached over ssh.
+
+The two are independent: each has its own command, and neither requires the other. The
+same applies to any other AI application that supports the Model Context Protocol; only
+the form of the registration command differs.
+
+<div class="way-box">
+<div class="way-tabs" role="group" aria-label="Way to connect an AI assistant">
+  <button type="button" :class="{ on: way === 'viewer' }" :aria-pressed="way === 'viewer'" @click="way = 'viewer'">With pciSeq Viewer</button>
+  <button type="button" :class="{ on: way === 'mcp' }" :aria-pressed="way === 'mcp'" @click="way = 'mcp'">With pciseq-mcp</button>
+</div>
+
+<div v-show="way === 'viewer'" class="way-panel">
+
+1. Register the address of pciSeq Viewer with the assistant, once.
+
+   ```bash
+   claude mcp add --transport http pciseq-viewer http://127.0.0.1:8317/mcp
+   ```
+
+2. Open pciSeq Viewer and load the run, by selecting its `viewer_data` folder.
+
+Then start the assistant and ask. Neither `pciseq-mcp` nor the `mcp` extra is used.
+
+</div>
+
+<div v-show="way === 'mcp'" class="way-panel">
+
+1. Install pciSeq with the `mcp` extra. This adds the `pciseq-mcp` program.
+
+   ```bash
+   pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
+   ```
+
+2. Register the program with the assistant, once. The assistant then starts it by itself
+   when needed.
+
+   ```bash
+   claude mcp add --scope user pciseq -- pciseq-mcp
+   ```
+
+Then start the assistant and name the output folder of the run in the question. The
+commands for other assistants are on the [MCP server](./api/mcp-server.md) page.
+
+</div>
+</div>
 
 ## The path of a question
 

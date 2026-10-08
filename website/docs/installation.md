@@ -6,24 +6,26 @@ Install straight from the repository:
 pip install git+https://github.com/acycliq/pciSeq_3d.git@dev_3d
 ```
 
-That installs pciSeq itself. Parts of it that need more are **extras**, optional sets of
-dependencies that pip installs only when asked for by name in square brackets. There is
-one so far, `mcp`: the [MCP server](./api/mcp-server.md), which lets an agent such as
-Claude Code answer questions about a finished run. It is an extra because it brings a web
-server stack that nothing else in pciSeq uses.
+That is the complete installation. It includes the live viewer and its chat.
+
+One optional extra exists, `mcp`. It adds `pciseq-mcp`, the program through which an AI
+assistant such as Claude Code reads the files a completed run saved (see
+[MCP server](./api/mcp-server.md)). It is required for that way of asking only. The other
+three ways do not use it: an AI assistant connected to pciSeq Viewer, the chat panel in
+pciSeq Viewer, and the chat of the live viewer.
 
 ```bash
 pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
 ```
 
 For development, clone it and install in editable mode so edits to the source are picked up
-without reinstalling. The extras go after the dot:
+without reinstalling. The extra goes after the dot:
 
 ```bash
 git clone https://github.com/acycliq/pciSeq_3d.git
 cd pciSeq_3d
 pip install -e .           # pciSeq
-pip install -e ".[mcp]"    # pciSeq with the MCP server
+pip install -e ".[mcp]"    # adds pciseq-mcp
 ```
 
 Python 3.10 or later. The dependencies are pulled in by pip. The image tiling functions need

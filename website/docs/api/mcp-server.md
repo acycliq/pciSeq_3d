@@ -11,9 +11,10 @@ factors and images, and answers questions about the run in natural language. MCP
 ([Model Context Protocol](https://modelcontextprotocol.io)) is the protocol such
 assistants use to call outside programs.
 
-It is needed for that route only. The chats inside the live viewer and pciSeq Viewer
-include the same functions and do not use it. It needs no viewer and no screen, so it
-also serves a run on a remote machine. [Accessing the AI agent](../accessing-the-ai-agent.md)
+It is required for that way of asking only. The other three ways do not use it: an AI
+assistant connected to pciSeq Viewer, the chat panel in pciSeq Viewer, and the chat of the
+live viewer. They include the same functions. `pciseq-mcp` needs no viewer and no screen,
+so it also serves a run on a remote machine. [Accessing the AI agent](../accessing-the-ai-agent.md)
 shows the four ways side by side.
 
 The program reads the output folder of the run: `diagnostics.db` and the files for
