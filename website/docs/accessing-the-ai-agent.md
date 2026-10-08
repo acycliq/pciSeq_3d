@@ -46,9 +46,13 @@ is typed.
 
 ## Connecting an AI assistant
 
-An AI assistant such as Claude Code is told once where the pciSeq functions are. This is
-called registering, and it is one command. What is registered depends on whether the run
-is open in pciSeq Viewer.
+Here an AI assistant is a program on the user's machine that sends questions to a
+language model and supports the Model Context Protocol (MCP), such as Claude Code, Gemini
+CLI or Codex.
+
+The assistant is told once where the pciSeq functions are. This is called registering,
+and it is one command. What is registered depends on whether the run is open in pciSeq
+Viewer.
 
 | | The run is open in pciSeq Viewer | Without pciSeq Viewer |
 | :--- | :--- | :--- |
@@ -61,8 +65,8 @@ is open in pciSeq Viewer.
 example a remote machine reached over ssh.
 
 The two are independent: each has its own command, and neither requires the other. The
-same applies to any other AI application that supports the Model Context Protocol; only
-the form of the registration command differs.
+same applies to any other application that supports MCP; only the form of the
+registration command differs.
 
 <div class="way-box">
 <div class="way-tabs" role="group" aria-label="Way to connect an AI assistant">

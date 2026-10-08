@@ -244,7 +244,6 @@ assistant about the program, with the line for the one in use:
 claude mcp add --scope user pciseq -- pciseq-mcp             # Claude Code
 gemini mcp add --scope user pciseq pciseq-mcp                 # Gemini CLI
 codex mcp add pciseq -- pciseq-mcp                            # OpenAI Codex CLI and ChatGPT desktop app
-code --add-mcp '{"name":"pciseq","command":"pciseq-mcp"}'     # VS Code
 ```
 
 Claude Desktop and Cursor have no such command; for these the program is added to a

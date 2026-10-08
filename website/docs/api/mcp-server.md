@@ -57,7 +57,6 @@ itself each time it is needed; it is never started by hand.
 claude mcp add --scope user pciseq -- pciseq-mcp             # Claude Code
 gemini mcp add --scope user pciseq pciseq-mcp                 # Gemini CLI
 codex mcp add pciseq -- pciseq-mcp                            # OpenAI Codex CLI and ChatGPT desktop app
-code --add-mcp '{"name":"pciseq","command":"pciseq-mcp"}'     # VS Code
 ```
 
 `pciseq` is the name under which the assistant lists the program and may be any name;
