@@ -105,7 +105,10 @@ path = pciSeq.stage_image(dapi, out_dir='out/run1', name='dapi')
 ```
 
 `zoom_levels` is the deepest level of the pyramid. Levels 0 to `zoom_levels` are written,
-so the default of 8 gives nine, the last one 65536 pixels wide. See
+and level $z$ is $256 \cdot 2^z$ pixels on its longer side. By default it is the first
+level that holds the image at full resolution: 5 (8192 pixels) for an image 6408 pixels
+wide, 6 for one 10000 pixels wide. A deeper level adds no detail, only file size, and
+pciSeq Viewer enlarges the deepest level when zooming in past it. See
 [`stage_image`](./reference#stage-image).
 
 ## `tile_maker`
@@ -115,7 +118,7 @@ it into an `.mbtiles` file. `stage_image` calls it; it is also useful on its own
 slippy-map viewer that reads a folder of tiles. The tiling is done by libvips.
 
 ```python
-info = pciSeq.tile_maker(dapi, zoom_levels=8, out_dir='out/tiles')
+info = pciSeq.tile_maker(dapi, out_dir='out/tiles')
 info['num_planes'], info['original_dims']
 ```
 

@@ -106,6 +106,19 @@ def map_image_size(z):
     return 256 * 2 ** z
 
 
+def _fit_zoom_level(width, height):
+    """The first zoom level that is big enough to hold the image.
+
+    Level z is 256 * 2**z pixels on its longer side, so this is the smallest z
+    where that covers the longer side of the image. Any level past it would be the
+    same picture enlarged, and the viewer does that by itself when zooming in.
+    """
+    z = 0
+    while map_image_size(z) < max(width, height):
+        z += 1
+    return z
+
+
 def _get_img_details(img):
     """Determine image dimensions, number of planes, and convert file paths to pyvips.
 
@@ -186,7 +199,7 @@ def _process_single_plane(im, zoom_levels, plane_out_dir):
     return [im.width, im.height]
 
 
-def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_", progress_bar=None):
+def tile_maker(img, zoom_levels=None, out_dir=r"./tiles", plane_prefix="plane_", progress_bar=None):
     """
     Makes a pyramid of tiles from an image.
 
@@ -196,8 +209,8 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_", pr
             - numpy array (H, W): single 2D grayscale image
             - numpy array (Z, H, W): 3D stack of grayscale images
             - numpy array (Z, H, W, C): 3D stack with channels
-        zoom_levels: (int) The deepest zoom level. Levels 0 to zoom_levels are written, so the
-            default of 8 gives nine, the last one 256 * 2**8 = 65536 pixels wide.
+        zoom_levels: (int) The deepest zoom level. Levels 0 to zoom_levels are written. If not
+            given it is the first level big enough to hold the image, see stage_image.
         out_dir: (str) Output folder for the tile pyramid. Will be deleted and recreated if exists.
         plane_prefix: (str) Prefix for plane subdirectories when processing 3D images.
                       Default is "plane_" resulting in "plane_0", "plane_1", etc.
@@ -208,13 +221,15 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_", pr
         dict with keys:
             - 'original_dims': [width, height] of the original input image
             - 'num_planes': number of planes processed
-            - 'zoom_levels': the deepest zoom level, as passed in
+            - 'zoom_levels': the deepest zoom level that was written
     """
     if os.path.exists(out_dir):
         shutil.rmtree(out_dir)
     os.makedirs(out_dir)
 
     img, original_dims, num_planes = _get_img_details(img)
+    if zoom_levels is None:
+        zoom_levels = _fit_zoom_level(*original_dims)
 
     logger.info('Processing %d plane(s), size: %dx%d' % (num_planes, original_dims[0], original_dims[1]))
 
@@ -244,7 +259,7 @@ def tile_maker(img, zoom_levels=8, out_dir=r"./tiles", plane_prefix="plane_", pr
     }
 
 
-def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, plane_prefix="plane_",
+def stage_image(img, out_dir=None, zoom_levels=None, name=None, description=None, plane_prefix="plane_",
                 use_buffer=True, tint=None, progress=True):
     """
     Turn an image (or z-stack) into an MBTiles file the viewer can read.
@@ -261,8 +276,11 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
     out_dir : str, optional
         Directory for the `.mbtiles` file. Defaults to the system temp directory.
     zoom_levels : int, optional
-        The deepest zoom level. Levels 0 to `zoom_levels` are written, so the default
-        of 8 gives nine, the last one 256 * 2**8 = 65536 pixels wide.
+        The deepest zoom level. Levels 0 to `zoom_levels` are written, and level z
+        is 256 * 2**z pixels on its longer side. If not given, it is the first level
+        that holds the image at full resolution, for example 5 (8192 pixels) for an
+        image 6408 pixels wide. A deeper level adds no detail, only file size; the
+        viewer enlarges the deepest level when zooming in past it.
     name : str, optional
         Short identifier for the dataset. Also used as the output filename, e.g.
         `name="S10_gcamp_10"` writes `S10_gcamp_10.mbtiles`. If empty, the file
@@ -307,6 +325,11 @@ def stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, p
 
     logger.info("Starting image processing...")
     logger.info("Output directory: %s" % out_dir)
+
+    if zoom_levels is None:
+        # stop at the level that holds the image, deeper ones are only enlargements
+        zoom_levels = _fit_zoom_level(*_get_img_details(img)[1])
+        logger.info("Deepest zoom level: %d" % zoom_levels)
 
     if use_buffer:
         _stage_image_buffer(img, mbtiles_path, zoom_levels, name, description, plane_prefix, tint, progress)

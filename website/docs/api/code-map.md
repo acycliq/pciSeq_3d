@@ -776,14 +776,15 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 | `_numpy_to_vips` | 27 | Convert a 2D numpy array to a pyvips Image. |
 | `split_image` | 56 | you can just do: |
 | `map_image_size` | 99 | returns the image size for each zoom level. Assumes that each map tile is 256x256 pixels |
-| `_get_img_details` | 109 | Determine image dimensions, number of planes, and convert file paths to pyvips. |
-| `_prepare_plane` | 135 | Normalize to 8-bit and resize a pyvips image to fit the tile pyramid. |
-| `_process_single_plane` | 168 | Process a single 2D image plane into a tile pyramid on disk. |
-| `tile_maker` | 189 | Makes a pyramid of tiles from an image. |
-| `stage_image` | 247 | Turn an image (or z-stack) into an MBTiles file the viewer can read. |
-| `_plane_buffer_generator` | 321 | Yield one dzsave_buffer per plane. O(1) memory, only one plane's tiles in memory at a time. |
-| `_stage_image_buffer` | 345 | In-memory path: tiles never touch disk. The SQLite db is built in a |
-| `_stage_image_disk` | 378 | Disk-based path: tiles AND db are built in a local temp directory, |
+| `_fit_zoom_level` | 109 | The first zoom level that is big enough to hold the image. |
+| `_get_img_details` | 122 | Determine image dimensions, number of planes, and convert file paths to pyvips. |
+| `_prepare_plane` | 148 | Normalize to 8-bit and resize a pyvips image to fit the tile pyramid. |
+| `_process_single_plane` | 181 | Process a single 2D image plane into a tile pyramid on disk. |
+| `tile_maker` | 202 | Makes a pyramid of tiles from an image. |
+| `stage_image` | 262 | Turn an image (or z-stack) into an MBTiles file the viewer can read. |
+| `_plane_buffer_generator` | 344 | Yield one dzsave_buffer per plane. O(1) memory, only one plane's tiles in memory at a time. |
+| `_stage_image_buffer` | 368 | In-memory path: tiles never touch disk. The SQLite db is built in a |
+| `_stage_image_disk` | 401 | Disk-based path: tiles AND db are built in a local temp directory, |
 
 </details>
 

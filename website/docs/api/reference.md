@@ -322,7 +322,7 @@ returned image. `bbox=None` would give the untrimmed plane.
 `pciSeq.src.tiling.stage_image.stage_image`
 
 ```python
-stage_image(img, out_dir=None, zoom_levels=8, name=None, description=None, plane_prefix='plane_', use_buffer=True, tint=None, progress=True)
+stage_image(img, out_dir=None, zoom_levels=None, name=None, description=None, plane_prefix='plane_', use_buffer=True, tint=None, progress=True)
 ```
 
 Turn an image (or z-stack) into an MBTiles file the viewer can read.
@@ -338,7 +338,7 @@ and it writes one `.mbtiles` file.
 - **`out_dir`** *(str, optional)*
   Directory for the `.mbtiles` file. Defaults to the system temp directory.
 - **`zoom_levels`** *(int, optional)*
-  The deepest zoom level. Levels 0 to `zoom_levels` are written, so the default of 8 gives nine, the last one 256 * 2**8 = 65536 pixels wide.
+  The deepest zoom level. Levels 0 to `zoom_levels` are written, and level z is 256 * 2**z pixels on its longer side. If not given, it is the first level that holds the image at full resolution, for example 5 (8192 pixels) for an image 6408 pixels wide. A deeper level adds no detail, only file size; the viewer enlarges the deepest level when zooming in past it.
 - **`name`** *(str, optional)*
   Short identifier for the dataset. Also used as the output filename, e.g. `name="S10_gcamp_10"` writes `S10_gcamp_10.mbtiles`. If empty, the file is named `output.mbtiles`.
 - **`description`** *(str, optional)*
@@ -368,7 +368,7 @@ to a stub that only logs a warning.
 `pciSeq.src.tiling.stage_image.tile_maker`
 
 ```python
-tile_maker(img, zoom_levels=8, out_dir='./tiles', plane_prefix='plane_', progress_bar=None)
+tile_maker(img, zoom_levels=None, out_dir='./tiles', plane_prefix='plane_', progress_bar=None)
 ```
 
 Makes a pyramid of tiles from an image.
@@ -379,8 +379,8 @@ Args:
         - numpy array (H, W): single 2D grayscale image
         - numpy array (Z, H, W): 3D stack of grayscale images
         - numpy array (Z, H, W, C): 3D stack with channels
-    zoom_levels: (int) The deepest zoom level. Levels 0 to zoom_levels are written, so the
-        default of 8 gives nine, the last one 256 * 2**8 = 65536 pixels wide.
+    zoom_levels: (int) The deepest zoom level. Levels 0 to zoom_levels are written. If not
+        given it is the first level big enough to hold the image, see stage_image.
     out_dir: (str) Output folder for the tile pyramid. Will be deleted and recreated if exists.
     plane_prefix: (str) Prefix for plane subdirectories when processing 3D images.
                   Default is "plane_" resulting in "plane_0", "plane_1", etc.
@@ -391,7 +391,7 @@ Returns:
     dict with keys:
         - 'original_dims': [width, height] of the original input image
         - 'num_planes': number of planes processed
-        - 'zoom_levels': the deepest zoom level, as passed in
+        - 'zoom_levels': the deepest zoom level that was written
 
 
 ## `open_run`
