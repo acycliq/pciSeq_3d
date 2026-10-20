@@ -29,6 +29,10 @@ def write_build_info():
     """
     commit = _git(['rev-parse', '--short', 'HEAD'])
     branch = _git(['rev-parse', '--abbrev-ref', 'HEAD'])
+    # pip installs a tag as a detached checkout, where the branch name is just
+    # 'HEAD'; record the tag name instead, so a run says which release made it
+    if branch == 'HEAD':
+        branch = _git(['describe', '--tags', '--exact-match']) or branch
     # when that commit was made, not when this build ran
     commit_date = _git(['log', '-1', '--format=%cI'])
     path = os.path.join('pciSeq', '_build_info.py')

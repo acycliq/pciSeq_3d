@@ -24,7 +24,7 @@ present. The fitted pickle is not used.
 ## Quick start
 
 ```bash
-pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
+pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@v0.1.0"
 claude mcp add --scope user pciseq -- pciseq-mcp
 claude
 ```
@@ -41,7 +41,7 @@ The program is an optional extra. It depends on the `mcp` Python package, which 
 rest of pciSeq does not need:
 
 ```bash
-pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
+pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@v0.1.0"
 ```
 
 This installs the `pciseq-mcp` command, in lowercase. `which pciseq-mcp` prints its

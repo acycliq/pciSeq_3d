@@ -3,7 +3,7 @@
 Install from the GitHub repository:
 
 ```bash
-pip install git+https://github.com/acycliq/pciSeq_3d.git@dev_3d
+pip install git+https://github.com/acycliq/pciSeq_3d.git@v0.1.0
 ```
 
 This installs pciSeq, including the live viewer and its chat.
@@ -15,7 +15,7 @@ three do not use it: an AI assistant connected to pciSeq Viewer, the chat panel 
 pciSeq Viewer, and the chat of the live viewer.
 
 ```bash
-pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@dev_3d"
+pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@v0.1.0"
 ```
 
 For development, clone it and install in editable mode so edits to the source are picked up
@@ -39,7 +39,7 @@ message pointing at the libvips install page. `read_tiles` does not need libvips
 import pciSeq
 pciSeq.__version__     # '0.1.0'
 pciSeq.__commit__      # short git hash, eg '6db6dc8'
-pciSeq.__branch__      # 'dev_3d'
+pciSeq.__branch__      # 'v0.1.0'
 pciSeq.__commit_date__  # when that commit was made, eg '2026-09-25T15:02:11+01:00'
 ```
 
@@ -58,7 +58,7 @@ traced back to them:
 ```python
 varBayes.metadata
 # {'version':          '0.1.0',
-#  'branch':           'dev_3d',
+#  'branch':           'v0.1.0',
 #  'commit':           '6db6dc8',
 #  'commit_date':      '2026-09-04T11:30:02+01:00',
 #  'created_at':       '2026-09-04T12:47:51Z',
