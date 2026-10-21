@@ -520,63 +520,8 @@ class VarBayes:
             5. Inside-cell bonus for spots within cell boundaries
             6. Misread probability for background noise
 
-        Notes
-        -----
-        Updates spot-cell assignments and triggers the gene count update.
-
-        Changed 21 Oct 2026. This change is not described in the mathematical
-        derivation of the spot-to-cell assignment on the website. The page
-        models the spots as a Poisson process whose intensity (the rate of
-        spots of gene g that cell c produces at position x, lambda below) is
-        one product theta mu e^{-D} gamma eta, and sums every term over all
-        classes. Applied to the Zero class that product is zero, since mu is
-        the Zero column of the reference and that is all zeros, so the page
-        does not say what the intensity of a Zero cell is. Here it is SpotReg
-        e^{-D_c(x)}: a Zero cell produces spots of every gene at the same small
-        flat rate, SpotReg, falling off with the distance from the cell the same
-        way as for any other cell. The only thing that varies from spot to spot
-        on the Zero line is the position term.
-
-        This change has been kept out of the math page in the docs for simplicity.
-        It changes very little in the final result: on a 25000 cell mouse
-        hippocampus run fewer than one cell in a hundred moved class, all of them
-        near-empty cells going to Zero, and the run converged at the same speed.
-        It is adopted because it is the model that makes sense, not for the
-        numbers.
-
-        The change is about the handling of the Zero class. We do not want the
-        Zero class to be adjusted by the latent factors theta, gamma and eta:
-        Zero expects nothing, so there is nothing for them to scale. For a spot
-        of gene g at position x, the intensity of cell c under class k is
-
-            lambda_{g,c}(x) = (mu_{g,k} + SpotReg) theta_{c,k} gamma_{g,c,k} eta_g e^{-D_c(x)}   real class k
-            lambda_{g,c}(x) = SpotReg e^{-D_c(x)}                                                 Zero
-
-        with mu the reference after the Inefficiency factor (mean_expression_adj).
-        The class step (likelihood.py), eta_upd and dalpha_upd have always
-        treated Zero this way; this step used to hand Zero a gamma, a theta and
-        an eta on top of log SpotReg, and a Zero cell with a few reads used them
-        to keep claiming spots (ten reads of a gene gave it +1.9 in the log
-        score from gamma and theta alone, at rSpot 2).
-
-        Taking the expectation over the class probabilities zeta, with k = 0
-        standing for Zero (the last column in the arrays), the score of cell c
-        for spot s is
-
-              sum_k      zeta_{c,k} log(mu_{g,k} + SpotReg)    all classes, Zero's line is log SpotReg
-            + sum_{k!=0} zeta_{c,k} E[log gamma_{g,c,k}]       real classes only
-            + sum_{k!=0} zeta_{c,k} log theta_{c,k}            real classes only
-            + (1 - zeta_{c,0}) E[log eta_g]                    eta is on every real line, none on Zero's
-            - D_c(x_s)                                         on every line, so weight 1
-
-        The eta weight is 1 - zeta_{c,0} because log eta_g is pulled out of the
-        real class terms only, and their probabilities add up to that. The
-        position term is on the Zero line as well, a Zero cell still has a
-        position, so it keeps weight 1.
-
-        The last column of cells.theta_bar and spots.gamma_bar still holds a
-        value for Zero. The loop never reads it; the diagnostics export and the
-        elbo still do.
+        Note:
+            Updates spot-cell assignments and triggers gene count update.
         """
         nN = self.nN
         nS = self.spots.data.gene_name.shape[0]
@@ -615,19 +560,18 @@ class VarBayes:
 
             log_gamma_bar = log_gamma_bar_arr[self.spots.parent_cell_id[:, n], self.spots.gene_id]
 
-            # Zero (last column) gets no gamma, theta or eta term, and eta is
-            # weighted by the real-class probability. See the Notes above.
-            term_2 = np.einsum('ij, ij -> i', cp[:, :-1], log_gamma_bar[:, :-1])
-            term_3 = np.einsum('ij, ij -> i', cp[:, :-1], log_theta_bar[:, :-1])
-            logeta_cell = logeta_bar * (1.0 - cp[:, -1])
+            term_2 = np.einsum('ij, ij -> i', cp, log_gamma_bar)
 
+            term_3 = np.einsum('ij, ij -> i', cp, log_theta_bar)
+
+            # wSpotCell[:, n] = term_1 + term_2 + logeta_bar + loglik[:, n]
             mvn_loglik = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
-            wSpotCell[:, n] = term_1 + term_2 + term_3 + logeta_cell + mvn_loglik
+            wSpotCell[:, n] = term_1 + term_2 + term_3 + logeta_bar + mvn_loglik
             mvn_loglik_arr[:, n] = mvn_loglik
             attention[:, n] = term_1
             expr_fluctuations[:, n] = term_2
             cell_inefficiency[:, n] = term_3
-            gene_inefficiency[:, n] = logeta_cell
+            gene_inefficiency[:, n] = logeta_bar
 
         # apply inside cell bonus
         bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']

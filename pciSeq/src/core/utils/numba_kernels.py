@@ -18,17 +18,13 @@ def spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar, log_th
     It reads values straight from the arrays instead of first copying out the rows, so
     it never builds the large temporary [nS, nK] arrays the numpy version does, and it
     runs over spots on all cores (numba).
-      term_1 = sum_k          expected_counts[s,k] * classProb[cell,k]
-      term_2 = sum_{k != Zero} classProb[cell,k]   * log_gamma_bar[cell, gene_s, k]
-      term_3 = sum_{k != Zero} classProb[cell,k]   * log_theta[cell,k]
-      eta    = (1 - classProb[cell, Zero]) * logeta_bar[s]
-    Zero is the last column; it gets no gamma, theta or eta term, see the Notes in
-    VarBayes.spots_to_cell. mvn_loglik and the misread column are handled by the
-    caller.
+      term_1 = sum_k expected_counts[s,k] * classProb[cell,k]
+      term_2 = sum_k classProb[cell,k]   * log_gamma_bar[cell, gene_s, k]
+      term_3 = sum_k classProb[cell,k]   * log_theta[cell,k]
+    mvn_loglik and the misread column are handled by the caller.
     """
     nS = parent.shape[0]
     nK = classProb.shape[1]
-    kZero = nK - 1
     for s in prange(nS):
         g = gene_id[s]
         le = logeta_bar[s]
@@ -38,14 +34,12 @@ def spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar, log_th
             t2 = 0.0
             t3 = 0.0
             for k in range(nK):
-                t1 += expected_counts[s, k] * classProb[cell, k]
-            for k in range(kZero):
                 cpk = classProb[cell, k]
+                t1 += expected_counts[s, k] * cpk
                 t2 += cpk * log_gamma_bar[cell, g, k]
                 t3 += cpk * log_theta[cell, k]
-            le_cell = le * (1.0 - classProb[cell, kZero])
-            wSpotCell[s, n] = t1 + t2 + t3 + le_cell
+            wSpotCell[s, n] = t1 + t2 + t3 + le
             attention[s, n] = t1
             expr_fluct[s, n] = t2
             cell_ineff[s, n] = t3
-            gene_ineff[s, n] = le_cell
+            gene_ineff[s, n] = le
