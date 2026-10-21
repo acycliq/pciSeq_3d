@@ -198,6 +198,11 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         ('mean_expression_adj', json.dumps(mean_expression_adj.tolist())),
         # E[log eta] per gene, the gene term of every spot score. Not log(eta_bar).
         ('logeta_bar', json.dumps(np.asarray(genes.logeta_bar, dtype=np.float32).tolist())),
+        # since 21 Oct 2026 the gene term of a spot on cell c is logeta_bar[g]
+        # times 1 - P(c is Zero), see the Notes of VarBayes.spots_to_cell. A reader
+        # rebuilding it from logeta_bar weights it so when this key is present; a
+        # file without the key is an older run and gets logeta_bar[g] as it was
+        ('zero_unscaled', '1'),
         # the prior at the end of the run. With cell_type_prior 'weighted', dalpha_upd
         # updates it right after the last class update, so it is one update newer than
         # the prior behind the class probabilities. On espio that is at most 0.0002 in

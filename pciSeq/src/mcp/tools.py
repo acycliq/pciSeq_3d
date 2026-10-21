@@ -191,6 +191,11 @@ class Run:
         # counts that score was computed from, since 15 Oct 2026
         self._has_saved_score = 'gene_loglik' in cols
         self._has_scored_counts = 'scored_gene_count' in cols
+        # since 21 Oct 2026 the gene term of a spot on cell c is logeta_bar[g]
+        # times 1 - P(c is Zero); older runs have it as logeta_bar[g] on every
+        # candidate and are rebuilt that way. _spot_row does the weighting
+        self.zero_unscaled = self._meta('zero_unscaled', default=None) == '1'
+        self._p_zero_cache = None
         with self._lock:
             self._spot_cols = {r[1] for r in self._con.execute('PRAGMA table_info(spots)')}
 
@@ -1269,6 +1274,19 @@ class Run:
             self._mea = np.asarray(self._meta('mean_expression_adj', parse=True), dtype=np.float32)
         return self._mea
 
+    def _p_zero(self):
+        """P(Zero) of every cell, indexed by internal row, read once. Only needed
+        to rebuild the gene term of a spot on a run with zero_unscaled set."""
+        if self._p_zero_cache is None:
+            out = np.full(self.nC, np.nan, dtype=np.float32)
+            with self._lock:
+                rows = self._con.execute(
+                    'SELECT %s, class_prob FROM cells' % self._cell_key).fetchall()
+            for row, blob in rows:
+                out[row] = np.frombuffer(blob, dtype=np.float32)[-1]
+            self._p_zero_cache = out
+        return self._p_zero_cache
+
     def _spot_row(self, spot_id):
         """One row of the spots table as format 1 laid it out, whatever the file's
         version: (gene_idx, x, y, z, the nN candidate ids with the background 0 last,
@@ -1297,7 +1315,15 @@ class Run:
             terms.append(pad(f32(got['gene_inefficiency'])))
         else:
             le = np.float32(self._meta('logeta_bar', parse=True)[got['gene_idx']])
-            terms.append(np.append(np.full(n - 1, le, dtype=np.float32), np.float32(0)))
+            w = np.ones(n - 1, dtype=np.float32)
+            if self.zero_unscaled:
+                # the run gave Zero no eta: the term on each candidate is scaled by
+                # its real-class probability. The background slot stays zero
+                p_zero = self._p_zero()[np.asarray(ids[:-1], dtype=np.int64)]
+                if np.isnan(p_zero).any():
+                    raise KeyError('no class_prob for a candidate cell of spot %s' % spot_id)
+                w -= p_zero
+            terms.append(np.append(le * w, np.float32(0)))
         terms.append(pad(f32(got['bonus'])) if 'bonus' in got else np.zeros(n, dtype=np.float32))
         return (got['gene_idx'], got['x'], got['y'], got['z'], ids, *terms)
 

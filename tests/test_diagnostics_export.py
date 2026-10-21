@@ -18,7 +18,7 @@ EXPECTED_METADATA = {
     'format_version',
     'nC', 'nG', 'nK', 'rSpot', 'SpotReg', 'class_names', 'eta_bar',
     'mean_gene_reads_per_class', 'sc_mean_expression', 'mean_expression_adj',
-    'logeta_bar', 'log_prior',
+    'logeta_bar', 'log_prior', 'zero_unscaled',
     'nS', 'nN', 'misread_density', 'rho_bar', 'log_rho_bar',
     'hard_misread_counts', 'hard_misread_by_plane',
     'gene_panel', 'label_map', 'gene_total_spots', 'pciSeq_provenance',
@@ -104,11 +104,13 @@ def test_the_new_blobs_are_not_empty(exported_db):
 
 def test_format_2_holds_the_same_numbers_as_the_model(exported_db, minimal_varbayes):
     """scaled_exp is area_factor times mean_expression_adj, and the gene term of a
-    spot is logeta_bar of its gene. Format 2 stores the factor, the matrix and the
-    row, and this checks they give the model's own arrays back, with the spot blobs
-    being the model's arrays minus the background slot."""
+    spot is logeta_bar of its gene times the candidate's real-class probability.
+    Format 2 stores the factor, the matrix, the row and the zero_unscaled key, and
+    this checks they give the model's own arrays back, with the spot blobs being
+    the model's arrays minus the background slot."""
     vb = minimal_varbayes
     meta = dict(exported_db.execute('select key, value from metadata'))
+    assert meta['zero_unscaled'] == '1'
     m_adj = np.asarray(json.loads(meta['mean_expression_adj']), dtype=np.float32)
     logeta = np.asarray(json.loads(meta['logeta_bar']), dtype=np.float32)
     np.testing.assert_allclose(m_adj, vb.single_cell.mean_expression_adj.values, rtol=1e-6)
@@ -124,7 +126,25 @@ def test_format_2_holds_the_same_numbers_as_the_model(exported_db, minimal_varba
         np.testing.assert_array_equal(ids, vb.spots.parent_cell_id[i, :-1])
         np.testing.assert_allclose(f32(mvn), vb.spots.mvn_loglik_arr[i, :-1], rtol=1e-6)
         np.testing.assert_allclose(f32(cineff), vb.spots.cell_inefficiency[i, :-1], rtol=1e-6)
-        assert logeta[g] == pytest.approx(vb.spots.gene_inefficiency[i, 0], rel=1e-6)
+        # the gene term is logeta_bar weighted by the candidate's real-class
+        # probability, the Zero class gets no eta
+        p_zero = vb.cells.classProb[vb.spots.parent_cell_id[i, 0], -1]
+        assert logeta[g] * (1 - p_zero) == pytest.approx(vb.spots.gene_inefficiency[i, 0], rel=1e-5)
+
+
+def test_the_reader_rebuilds_the_gene_term_the_run_used(exported_db, minimal_varbayes, tmp_path):
+    """Format 2 does not store the gene term per spot, the reader rebuilds it from
+    logeta_bar and, on a run with zero_unscaled, the candidates' Zero probabilities.
+    The rebuild must be the model's own array, candidate by candidate."""
+    from pciSeq.src.mcp.tools import open_run
+    vb = minimal_varbayes
+    run = open_run(str(tmp_path))
+    assert run.zero_unscaled
+    for i, (sid,) in enumerate(exported_db.execute('select spot_id from spots')):
+        _, terms, _, _, prob = run._spot_scores(run._spot_row(sid))
+        np.testing.assert_allclose(terms['gene_inefficiency'][:-1], vb.spots.gene_inefficiency[i, :-1],
+                                   rtol=1e-5, atol=1e-6)
+        np.testing.assert_allclose(prob, vb.spots.parent_cell_prob[i], rtol=1e-4, atol=1e-5)
 
 
 def _as_format_1(con2, path):
@@ -138,6 +158,10 @@ def _as_format_1(con2, path):
     con1 = sqlite3.connect(path)
     con1.execute('create table metadata (key text primary key, value text)')
     meta['format_version'] = '1'
+    # a format 1 file is from before the Zero change of 21 Oct 2026 by definition,
+    # so it has no zero_unscaled key and its gene term is logeta_bar on every
+    # candidate. The converter then reads logeta_bar back off that column
+    meta.pop('zero_unscaled', None)
     del meta['mean_expression_adj'], meta['logeta_bar']
     con1.executemany('insert into metadata values (?, ?)', list(meta.items()))
     cols = [r[1] for r in con2.execute('pragma table_info(cells)')]
