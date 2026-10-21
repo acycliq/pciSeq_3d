@@ -104,9 +104,7 @@ which is not known exactly, so each is averaged over the cell's class probabilit
   Between two cells with the same class probabilities and the same theta, it is the only
   expression term that differs.
 - **Gene efficiency.** Derived from eta, the gene's detection efficiency: its log. It is
-  the same for every candidate cell, scaled by the cell's probability of not being Zero,
-  since the Zero class expects nothing and so has nothing for the detection efficiency
-  to correct. Between cells equally likely to be Zero it does not choose. It enters the
+  the same for every candidate cell, so it does not choose between cells. It enters the
   comparison with the background, which has no efficiency term, and lowers the score of
   a poorly detected gene against it.
 
@@ -132,8 +130,7 @@ shape and the centroid of each cell are taken as fixed.
 - **Enrichment.** Suppose a Plp1 spot is equally close to two oligodendrocytes alike in
   shape, typing confidence and total count, one holding more Plp1 than the other. The
   spot goes to the cell already holding more Plp1.
-- **Gene efficiency.** Eta is the same for both cells, as long as both are equally
-  unlikely to be Zero, and cannot decide between them. It
+- **Gene efficiency.** Eta is the same for both cells and cannot decide between them. It
   acts on the comparison with the background: a gene that is poorly detected yields few
   reads from cells, so a larger share of its reads are misreads, and a read of it is
   more readily assigned to the background.

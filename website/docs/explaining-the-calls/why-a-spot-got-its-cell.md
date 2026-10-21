@@ -110,9 +110,8 @@ for the background:
   Among candidate cells that are otherwise equal, the spot is more probably
   assigned to the cell with the higher observed-to-expected ratio for that gene.
 - **gene efficiency**. It is derived from eta: how well the gene is detected across
-  the whole experiment. It is the same for every candidate cell, scaled by each one's
-  probability of not being Zero, so between cells equally unlikely to be Zero it does not
-  change their relative probabilities. It does affect the cells relative to the background, which
+  the whole experiment. It is the same for every candidate cell, so it does not change
+  their relative probabilities. It does affect the cells relative to the background, which
   has no such term: a poorly detected gene lowers every cell's score and makes the background more
   likely.
 - **misread**. The background's whole score: the expected log misread density of the
