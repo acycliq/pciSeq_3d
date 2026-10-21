@@ -162,7 +162,8 @@ Between two cells with the same class posterior, it is the only gene-dependent t
 differs; the cell scale differs too, but equally for every gene.
 
 **Gene efficiency** ($\overline{\log\eta}_{g_s}$). The gene's detection efficiency.
-It depends on the gene only, so it cancels between cells and acts only against the
+It depends on the gene only, scaled by the cell's probability of not being Zero, so it
+cancels between cells with the same Zero probability and otherwise acts against the
 background, which has no efficiency term. A poorly detected gene scores lower against the
 background and its spots are more readily called misreads, see
 [below](#the-efficiency-term-and-the-signal-to-noise-ratio).
@@ -170,10 +171,19 @@ background and its spots are more readily called misreads, see
 ## The efficiency term and the signal-to-noise ratio
 
 Although the efficiency term $\overline{\log\eta}_{g_s}$ is the same for every cell
-$c > 0$, it does **not** cancel
+$c > 0$, scaled by each one's probability of not being Zero, it does **not** cancel
 during normalisation, because the assignment is also compared against the background
 $\rho_{g_s}$, which has no efficiency term. A low-efficiency gene therefore has its
 signal attenuated relative to the background, making its spots more likely to be deemed
 misreads. The original paper omitted this term, effectively treating every gene as perfectly
 detected during assignment; including it lets $\eta$ act as a gene-specific scaling of the
 signal-to-noise ratio.
+
+The Zero class is the exception. It expects no expression, so none of the factors that
+scale an expectation apply to it in this step: no cell scale $\theta$, no cell-gene scale
+$\gamma$, no efficiency $\eta$. Its intensity for every gene is the floor SpotReg times
+the position term. The sums over classes in the update above therefore run over the real
+classes only, and the efficiency term enters a candidate cell with weight one minus its
+Zero probability: a cell that is all Zero gets no efficiency term, a cell that is all real
+class gets the whole of it. The reason and a worked example are on the
+[notes page](notes.md).

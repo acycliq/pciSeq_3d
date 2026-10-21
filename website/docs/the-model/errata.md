@@ -33,9 +33,10 @@ $$
 
 The term changes the result in one place only. The efficiency
 $\overline{\log\eta}_{g_s}$ depends only on the spot's gene, not on the cell, so it takes
-the **same value for every candidate cell** $c > 0$. In a comparison between two genuine
-neighbouring cells it is a common offset that cancels: it does not change the relative probabilities of the
-candidate cells.
+the **same value for every candidate cell** $c > 0$, scaled by each one's probability of
+not being Zero. In a comparison between two genuine neighbouring cells with the same
+probability of being Zero it is a common offset that cancels: it does not change the
+relative probabilities of the candidate cells.
 It matters only in the **spot-versus-background** decision. The background option ($c = 0$)
 carries no efficiency term at all, so $\overline{\log\eta}_{g_s}$ is exactly the asymmetry
 between "assign to some cell" and "assign to the background".

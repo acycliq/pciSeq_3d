@@ -21,8 +21,11 @@ export default defineConfig({
 
   // generated table snippets that pages pull in with @include, not pages themselves.
   // the self-consistency appendix is hidden, not deleted: it is left out of the build here
-  // and out of the sidebar below. The errata is built but not in the sidebar and nothing
-  // links to it, so it can only be reached with its address, the-model/errata.html
+  // and out of the sidebar below. The errata and the notes are built but not in the
+  // sidebar and nothing links to them, so they can only be reached with their address,
+  // the-model/errata.html and the-model/notes.html. The notes page holds the places
+  // where the code departs from the model pages, with the reasons, for the agent and
+  // for us; the model pages keep the simpler form
   srcExclude: ['**/_tables/**', 'the-model/appendix-self-consistency.md'],
 
   head: [
@@ -133,6 +136,7 @@ export default defineConfig({
           { text: 'Class prior', link: '/the-model/class-prior' },
           // hidden for now, see srcExclude above
           // { text: 'Errata', link: '/the-model/errata' },
+          // { text: 'Notes', link: '/the-model/notes' },
           // { text: 'Appendix: self-consistency', link: '/the-model/appendix-self-consistency' },
         ],
       },

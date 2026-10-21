@@ -403,8 +403,9 @@ $\eta_g' > 1$ means gene $g$ is detected better than the baseline, $\eta_g' < 1$
 #### The efficiency term against the background
 
 $\eta_g$ depends only on the gene, so it takes the same value for every candidate cell in
-a [spot-to-cell assignment](spot-assignment.md) and cancels between cells. It acts in one
-place: the comparison between a cell and the **background**. The background scores a spot
+a [spot-to-cell assignment](spot-assignment.md), scaled by each one's probability of not
+being Zero, and cancels between cells with the same probability of being Zero. It acts in
+one other place: the comparison between a cell and the **background**. The background scores a spot
 with the [misread density](misread-density.md) $\rho_g$ alone, which has no efficiency
 term, so $\eta_g$ is the one factor on the cell's side without a counterpart. A gene with a
 small $\eta_g$ has its signal attenuated against the background and its spots are more
