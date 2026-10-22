@@ -555,27 +555,27 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 | `spots_of_cell` | 217 | Which spots belong to a cell, with their probabilities, sorted highest first. |
 | `gene` | 235 | One gene across the run: its eta and eta times the |
 | `theta` | 249 | The cell scale factor theta of one cell: the overall value, and theta_bar |
-| `gamma` | 267 | The cell-gene scale factors gamma_bar of one cell under its assigned class, |
-| `spot` | 279 | One spot: its gene, position and plane, the cell it was assigned to with the |
-| `neighbours` | 291 | The cells whose classes enter the spatial (mrf) term of one cell, nearest |
-| `class_counts` | 301 | How many cells each class has: hard (the number of cells whose most probable |
-| `class_prior` | 314 | The weight of every class at the end of the run: the prior probability that a |
-| `find_cells` | 327 | The cells matching the filters given: assigned class, plane of the fitted cell centroid, |
-| `metadata` | 344 | The metadata table of diagnostics.db. Without a key: every key with the kind |
-| `cell_row` | 354 | The cellData.tsv row of one cell, value for value: Cell_Num, X, Y, Z, |
-| `spot_row` | 363 | The geneData.tsv row of one spot, value for value: gene, position, plane, |
-| `cell_image` | 371 | A picture of a cell on the background image (DAPI or another stain), for 'show |
-| `plane_image` | 413 | The background image (DAPI or another stain) of one plane with nothing drawn |
-| `_picture` | 443 | What an image tool hands back: the png itself, so the agent can look at it, |
-| `list_source` | 456 | List a folder of the pciSeq source code, at the commit that made the open run. |
-| `read_source` | 470 | Read a file of the pciSeq source code, with line numbers, at the commit that |
-| `_run_has_no_docs` | 493 | True when a run is open and it carries no documentation pages. |
-| `docs` | 499 | The pciSeq documentation, three ways. |
-| `calculate` | 546 | Do arithmetic instead of doing it in your head. |
-| `docs_index` | 566 |  |
-| `_page_reader` | 581 |  |
-| `_register_pages` | 591 |  |
-| `main` | 602 | Run the server over stdio, which is what every MCP client does. |
+| `gamma` | 268 | The cell-gene scale factors gamma_bar of one cell under its assigned class, |
+| `spot` | 281 | One spot: its gene, position and plane, the cell it was assigned to with the |
+| `neighbours` | 293 | The cells whose classes enter the spatial (mrf) term of one cell, nearest |
+| `class_counts` | 303 | How many cells each class has: hard (the number of cells whose most probable |
+| `class_prior` | 316 | The weight of every class at the end of the run: the prior probability that a |
+| `find_cells` | 329 | The cells matching the filters given: assigned class, plane of the fitted cell centroid, |
+| `metadata` | 346 | The metadata table of diagnostics.db. Without a key: every key with the kind |
+| `cell_row` | 356 | The cellData.tsv row of one cell, value for value: Cell_Num, X, Y, Z, |
+| `spot_row` | 365 | The geneData.tsv row of one spot, value for value: gene, position, plane, |
+| `cell_image` | 373 | A picture of a cell on the background image (DAPI or another stain), for 'show |
+| `plane_image` | 415 | The background image (DAPI or another stain) of one plane with nothing drawn |
+| `_picture` | 445 | What an image tool hands back: the png itself, so the agent can look at it, |
+| `list_source` | 458 | List a folder of the pciSeq source code, at the commit that made the open run. |
+| `read_source` | 472 | Read a file of the pciSeq source code, with line numbers, at the commit that |
+| `_run_has_no_docs` | 495 | True when a run is open and it carries no documentation pages. |
+| `docs` | 501 | The pciSeq documentation, three ways. |
+| `calculate` | 548 | Do arithmetic instead of doing it in your head. |
+| `docs_index` | 568 |  |
+| `_page_reader` | 583 |  |
+| `_register_pages` | 593 |  |
+| `main` | 604 | Run the server over stdio, which is what every MCP client does. |
 
 </details>
 

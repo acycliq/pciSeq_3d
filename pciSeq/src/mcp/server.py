@@ -258,7 +258,8 @@ def theta(label: int) -> dict:
     well when the user asks about rTheta: show theta on a real cell first, then
     rTheta as what decides how much the cell's own counts set theta, and end by
     asking whether the role of theta is clear, offering to go through it on another
-    cell.
+    cell. For the Zero class theta is fixed at 1, not fitted: the Zero class has no
+    scale factors, and the answer says so.
     """
     return _need_run().theta(label)
 
@@ -270,7 +271,8 @@ def gamma(label: int, gene: Optional[str] = None) -> dict:
     the class predicts for it (expected). Gamma is the per cell, per gene factor
     accounting for overdispersion; 1 means no correction, so compare counts with expected
     to say how far off a gene is. Only the assigned class is kept in diagnostics.db,
-    and the answer says so. label is the segmentation label.
+    and the answer says so. For a Zero cell gamma is a fixed 1, expected 0. label is
+    the segmentation label.
     """
     return _need_run().gamma(label, gene=gene)
 
