@@ -280,6 +280,14 @@ class Cells(object):
         self._theta_bar = a[:, None] / b
         # self._logtheta_bar = self._digamma(a, b)
 
+        # The Zero class has no scale factors, its theta is 1.
+        # Zero expects nothing, so there is nothing for theta to scale. Without
+        # this the Zero column comes out above 1 on any cell with a few dozen
+        # reads and the spot step reads it as a reward for holding reads.
+        # The class step, the eta update and the prior update never use it.
+        # The Zero class is always the last column.
+        self._theta_bar[:, -1] = 1.0
+
     def _digamma(self, a, b):
         """
         Calculates the digamma function for theta calculation.

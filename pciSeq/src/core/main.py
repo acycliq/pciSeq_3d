@@ -458,6 +458,10 @@ class VarBayes:
             - self._scaled_exp: scaled expression
             - self.spots._log_gamma_bar: Log of expected gamma values
             - self.spots._gamma_bar: Expected gamma values
+
+        The Zero class (last column) is kept at gamma = 1, log gamma = 0, see
+        the comment above the last two lines of this function. Same for theta
+        in Cells.calc_theta.
         """
         cells = self.cells
         cfg = self.config
@@ -472,6 +476,15 @@ class VarBayes:
         self.spots._post_rate = beta
         self.spots._log_gamma_bar = self.spots.logGammaExpectation(rho, beta)
         self.spots._gamma_bar = self.spots.gammaExpectation(rho, beta)
+
+        # The Zero class has no scale factors, its gamma is 1 and
+        # so its log is 0. The Zero column of the reference is all zeros, so
+        # beta there is nothing but rSpot and gamma would come out as
+        # (rSpot + reads) / rSpot. In the spot step that is a bonus a Zero cell
+        # gives itself for the reads it already holds, and it grows with them.
+        # Same idea as the Zero column of theta in Cells.calc_theta.
+        self.spots._gamma_bar[:, :, -1] = 1.0
+        self.spots._log_gamma_bar[:, :, -1] = 0.0
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self) -> None:
