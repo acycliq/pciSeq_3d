@@ -109,6 +109,9 @@ $r_\theta$ moves the estimate toward the prior mean $1$, reducing the correction
 evidence is weak. Like $\gamma_{g,c}$, the estimate is computed conditional on the class
 $k$, so it needs no weighting by $\bar\zeta_{c,k}$ in its own update.
 
+The Zero class has no scale factors, $\theta$ and $\gamma$ are fixed at $1$ for it, see
+[the model overview](overview.md#the-zero-class).
+
 #### The prior strength $r_\theta$ {#r-theta}
 
 $r_\theta$ sets how far the data can move $\theta_c$ from $1$. The two limits:
@@ -144,20 +147,22 @@ $$
 $$
 
 When $r_\theta$ is small against $E_{c\mid k}$ the last fraction is close to $1$, and the
-predicted total is about $\bar N_c + r_\theta - 1$ whatever the class: every class predicts
+predicted total is about $\bar N_c + r_\theta - 1$ whatever the class: every real class predicts
 the cell's own count plus a little. The total no longer separates the classes; what remains
 is how each class splits it over the genes, so the few spots decide the class by which genes
 they are, not by how many there are.
 
 An example at $r_\theta = 2$. A cell holds $0.48$ spots, one Plp1 spot at probability
-$0.44$. Before scaling, Oligo expects $356$ spots in the cell and Zero expects $55$.
+$0.44$. Before scaling, Oligo expects $356$ spots in the cell. The Zero class has no $\theta$:
+it expects no expression, so there is nothing to scale, and its $\theta$ is fixed at $1$. Its
+prediction is the SpotReg floor on every gene, whatever $r_\theta$ is.
 
 | | $\hat\theta$ at $r_\theta = 2$ | prediction | $\hat\theta$ at $r_\theta = 25$ | prediction |
 |---|---|---|---|---|
 | Oligo | $0.0041$ | $1.47$ | $0.064$ | $22.9$ |
-| Zero | $0.026$ | $1.43$ | $0.306$ | $16.8$ |
+| Zero | $1$ (fixed) | SpotReg per gene | $1$ (fixed) | SpotReg per gene |
 
-At $r_\theta = 2$ both classes predict about $1.5$ spots, Oligo expects that spot to be Plp1,
+At $r_\theta = 2$ Oligo predicts about $1.5$ spots and expects that spot to be Plp1,
 and the cell is assigned to Oligo with probability $0.94$. At $r_\theta = 25$ Oligo predicts $23$
 spots against the cell's $0.48$, and the cell is assigned to Zero.
 
@@ -166,7 +171,7 @@ $\sum_k \bar\zeta_{c,k}\log\hat\theta_{c\mid k}$ is added to the cell's score fo
 which it is a candidate. The background has no such term. For the cell above, as Oligo at
 $r_\theta = 2$, the term is $\log 0.0041 \approx -5.5$, and its one spot is assigned to it
 with probability $0.44$, comparable to that of the background. At $r_\theta = 25$ the cell is Zero
-and the term is $\log 0.306 \approx -1.2$.
+and the term is $\log 1 = 0$.
 
 The weak prior has a use too. A real cell with poor capture, a thin slice or a cell at the
 edge of the section, holds far fewer spots than its class usually gives, and with a weak prior
