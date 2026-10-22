@@ -35,9 +35,9 @@ equation. It follows *The extended pciSeq model* (v0.3), which is the version th
 The gene panel does not target every cell type, so many segmented cells hold zero or few
 spots. To account for these cells, following Qian et al. (2020), one extra class is
 appended to the cell type definitions, Zero, with $\mu_{g,\text{Zero}} = 0$ for every gene
-$g$. The paper sets it to the regularisation constant $\nu$; here the floor `SpotReg` is
-added to every class's mean in the class likelihood, so the Zero class predicts `SpotReg`
-per gene and nothing else. It keeps a fixed prior weight, held out of the Dirichlet
+$g$. The paper sets it to its regularisation constant; here the floor `SpotReg` is added
+to every class's mean in the class likelihood, so the Zero class predicts `SpotReg` per
+gene and nothing else. It keeps a fixed prior weight, held out of the Dirichlet
 ([class prior](class-prior.md)), and has no scale factors: $\theta_c$ and $\gamma_{g,c}$
 are fixed at $1$ for a Zero cell. Such a cell can be a real cell of a type the panel does
 not target.

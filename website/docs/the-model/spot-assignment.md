@@ -83,7 +83,7 @@ $$
 
 so $\log q(z_{s,c}=1) = S_{s,c} + \text{const}$, and exponentiating, cell $c$ contributes
 $\exp(S_{s,c})$ to the normaliser of the softmax below. The sums run over every class, the
-Zero class included; its cell scale ($\bar\theta$) and cell-gene scale
+Zero class included; its cell scale ($\log\bar\theta$) and cell-gene scale
 ($\overline{\log\gamma}$) terms are $0$, since the Zero class has
 [no scale factors](overview.md#the-zero-class): $\theta$ and $\gamma$ are fixed at $1$ for it.
 

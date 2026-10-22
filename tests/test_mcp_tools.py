@@ -847,6 +847,8 @@ def test_gamma_and_theta_of_a_zero_cell_are_fixed_at_one(fitted, monkeypatch):
     zero['gamma_assigned'] = np.ones(run.nG, dtype=np.float32)
     zero['theta_bar'] = np.array(real['theta_bar'], dtype=np.float32)
     zero['theta_bar'][-1] = 1.0
+    zero['class_prob'] = np.array(real['class_prob'], dtype=np.float32)
+    zero['class_prob'][-1] = 0.9
     monkeypatch.setattr(run, '_cell', lambda label: zero)
 
     gm = run.gamma(105)
@@ -858,6 +860,18 @@ def test_gamma_and_theta_of_a_zero_cell_are_fixed_at_one(fitted, monkeypatch):
 
     th = run.theta(105)
     assert 'fixed at 1' in th['theta_bar_is']
+    zrow = [r for r in th['theta_bar_per_class'] if r['class'] == 'Zero']
+    assert zrow and zrow[0]['theta_bar'] == 1.0
+
+    # a run fitted before the change carries fitted numbers there, and then the
+    # tools must not call them fixed
+    old = dict(zero)
+    old['gamma_assigned'] = np.full(run.nG, 1.3, dtype=np.float32)
+    old['theta_bar'] = np.array(zero['theta_bar'], dtype=np.float32)
+    old['theta_bar'][-1] = 1.15
+    monkeypatch.setattr(run, '_cell', lambda label: old)
+    assert 'not fitted' not in run.gamma(105)['gamma_is']
+    assert 'fixed at 1' not in run.theta(105)['theta_bar_is']
 
 
 def test_spot_agrees_with_explain_spot(fitted):

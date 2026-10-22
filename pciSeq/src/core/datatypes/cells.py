@@ -284,8 +284,9 @@ class Cells(object):
         # Zero expects nothing, so there is nothing for theta to scale. Without
         # this the Zero column comes out above 1 on any cell with a few dozen
         # reads and the spot step reads it as a reward for holding reads.
-        # The class step, the eta update and the prior update never use it.
-        # The Zero class is always the last column.
+        # The class step multiplies it by the all-zero Zero mean, the eta update
+        # slices it off and the prior update never sees it, so only the spot step
+        # ever felt it. The Zero class is always the last column.
         self._theta_bar[:, -1] = 1.0
 
     def _digamma(self, a, b):

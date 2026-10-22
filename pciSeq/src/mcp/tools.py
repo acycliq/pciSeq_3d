@@ -908,7 +908,7 @@ class Run:
         """The cell scale factor of one cell, overall and under each class."""
         c = self._cell(label)
         order = np.argsort(-c['class_prob'], kind='stable')
-        return {
+        out = {
             'cell': int(label),
             'theta': c['theta'],
             'theta_is': 'the scale factor averaged over the class probabilities, the '
@@ -919,10 +919,15 @@ class Run:
                                     for k in order[:5]],
             'theta_bar_is': 'the posterior mean of theta under each class: the factor '
                             'scaling that class\'s expected counts to the cell\'s total. '
-                            'Gamma(rTheta, rTheta) prior, mean 1. The Zero class has no '
-                            'scale factor: its theta_bar is fixed at 1, not fitted',
+                            'Gamma(rTheta, rTheta) prior, mean 1',
             'rTheta': (self.config or {}).get('rTheta'),
         }
+        if float(c['theta_bar'][-1]) == 1.0:
+            # the Zero class, always the last one, has no scale factors. Runs fitted
+            # before that change carry a fitted number there, and then this says nothing
+            out['theta_bar_is'] += ('. The Zero class has no scale factors: its theta_bar '
+                                    'is fixed at 1, not fitted. Do not read it as a fit')
+        return out
 
     def gamma(self, label, gene=None):
         """The cell-gene scale factors of one cell under its assigned class."""
@@ -945,10 +950,11 @@ class Run:
         # gamma_bar = (rSpot + counts) / (rSpot + expected), see VarBayes.gamma_upd.
         # Turned round it gives back the expected count the fit used
         r_spot = float(self._meta('rSpot'))
-        if int(c['assigned_class_idx']) == self.nK - 1:
+        if int(c['assigned_class_idx']) == self.nK - 1 and np.all(gam == 1.0):
             # the Zero class, always the last one, has no scale factors: gamma is
             # fixed at 1 there, so turning it round would hand back the counts
-            # themselves. Zero expects nothing, the SpotReg floor aside.
+            # themselves. Zero expects nothing, the SpotReg floor aside. A run fitted
+            # before that change has a fitted gamma there and keeps the path below.
             out['gamma_is'] = ('fixed at 1 on every gene, not fitted: the Zero class has no '
                                'scale factors, it expects no expression')
             out['expected_is'] = ('the count the Zero class predicts for the gene in this '
