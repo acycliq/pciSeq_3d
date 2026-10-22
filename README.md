@@ -31,7 +31,7 @@ tracks convergence.</em></sub></p>
 ## Installation
 
 ```bash
-pip install git+https://github.com/acycliq/pciSeq_3d.git@v0.1.0
+pip install git+https://github.com/acycliq/pciSeq_3d.git@v0.1.1
 ```
 
 Python 3.10 or newer. See

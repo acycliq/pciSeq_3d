@@ -57,8 +57,8 @@ const copy = (text) => {
     setTimeout(() => { if (copied.value === text) copied.value = '' }, 1500)
   })
 }
-const plain = 'pip install git+https://github.com/acycliq/pciSeq_3d.git@v0.1.0'
-const extra = 'pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@v0.1.0"'
+const plain = 'pip install git+https://github.com/acycliq/pciSeq_3d.git@v0.1.1'
+const extra = 'pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@v0.1.1"'
 </script>
 
 # Accessing the AI agent

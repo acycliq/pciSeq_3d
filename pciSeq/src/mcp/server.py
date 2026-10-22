@@ -6,7 +6,7 @@ stay usable from a notebook or the viewer with no mcp anywhere.
 
 It is an optional extra, so a plain pciSeq install does not pull in a web server:
 
-    pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@v0.1.0"
+    pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@v0.1.1"
 
 That puts a `pciseq-mcp` command on the path. Point Claude Code, Claude Desktop or any
 other MCP client at it over stdio, for example in ~/.claude.json:
@@ -41,7 +41,7 @@ except ModuleNotFoundError as e:  # pragma: no cover
         'that a plain install does not pull in a web server. Add it with:\n'
         '    pip install "pciSeq_3d[mcp]"\n'
         'or straight from github:\n'
-        '    pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@v0.1.0"'
+        '    pip install "pciSeq_3d[mcp] @ git+https://github.com/acycliq/pciSeq_3d.git@v0.1.1"'
     ) from e
 
 from . import docs as _docs
