@@ -836,6 +836,30 @@ def test_theta_and_gamma_are_the_stored_arrays(fitted):
     assert one['expected'] == gm['gamma'][3]['expected']
 
 
+def test_gamma_and_theta_of_a_zero_cell_are_fixed_at_one(fitted, monkeypatch):
+    """The Zero class has no scale factors. A Zero cell carries gamma 1 on every
+    gene and theta_bar 1, and the gamma tool must not turn that 1 round into an
+    expected count (it would hand back the counts themselves)."""
+    run, _, _ = fitted
+    real = run._cell(105)
+    zero = dict(real)
+    zero['assigned_class_idx'] = run.nK - 1
+    zero['gamma_assigned'] = np.ones(run.nG, dtype=np.float32)
+    zero['theta_bar'] = np.array(real['theta_bar'], dtype=np.float32)
+    zero['theta_bar'][-1] = 1.0
+    monkeypatch.setattr(run, '_cell', lambda label: zero)
+
+    gm = run.gamma(105)
+    assert gm['class'] == 'Zero'
+    assert all(row['gamma'] == 1.0 and row['expected'] == 0.0 for row in gm['gamma'])
+    assert 'not fitted' in gm['gamma_is']
+    one = run.gamma(105, gene=gm['gamma'][0]['gene'])
+    assert one['expected'] == 0.0 and one['gamma'] == 1.0
+
+    th = run.theta(105)
+    assert 'fixed at 1' in th['theta_bar_is']
+
+
 def test_spot_agrees_with_explain_spot(fitted):
     run, _, geneData = fitted
     sid = geneData.index[5]

@@ -919,7 +919,8 @@ class Run:
                                     for k in order[:5]],
             'theta_bar_is': 'the posterior mean of theta under each class: the factor '
                             'scaling that class\'s expected counts to the cell\'s total. '
-                            'Gamma(rTheta, rTheta) prior, mean 1',
+                            'Gamma(rTheta, rTheta) prior, mean 1. The Zero class has no '
+                            'scale factor: its theta_bar is fixed at 1, not fitted',
             'rTheta': (self.config or {}).get('rTheta'),
         }
 
@@ -944,7 +945,18 @@ class Run:
         # gamma_bar = (rSpot + counts) / (rSpot + expected), see VarBayes.gamma_upd.
         # Turned round it gives back the expected count the fit used
         r_spot = float(self._meta('rSpot'))
-        expected = np.maximum((r_spot + c['gene_count']) / gam - r_spot, 0)
+        if int(c['assigned_class_idx']) == self.nK - 1:
+            # the Zero class, always the last one, has no scale factors: gamma is
+            # fixed at 1 there, so turning it round would hand back the counts
+            # themselves. Zero expects nothing, the SpotReg floor aside.
+            out['gamma_is'] = ('fixed at 1 on every gene, not fitted: the Zero class has no '
+                               'scale factors, it expects no expression')
+            out['expected_is'] = ('the count the Zero class predicts for the gene in this '
+                                  'cell: 0, the SpotReg floor aside. Do not read gamma = 1 as '
+                                  'the cell holding what its class expects')
+            expected = np.zeros(self.nG, dtype=np.float32)
+        else:
+            expected = np.maximum((r_spot + c['gene_count']) / gam - r_spot, 0)
         if gene is not None:
             g = self._gene_index(gene)
             out['gene'] = gene
