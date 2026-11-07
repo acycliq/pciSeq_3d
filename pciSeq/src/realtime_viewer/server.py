@@ -341,7 +341,13 @@ class RealtimeViewerServer:
     def _send_geometry_once(self, varbayes, cell_ids, centroids_x, centroids_y,
                             centroids_z, radii, num_cells, cell_classes, prob,
                             iteration):
-        """Send the geometry, which does not change between iterations.
+        """Send the cell positions the live map draws, once.
+
+        These are the segmentation centroids and a radius from the segmented
+        area, taken at the first iteration. The model moves the centroids and
+        fits a covariance after that, but the live map does not follow, it
+        keeps the cells where the segmentation put them and only recolours
+        them as the classes change. The fitted geometry is in the output files.
 
         Split out of send_update: it runs on the first pass, or replays from the
         cache for a client that connects later.
@@ -409,7 +415,7 @@ class RealtimeViewerServer:
                 "version": __version__,
             }
             self._num_cells_expected = num_cells
-            logger.info(f"Geometry cached: {num_cells} cells")
+            logger.info(f"Live map: sent the centroids of {num_cells} cells to the browser")
 
         # CRITICAL FIX: Ensure num_cells matches geometry cache
         # If num_cells differs from the geometry we sent, we need to adjust the data
