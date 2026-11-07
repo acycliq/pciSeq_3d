@@ -63,6 +63,8 @@ export default defineConfig({
         items: [
           { text: 'From Python', link: '/running-pciseq' },
           { text: 'Fine-tuning', link: '/running-pciseq#fine-tuning' },
+          { text: 'Compute requirements', link: '/running-pciseq#compute-requirements' },
+          { text: 'Cluster jobs', link: '/running-pciseq#cluster-jobs' },
           { text: 'Command line', link: '/api/command-line' },
           { text: 'Live viewer', link: '/api/live-viewer' },
           { text: 'Working with results', link: '/api/working-with-results' },

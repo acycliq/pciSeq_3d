@@ -77,13 +77,13 @@ The hyperparameters below are listed in the order in which they are typically ad
 | [`mrf_beta`](api/configuration.md#mrf-beta) | Strength of the spatial term. Larger values give more weight to the classes of a cell's neighbours. The bonus a class receives is `mrf_beta` times the sum of the neighbours' probabilities for that class, each neighbour weighted by a Gaussian function of its distance; the weights sum to `nNeighbors`. `0` disables the term. Useful where cell types are strongly localised, in layers or regions, as in the hippocampus. |
 | [`MisreadDensity`](api/configuration.md#misreaddensity), [`rRho`](api/configuration.md#rrho) | The prior mean of the per-gene misread density, in spots per unit volume, and the strength of that prior. `rRho` counts as that many spots against the gene's background count, so at the default of 1 the prior has very little effect and the density is set by the data. |
 | [`cell_type_weights`](api/configuration.md#cell-type-weights) | The prior probability of each class. Types not listed share the remaining probability equally, so the default `{'Zero': 0.5}` gives Zero half the prior mass and splits the other half among the real types. There is no `default` key. |
+| [`cell_centroid_prior`](api/configuration.md#cell-centroid-prior), [`cell_cov_prior`](api/configuration.md#cell-cov-prior) | How far the fitted centre and shape of a cell may move from the segmentation. Each is a pseudo-count: the segmentation centroid counts as `cell_centroid_prior` spots and the spherical prior shape as about `cell_cov_prior` spots, against the spots assigned to the cell. At the defaults of 1000, far more than a cell holds, the centre and shape stay close to the segmentation. Run with the defaults first; lowering them towards the spot count of a typical cell lets the spots move and reshape the cells, at the cost of more iterations, and the calls should be compared with the default run to see whether the change is worth it. See [choosing the prior strengths](the-model/gaussian.md#choosing-the-prior-strengths). |
 
 ## Compute requirements
 
 The variational loop is multithreaded. The heavy steps are compiled with numba and run
-on every core of the machine by default. Setting the environment variable
-`NUMBA_NUM_THREADS` in the shell before Python starts caps the number of threads. The
-GPU is not used.
+on every core the process is allowed to use, which on a personal machine is every core
+of the machine. pciSeq runs on the CPU. A GPU is neither required nor used.
 
 Memory grows with the product of cells, genes and classes: the largest arrays hold one
 float32 value per cell, gene and class, and there are several of them.
@@ -106,8 +106,14 @@ Seconds per iteration on three machines:
 | laptop chip | Core i7-1165G7 | 4 | 4.7 GHz | 64 GB DDR4 | Ubuntu 26.04 | 7 |
 
 All three ran Python 3.10. The core count alone does not predict the time: the
-machine with the most cores is not the fastest. The cluster node was a large memory node; the run used 31 GB of RAM of
-its 1.5 TB.
+machine with the most cores is not the fastest. The cluster node was a large memory
+node; the run used 31 GB of RAM of its 1.5 TB.
+To leave cores free for other work on a shared machine, set `NUMBA_NUM_THREADS` in the
+shell before starting Python:
+
+```bash
+export NUMBA_NUM_THREADS=8
+```
 
 ## Cluster jobs
 
@@ -278,8 +284,8 @@ scheduler; the lines after them run on the node once it is granted:
 #SBATCH --time=06:00:00
 #SBATCH --output=%x_%j.log
 
-# numba and numpy would otherwise count every core on the machine,
-# not just the ones slurm gave us
+# size the thread pools of numba and of the blas behind numpy from what
+# slurm gave us, rather than leave them to work it out from the node
 export NUMBA_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
@@ -291,7 +297,7 @@ pciseq run aang_myriad.yaml
 ```bash [run_aang_myriad.sh]
 #!/bin/bash -l
 # slurm job for run_aang_myriad.py on myriad-ng. one standard node, all 36
-# cores (the numba kernels use them), 64GB is twice the 30GB peak seen so far.
+# cores (the numba kernels use them), 64GB is twice the 31GB peak seen so far.
 # submit with: sbatch run_aang_myriad.sh
 #SBATCH --job-name=aang
 #SBATCH --partition=myriad
@@ -303,8 +309,8 @@ pciseq run aang_myriad.yaml
 #SBATCH --time=06:00:00
 #SBATCH --output=%x_%j.log
 
-# numba and numpy would otherwise count every core on the machine,
-# not just the ones slurm gave us
+# size the thread pools of numba and of the blas behind numpy from what
+# slurm gave us, rather than leave them to work it out from the node
 export NUMBA_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
@@ -318,25 +324,23 @@ python run_aang_myriad.py
 | flag | description |
 | --- | --- |
 | `--job-name` | the name shown in the queue, and `%x` in the log file name |
-| `--partition` | the group of nodes to run on; `myriad` is the general one |
-| `--account` | the allocation the job is charged to; on Myriad everyone uses `allusers` |
+| `--partition` | the group of nodes to run on |
+| `--account` | the allocation the job is charged to |
 | `--nodes=1`, `--ntasks=1` | one node and one process on it; pciSeq is one process with many threads |
 | `--cpus-per-task=36` | the cores for that process, here all the cores of a standard node |
-| `--mem` | the RAM reserved for the job; a job that exceeds it is killed |
-| `--time` | the wall clock limit; a job that exceeds it is killed |
+| `--mem` | the RAM reserved for the job |
+| `--time` | the wall clock time reserved for the job |
 | `--output` | the log file; `%x` is the job name and `%j` the job number |
 
-The two `export` lines exist because of a mismatch between what the job owns and what
-the node has. `--cpus-per-task=36` asks for 36 cores; Slurm grants them and writes the
-number into `SLURM_CPUS_PER_TASK`. numba never looks at Slurm: by default it asks the
-operating system how many cores the machine has and starts that many threads. On a
-node with more cores than the job was given, a large node or a node shared with
-another job, those extra threads fight over the cores the job does own, and the run is
-slower. `NUMBA_NUM_THREADS` set to the granted count removes the mismatch.
-`OMP_NUM_THREADS` does the same for a second thread pool: the linear algebra library
-behind numpy and scipy has its own threads and sizes them from that variable. On a
-node where the job holds every core, both lines change nothing. `export` is what makes
-a shell variable visible to the Python process started after it.
+The two `export` lines set the thread counts to what the job was granted.
+`--cpus-per-task=36` asks for 36 cores; Slurm grants them and writes the number into
+`SLURM_CPUS_PER_TASK`. Left to itself, numba sizes its thread pool from the cores the
+operating system lets the process run on. Whether a cluster restricts that to the
+job's cores or leaves the whole node visible depends on how the cluster is set up, so
+the script does not rely on it and states the count. `OMP_NUM_THREADS` does the same
+for a second thread pool: the linear algebra library behind numpy and scipy has its
+own threads and sizes them from that variable. `export` is what makes a shell variable
+visible to the Python process started after it.
 
 The run log is written to `pciSeq.log` in a `pciSeq` folder under the system temporary
 directory; the path is printed at the start of the run. On a machine shared between

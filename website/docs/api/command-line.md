@@ -127,8 +127,10 @@ for t in 2 5 15 25; do
 done
 ```
 
-A change to `analysis.yaml` applies to every run of the sweep. A large 3D dataset
-can take over 8 GB per run, so sweeps are best run sequentially.
+A change to `analysis.yaml` applies to every run of the sweep. A run uses every core
+and, for a large 3D dataset, tens of GB of RAM, see
+[compute requirements](../running-pciseq.md#compute-requirements), so sweeps are best
+run sequentially.
 
 ## Validating a config
 
