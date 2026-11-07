@@ -119,6 +119,10 @@ install_deps = [
     "pyarrow",
     "pyyaml",
     "spatialdata",
+    # spatialdata pulls in xarray_schema, which still imports pkg_resources,
+    # and setuptools 81 dropped it. Without this pin a fresh venv (uv, or
+    # python 3.12+) fits fine and then dies at the export, after the whole run.
+    "setuptools<81",
 ]
 
 # Optional feature sets. mcp is out of the core deps on purpose: it brings a web
