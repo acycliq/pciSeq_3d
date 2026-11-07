@@ -120,3 +120,33 @@ def niw_kl(m_hat, kappa_hat, V_hat, nu_hat, m0, kappa0, V0, nu0):
              + (nu_hat - nu0) / 2 * E_logdet_L
              + nu_hat / 2 * (tr - d))
     return kl_N + kl_IW
+
+
+def soft_stats_numba(spots, cells, d, nchunk=64):
+    """Same as soft_stats, through soft_stats_kernel. This is the fast path.
+
+    soft_stats does seven npg.aggregate passes over the (spot, neighbour)
+    rows, each on one core. Here it is two passes and they run on all cores.
+    Same returns, same dtypes, sums in float64.
+    """
+    from .numba_kernels import soft_stats_kernel
+    nC = cells.nC
+    nNb = spots.parent_cell_id.shape[1] - 1
+    ids = np.ascontiguousarray(spots.parent_cell_id[:, :-1]).ravel()
+    w = np.ascontiguousarray(spots.parent_cell_prob[:, :-1]).ravel().astype(np.float64)
+    X = np.repeat(spots.xyz_coords[:, :d].astype(np.float64), nNb, axis=0)
+
+    part1 = np.zeros((nchunk, nC, 1 + d))
+    part2 = np.zeros((nchunk, nC, d * d))
+    soft_stats_kernel(ids, w, X, np.empty((0, d)), nchunk, part1, part2)
+    sums = part1.sum(axis=0)
+    n_bar = sums[:, 0]
+    x_bar = sums[:, 1:].copy()
+    has_spots = n_bar > 0
+    x_bar[has_spots] /= n_bar[has_spots, None]
+    m0 = cells.ini_centroids().values[:, :d].astype(np.float64)
+    x_bar[~has_spots] = m0[~has_spots]
+
+    soft_stats_kernel(ids, w, X, x_bar, nchunk, part1, part2)
+    S = part2.sum(axis=0).reshape(nC, d, d)
+    return n_bar, x_bar, S

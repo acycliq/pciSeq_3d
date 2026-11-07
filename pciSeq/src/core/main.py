@@ -61,8 +61,9 @@ import time
 import numpy as np
 import numpy_groupies as npg
 import pandas as pd
-from scipy.special import softmax
-from .utils.numba_kernels import spots_to_cell_numba_kernel
+from scipy.special import softmax, psi
+from .utils.numba_kernels import (spots_to_cell_numba_kernel, gamma_upd_kernel, nb_loglik_kernel,
+                                  theta_beta_kernel, eta_counts_kernel, mvn_loglik_kernel)
 import opt_einsum as oe
 
 # Local imports
@@ -340,16 +341,22 @@ class VarBayes:
             self._step('rho_upd', self.rho_upd)
 
             # 3. calc the gene inefficiency
-            self._step('eta_upd', self.eta_upd)
+            # eta_upd_numba is the fast path, eta_upd the numpy reference
+            self._step('eta_upd', self.eta_upd_numba)
 
             # 4. calc the cell inefficiency
-            self._step('theta_upd', self.theta_upd)
+            # theta_upd_numba is the fast path, theta_upd the numpy reference
+            self._step('theta_upd', self.theta_upd_numba)
 
             # 5. calc expected gamma
-            self._step('gamma_upd', self.gamma_upd)
+            # gamma_upd_numba is the fast path, gamma_upd is the numpy reference,
+            # same arrangement as spots_to_cell below. tests/test_class_step_ab.py
+            # checks they agree.
+            self._step('gamma_upd', self.gamma_upd_numba)
 
             # 6. assign cells to cell types
-            self._step('cell_to_cellType', self.cell_to_cellType)
+            # cell_to_cellType_numba is the fast path, cell_to_cellType the reference.
+            self._step('cell_to_cellType', self.cell_to_cellType_numba)
 
             # 7. update the dirichlet distribution
             if self.config['cell_type_prior'] == 'weighted':
@@ -368,7 +375,8 @@ class VarBayes:
             # nearest is nowhere near cell c. Run on those, the centres jump by tens
             # of pixels and the loop never recovers. So the first spot assignment
             # uses the prior geometry, and every geometry update sees real weights.
-            self._step('gaussian_upd', self.gaussian_upd)
+            # gaussian_upd_numba is the fast path, gaussian_upd the numpy reference
+            self._step('gaussian_upd', self.gaussian_upd_numba)
 
             if verbose:
                 _total = sum(self._step_times.values())
@@ -485,6 +493,121 @@ class VarBayes:
         # Same idea as the Zero column of theta in Cells.calc_theta.
         self.spots._gamma_bar[:, :, -1] = 1.0
         self.spots._log_gamma_bar[:, :, -1] = 0.0
+
+    # -------------------------------------------------------------------- #
+    def gamma_upd_numba(self) -> None:
+        """Same as gamma_upd, through the numba kernel. This is the fast path.
+
+        gamma_upd above builds the nC by nG by nK scaled expression and then goes
+        over it a few more times, all on one core. gamma_upd_kernel does the whole
+        thing in one pass with cells spread over all cores. Sets the same arrays.
+        """
+        cells = self.cells
+        cfg = self.config
+        area_factor = np.ascontiguousarray(cells.ini_cell_props['area_factor'], dtype=np.float32)
+        mu = np.ascontiguousarray(self.single_cell.mean_expression_adj.values, dtype=np.float32)
+
+        # area_factor and the reference do not change between iterations, so the
+        # scaled expression is the same every time. The single cell helpers
+        # (check_cell, inspection) still read it, so build it once and keep it.
+        if self._scaled_exp is None:
+            self._scaled_exp = likelihood.scaled_exp(area_factor, mu)
+
+        rho = (cfg['rSpot'] + cells.geneCount).astype(np.float32)
+        psi_rho = psi(rho)
+        eta_bar = np.ascontiguousarray(self.genes.eta_bar, dtype=np.float32)
+        theta_bar = np.ascontiguousarray(cells.theta_bar, dtype=np.float32)
+
+        # the big arrays are float32, same as the numpy version gives. Half the
+        # bytes, and every later step that reads them goes twice as fast.
+        # The kernel does its sums in float64 and rounds on the store.
+        nC, nG = rho.shape
+        nK = mu.shape[1]
+        beta = np.empty((nC, nG, nK), dtype=np.float32)
+        log_gamma_bar = np.empty((nC, nG, nK), dtype=np.float32)
+        gamma_bar = np.empty((nC, nG, nK), dtype=np.float32)
+        gamma_upd_kernel(area_factor, mu, eta_bar, theta_bar, rho, psi_rho, float(cfg['rSpot']),
+                         beta, log_gamma_bar, gamma_bar)
+
+        self.spots._post_shape = rho
+        self.spots._post_rate = beta
+        self.spots._log_gamma_bar = log_gamma_bar
+        self.spots._gamma_bar = gamma_bar
+
+        # Zero class pinned at gamma 1, see the comment in gamma_upd
+        self.spots._gamma_bar[:, :, -1] = 1.0
+        self.spots._log_gamma_bar[:, :, -1] = 0.0
+
+    # -------------------------------------------------------------------- #
+    def cell_to_cellType_numba(self) -> None:
+        """Same as cell_to_cellType, through the numba kernel. This is the fast path.
+
+        The negative binomial loglik per cell, gene and class and its sum over
+        genes come out of nb_loglik_kernel in one pass over all cores. The rest
+        (mrf, prior, softmax) is the same code as cell_to_cellType.
+        """
+        cells = self.cells
+        cfg = self.config
+        area_factor = np.ascontiguousarray(cells.ini_cell_props['area_factor'], dtype=np.float32)
+        mu = np.ascontiguousarray(self.single_cell.mean_expression_adj.values, dtype=np.float32)
+        eta_bar = np.ascontiguousarray(self.genes.eta_bar, dtype=np.float32)
+        theta_bar = np.ascontiguousarray(cells.theta_bar, dtype=np.float32)
+        geneCount = np.ascontiguousarray(cells.geneCount, dtype=np.float32)
+
+        # contr is float32 like the numpy version, the per cell sum is float64
+        nC, nG = geneCount.shape
+        nK = mu.shape[1]
+        contr = np.empty((nC, nG, nK), dtype=np.float32)
+        contr_sum = np.empty((nC, nK), dtype=np.float64)
+        nb_loglik_kernel(area_factor, mu, eta_bar, theta_bar, geneCount,
+                         float(cfg['SpotReg']), float(cfg['rSpot']), contr, contr_sum)
+
+        # per cell, gene and class contributions, check_cell reads it, so dont remove it.
+        self.cells.nb_contr = contr
+        mrf = self.cells.calc_mrf()
+        self.cells.mrf = mrf
+        wCellClass = contr_sum + self.cellTypes.log_prior + mrf
+        self.cells.classProb = softmax(wCellClass, axis=1)
+
+    # -------------------------------------------------------------------- #
+    def eta_upd_numba(self) -> None:
+        """Same as eta_upd, through the numba kernel. This is the fast path.
+
+        The big einsum over gamma_bar becomes one pass of eta_counts_kernel on
+        all cores. Everything else is the same code as eta_upd.
+        """
+        classProb = np.ascontiguousarray(self.cells.classProb, dtype=np.float32)
+        mu = np.ascontiguousarray(self.single_cell.mean_expression_adj.values + self.config['SpotReg'],
+                                  dtype=np.float32)
+        area_factor = np.ascontiguousarray(self.cells.ini_cell_props['area_factor'], dtype=np.float32)
+        gamma_bar = self.spots.gamma_bar
+        theta_bar = np.ascontiguousarray(self.cells.theta_bar, dtype=np.float32)
+
+        zero_class_counts = oe.contract('c, cg -> g', classProb[:, -1], self.cells.geneCount, optimize='optimal')
+
+        partial = np.empty((self.nC, self.nG), dtype=np.float64)
+        eta_counts_kernel(classProb, mu, area_factor, gamma_bar, theta_bar, partial)
+        class_total_counts = partial.sum(axis=0)
+
+        background_counts = np.bincount(self.spots.gene_id, self.spots.parent_cell_prob[:, -1], minlength=self.nG)
+        observed = self.config['rGene'] + self.spots.counts_per_gene - background_counts - zero_class_counts
+        expected = self.config['rGene'] + class_total_counts
+        self.genes.calc_eta(observed, expected)
+
+    # -------------------------------------------------------------------- #
+    def theta_upd_numba(self):
+        """Same as theta_upd, through the numba kernel. This is the fast path."""
+        geneCounts = self.cells.geneCount.sum(axis=1)
+        alpha = geneCounts + self.config['rTheta'] - 1
+
+        mu = np.ascontiguousarray(self.single_cell.mean_expression_adj.values + self.config['SpotReg'],
+                                  dtype=np.float32)
+        area_factor = np.ascontiguousarray(self.cells.ini_cell_props['area_factor'], dtype=np.float32)
+        eta_bar = np.ascontiguousarray(self.genes.eta_bar, dtype=np.float32)
+
+        beta = np.empty((self.nC, self.nK), dtype=np.float64)
+        theta_beta_kernel(area_factor, self.spots.gamma_bar, eta_bar, mu, float(self.config['rTheta']), beta)
+        self.cells.calc_theta(alpha, beta)
 
     # -------------------------------------------------------------------- #
     def cell_to_cellType(self) -> None:
@@ -648,12 +771,21 @@ class VarBayes:
                                    expected_counts, logeta_bar, nNb,
                                    wSpotCell, attention, expr_fluctuations, cell_inefficiency, gene_inefficiency)
 
-        # mvn_loglik is not in the kernel yet; compute per neighbour and add it in
-        for n in range(nNb):
-            sn = parent[:, n]
-            mvn = self.spots.mvn_loglik(self.spots.xyz_coords, sn, self.cells, self.config['is3D'])
-            wSpotCell[:, n] += mvn
-            mvn_loglik_arr[:, n] = mvn
+        # the position term, all neighbours in one pass. Same maths as
+        # Spots.mvn_loglik, which the plain spots_to_cell still calls. The casts
+        # to float64 are the ones mvn_loglik does, so the two agree bit for bit.
+        d = 3 if self.config['is3D'] else 2
+        cells = self.cells
+        x = np.ascontiguousarray(self.spots.xyz_coords[:, :d], dtype=np.float64)
+        centroid = np.ascontiguousarray(cells.centroid.values[:, :d], dtype=np.float64)
+        eig_vals = np.ascontiguousarray(cells.eig_vals, dtype=np.float64)
+        eig_vecs = np.ascontiguousarray(cells.eig_vecs, dtype=np.float64)
+        nu = cells.nu.astype(np.float64)
+        kappa = cells.kappa.astype(np.float64)
+        E_logdet = gaussian_model.expected_logdet_precision(nu, eig_vals)
+        mvn_loglik_kernel(x, parent, centroid, eig_vals, eig_vecs, nu, kappa, E_logdet, nNb,
+                          mvn_loglik_arr)
+        wSpotCell[:, :nNb] += mvn_loglik_arr[:, :nNb]
 
         bonus_mask = self.spots.bonus_mask * self.config['InsideCellBonus']
         wSpotCell += bonus_mask
@@ -758,6 +890,15 @@ class VarBayes:
         be stretched or tilted is ignored there.
         """
         n_bar, x_bar, S = gaussian_model.soft_stats(self.spots, self.cells, self.cells.dim)
+        self.centroid_upd(n_bar, x_bar)
+        self.cov_upd(n_bar, x_bar, S)
+
+    # -------------------------------------------------------------------- #
+    def gaussian_upd_numba(self) -> None:
+        """Same as gaussian_upd with the soft stats from the numba kernel. This
+        is the fast path; centroid_upd and cov_upd are the same code.
+        """
+        n_bar, x_bar, S = gaussian_model.soft_stats_numba(self.spots, self.cells, self.cells.dim)
         self.centroid_upd(n_bar, x_bar)
         self.cov_upd(n_bar, x_bar, S)
 
