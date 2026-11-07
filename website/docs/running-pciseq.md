@@ -77,3 +77,268 @@ The hyperparameters below are listed in the order in which they are typically ad
 | [`mrf_beta`](api/configuration.md#mrf-beta) | Strength of the spatial term. Larger values give more weight to the classes of a cell's neighbours. The bonus a class receives is `mrf_beta` times the sum of the neighbours' probabilities for that class, each neighbour weighted by a Gaussian function of its distance; the weights sum to `nNeighbors`. `0` disables the term. Useful where cell types are strongly localised, in layers or regions, as in the hippocampus. |
 | [`MisreadDensity`](api/configuration.md#misreaddensity), [`rRho`](api/configuration.md#rrho) | The prior mean of the per-gene misread density, in spots per unit volume, and the strength of that prior. `rRho` counts as that many spots against the gene's background count, so at the default of 1 the prior has very little effect and the density is set by the data. |
 | [`cell_type_weights`](api/configuration.md#cell-type-weights) | The prior probability of each class. Types not listed share the remaining probability equally, so the default `{'Zero': 0.5}` gives Zero half the prior mass and splits the other half among the real types. There is no `default` key. |
+
+## Compute requirements
+
+The variational loop is multithreaded. The heavy steps are compiled with numba and run
+on every core of the machine by default. Setting the environment variable
+`NUMBA_NUM_THREADS` in the shell before Python starts caps the number of threads. The
+GPU is not used.
+
+Memory grows with the product of cells, genes and classes: the largest arrays hold one
+float32 value per cell, gene and class, and there are several of them.
+
+As a reference point, a 3D run on 37,310 cells, 2.1 million spots, 316 genes and
+38 classes over 69 planes of 6432 x 8545 pixels:
+
+| measurement | value |
+| --- | --- |
+| peak RAM | 31 GB |
+| iterations to converge | 92 |
+| output on disk | 8.3 GB, of which 6.6 GB is the debug pickle |
+
+Seconds per iteration on three machines:
+
+| machine | CPU | cores | clock | RAM | OS | seconds per iteration |
+| --- | --- | --- | --- | --- | --- | --- |
+| workstation | Xeon w7-2475X | 20 | 4.8 GHz | 128 GB DDR5 | Ubuntu 24.04 | 2.5 |
+| cluster node | 2 x Xeon Gold 6240 | 36 | 2.6 GHz | 1.5 TB DDR4 | RHEL 9.6 | 4.8 |
+| laptop chip | Core i7-1165G7 | 4 | 4.7 GHz | 64 GB DDR4 | Ubuntu 26.04 | 7 |
+
+All three ran Python 3.10. The core count alone does not predict the time: the
+machine with the most cores is not the fastest. The cluster node was a large memory node; the run used 31 GB of RAM of
+its 1.5 TB.
+
+## Cluster jobs
+
+On a cluster, a run is one multithreaded process on one node, and the scheduler
+decides how many cores of that node the job gets. The reference run above was on
+Myriad, one of UCL's HPC clusters, which uses the Slurm scheduler. A job there is a
+Slurm script that asks for a node, plus what it runs on that node: either a config
+file through `pciseq run`, as on the [command line page](api/command-line.md), or a
+Python script that calls `fit`.
+
+Both forms are shown below for a dataset named aang. Only the Slurm scripts are
+specific to the cluster; the config file and the Python script run unchanged on a
+local machine once the paths are edited, and the live viewer, off here because a
+compute node has no screen, can be turned on.
+
+<figure class="diagram">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 176" role="img" aria-label="run_aang_myriad_cli.sh, a Slurm script, runs pciseq run aang_myriad.yaml, a config file; run_aang_myriad.sh, a Slurm script, runs python run_aang_myriad.py, a Python script" style="max-width: 760px; width: 100%;">
+  <defs>
+    <marker id="cj-head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path class="aq-local-head" d="M 0 0 L 10 5 L 0 10 z" />
+    </marker>
+  </defs>
+  <text class="aq-cap" x="12" y="14">SUBMITTED WITH SBATCH</text>
+  <text class="aq-cap" x="432" y="14">RUN ON THE NODE</text>
+  <g>
+    <rect class="aq-box" x="12" y="24" width="276" height="58" rx="7" />
+    <text class="aq-title aq-mono" x="150" y="49" text-anchor="middle" style="font-size:14px">run_aang_myriad_cli.sh</text>
+    <text class="aq-sub" x="150" y="70" text-anchor="middle">Slurm script</text>
+    <path class="aq-local" d="M 290 53 H 426" marker-end="url(#cj-head)" fill="none" />
+    <text class="aq-label" x="359" y="46" text-anchor="middle">runs</text>
+    <rect class="aq-box" x="432" y="24" width="316" height="58" rx="7" />
+    <text class="aq-title aq-mono" x="590" y="49" text-anchor="middle" style="font-size:14px">pciseq run aang_myriad.yaml</text>
+    <text class="aq-sub" x="590" y="70" text-anchor="middle">the command line, with a config file</text>
+  </g>
+  <g>
+    <rect class="aq-box" x="12" y="106" width="276" height="58" rx="7" />
+    <text class="aq-title aq-mono" x="150" y="131" text-anchor="middle" style="font-size:14px">run_aang_myriad.sh</text>
+    <text class="aq-sub" x="150" y="152" text-anchor="middle">Slurm script</text>
+    <path class="aq-local" d="M 290 135 H 426" marker-end="url(#cj-head)" fill="none" />
+    <text class="aq-label" x="359" y="128" text-anchor="middle">runs</text>
+    <rect class="aq-box" x="432" y="106" width="316" height="58" rx="7" />
+    <text class="aq-title aq-mono" x="590" y="131" text-anchor="middle" style="font-size:14px">python run_aang_myriad.py</text>
+    <text class="aq-sub" x="590" y="152" text-anchor="middle">a Python script that calls fit</text>
+  </g>
+</svg>
+<figcaption>The two Slurm scripts and the commands they execute on the node.</figcaption>
+</figure>
+
+The Python script runs pciSeq from a clone of the repository in the home folder
+rather than an installed copy, its first lines make sure of that, and it prints the
+commit so the log records which code ran.
+
+::: code-group
+
+```yaml [aang_myriad.yaml]
+# aang on UCL Myriad through the command line. the data was rsynced to ~/data.
+# no live viewer, a compute node has no screen. run with the slurm script
+# run_aang_myriad_cli.sh, which calls: pciseq run aang_myriad.yaml
+scrnaseq:
+  path: ~/data/scRNAseq_final.csv
+  index_col: 0
+
+spots:
+  path: ~/data/aang_1.5.0/aang_1.5.0_pciSeq/aang_1.5.0_pciseq_omp_0score.csv
+  rename: {z_stack: z_plane, Gene: gene_name}
+  # goes straight to pandas DataFrame.query, so it must be an expression that
+  # pandas can parse: comparisons joined with and/or, not plain english and
+  # not a comma list
+  filter: "score > 0.4 and intensity > 0.15"
+
+masks:
+  path: ~/data/aang_1.5.0/aang_1.5.0_pciSeq/aang_1.5.0_masks.npy
+
+opts:
+  realtime_viewer: false
+  Inefficiency: 0.1
+  MisreadDensity: 1.0e-6
+  voxel_size: [0.28, 0.28, 0.7]
+  rTheta: 2
+  mrf_beta: 1.5
+  exclude_genes: [Zbtb20, Ddit4l]
+  output_path: /home/skgtdni/pciseq_runs/aang_cli
+```
+
+```python [run_aang_myriad.py]
+import os
+import sys
+import subprocess
+
+# aang on UCL Myriad. the clone of pciSeq_3d sits in the
+# home folder there, and the data was rsynced to ~/data. no realtime viewer,
+# a compute node has no screen.
+REPO = os.path.expanduser("~/pciSeq_3d")
+sys.path.insert(0, REPO)
+
+import numpy as np
+import pandas as pd
+from scipy.sparse import coo_matrix
+
+import pciSeq
+
+# realpath on both sides, on myriad ~ is /home/<user> but python reports
+# /myriadfs/home/<user>
+if not os.path.realpath(pciSeq.__file__).startswith(os.path.realpath(REPO)):
+    raise SystemExit("ABORT: pciSeq came from %s, not %s" % (os.path.dirname(pciSeq.__file__), REPO))
+
+SPOTS = os.path.expanduser("~/data/aang_1.5.0/aang_1.5.0_pciSeq/aang_1.5.0_pciseq_omp_0score.csv")
+MASKS = os.path.expanduser("~/data/aang_1.5.0/aang_1.5.0_pciSeq/aang_1.5.0_masks.npy")
+SCRNA = os.path.expanduser("~/data/scRNAseq_final.csv")
+OUT = os.path.expanduser("~/pciseq_runs/aang")
+
+
+if __name__ == "__main__":
+    pciSeq.setup_logger()
+
+    # say which code this is, so the log records it.
+    commit = subprocess.run(["git", "-C", REPO, "log", "-1", "--format=%h %s"],
+                            capture_output=True, text=True).stdout.strip()
+    branch = subprocess.run(["git", "-C", REPO, "branch", "--show-current"],
+                            capture_output=True, text=True).stdout.strip()
+    print("running pciSeq from %s, branch %s, commit %s" % (REPO, branch, commit))
+
+    scRNAseq = pd.read_csv(SCRNA)
+    scRNAseq = scRNAseq.set_index("Unnamed: 0")
+
+    spots = pd.read_csv(SPOTS)
+    spots = spots.rename(columns={"z_stack": "z_plane", "Gene": "gene_name"})
+    spots = spots[spots.score > 0.4]
+    spots = spots[spots.intensity > 0.15]
+
+    coo = np.load(MASKS)
+    coo = [coo_matrix(d) for d in coo]
+
+    opts_3D = {
+        "realtime_viewer": False,
+        "Inefficiency": 0.1,
+        "MisreadDensity": 1e-6,
+        "voxel_size": [0.28, 0.28, 0.7],
+        "rTheta": 2,
+        "mrf_beta": 1.5,
+        "exclude_genes": ["Zbtb20", "Ddit4l"],
+        "output_path": OUT,
+    }
+
+    pciSeq.fit(spots=spots, coo=coo, scRNAseq=scRNAseq, opts=opts_3D)
+```
+
+:::
+
+The Slurm scripts, one for each file above. Every `#SBATCH` line is a request to the
+scheduler; the lines after them run on the node once it is granted:
+
+::: code-group
+
+```bash [run_aang_myriad_cli.sh]
+#!/bin/bash -l
+# slurm job for aang on myriad-ng through the command line: pciseq run with
+# the config file aang_myriad.yaml. one standard node, all 36 cores (the numba
+# kernels use them), 64GB of RAM is twice the 31GB peak seen so far.
+# submit with: sbatch run_aang_myriad_cli.sh
+#SBATCH --job-name=aang_cli
+#SBATCH --partition=myriad
+#SBATCH --account=allusers
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=36
+#SBATCH --mem=64G
+#SBATCH --time=06:00:00
+#SBATCH --output=%x_%j.log
+
+# numba and numpy would otherwise count every core on the machine,
+# not just the ones slurm gave us
+export NUMBA_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+
+source ~/venvs/pciseq/bin/activate
+cd ~/jobs
+pciseq run aang_myriad.yaml
+```
+
+```bash [run_aang_myriad.sh]
+#!/bin/bash -l
+# slurm job for run_aang_myriad.py on myriad-ng. one standard node, all 36
+# cores (the numba kernels use them), 64GB is twice the 30GB peak seen so far.
+# submit with: sbatch run_aang_myriad.sh
+#SBATCH --job-name=aang
+#SBATCH --partition=myriad
+#SBATCH --account=allusers
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=36
+#SBATCH --mem=64G
+#SBATCH --time=06:00:00
+#SBATCH --output=%x_%j.log
+
+# numba and numpy would otherwise count every core on the machine,
+# not just the ones slurm gave us
+export NUMBA_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+
+source ~/venvs/pciseq/bin/activate
+cd ~/jobs
+python run_aang_myriad.py
+```
+
+:::
+
+| flag | description |
+| --- | --- |
+| `--job-name` | the name shown in the queue, and `%x` in the log file name |
+| `--partition` | the group of nodes to run on; `myriad` is the general one |
+| `--account` | the allocation the job is charged to; on Myriad everyone uses `allusers` |
+| `--nodes=1`, `--ntasks=1` | one node and one process on it; pciSeq is one process with many threads |
+| `--cpus-per-task=36` | the cores for that process, here all the cores of a standard node |
+| `--mem` | the RAM reserved for the job; a job that exceeds it is killed |
+| `--time` | the wall clock limit; a job that exceeds it is killed |
+| `--output` | the log file; `%x` is the job name and `%j` the job number |
+
+The two `export` lines exist because of a mismatch between what the job owns and what
+the node has. `--cpus-per-task=36` asks for 36 cores; Slurm grants them and writes the
+number into `SLURM_CPUS_PER_TASK`. numba never looks at Slurm: by default it asks the
+operating system how many cores the machine has and starts that many threads. On a
+node with more cores than the job was given, a large node or a node shared with
+another job, those extra threads fight over the cores the job does own, and the run is
+slower. `NUMBA_NUM_THREADS` set to the granted count removes the mismatch.
+`OMP_NUM_THREADS` does the same for a second thread pool: the linear algebra library
+behind numpy and scipy has its own threads and sizes them from that variable. On a
+node where the job holds every core, both lines change nothing. `export` is what makes
+a shell variable visible to the Python process started after it.
+
+The run log is written to `pciSeq.log` in a `pciSeq` folder under the system temporary
+directory; the path is printed at the start of the run. On a machine shared between
+users that folder may belong to someone else, in which case the run stops at once with
+a permission error. Setting `TMPDIR` to a writable directory moves the log.

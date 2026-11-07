@@ -68,6 +68,22 @@ file's column names onto these.
 `filter` is applied on load, so the file on disk stays unfiltered and the
 threshold stays in the config file.
 
+The filter is passed unchanged to pandas
+[`DataFrame.query`](https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.query.html),
+so it has to be an expression in the small Python-like language that method
+accepts, not free text and not a comma separated list. What it accepts:
+
+- comparisons with `>`, `>=`, `<`, `<=`, `==`, `!=`, for example `score > 0.4`
+- several conditions joined with `and`, `or` and `not`, for example
+  `score > 0.4 and intensity > 0.15`
+- column names as bare words; a name containing a space or a dash goes in
+  backticks, `` `my score` > 0.4 ``
+- strings in quotes, `gene_name != 'Nov'`, and membership,
+  `gene_name in ['Plp1', 'Mbp']`
+
+`score > 0.4, intensity > 0.15` and `score greater than 0.4` are not expressions and
+stop the run with a syntax error as soon as the spots file has been read.
+
 ### masks
 
 | key | meaning |

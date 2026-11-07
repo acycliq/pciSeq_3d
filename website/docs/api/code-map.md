@@ -776,11 +776,11 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 | `RealtimeViewerServer.start` | 160 | Start server in background thread and optionally open browser. |
 | `RealtimeViewerServer.stop` | 187 | Stop the server and free the port. |
 | `RealtimeViewerServer.send_update` | 201 | Callback to send updates during algorithm execution. |
-| `RealtimeViewerServer._send_geometry_once` | 341 | Send the geometry, which does not change between iterations. |
-| `RealtimeViewerServer._send_class_updates` | 450 | Send the per iteration class assignments, chunked so no single |
-| `RealtimeViewerServer._on_connect` | 492 | A browser connected. Catch it up with whatever we have already sent. |
-| `RealtimeViewerServer._on_check_cell_request` | 571 | The user ctrl-clicked a cell in the viewer and wants its breakdown. |
-| `RealtimeViewerServer._on_chat_message` | 700 | The user asked the chat something about the run. |
+| `RealtimeViewerServer._send_geometry_once` | 341 | Send the cell positions the live map draws, once. |
+| `RealtimeViewerServer._send_class_updates` | 456 | Send the per iteration class assignments, chunked so no single |
+| `RealtimeViewerServer._on_connect` | 498 | A browser connected. Catch it up with whatever we have already sent. |
+| `RealtimeViewerServer._on_check_cell_request` | 577 | The user ctrl-clicked a cell in the viewer and wants its breakdown. |
+| `RealtimeViewerServer._on_chat_message` | 706 | The user asked the chat something about the run. |
 
 </details>
 
