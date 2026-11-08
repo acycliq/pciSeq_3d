@@ -37,10 +37,10 @@ message pointing at the libvips install page. `read_tiles` does not need libvips
 
 ```python
 import pciSeq
-pciSeq.__version__     # '0.1.2'
-pciSeq.__commit__      # short git hash, eg '6db6dc8'
-pciSeq.__branch__      # 'v0.1.2'
-pciSeq.__commit_date__  # when that commit was made, eg '2026-09-25T15:02:11+01:00'
+pciSeq.__version__      # '0.1.2'
+pciSeq.__commit__       # 'af3046d', the short git hash
+pciSeq.__branch__       # 'dev_3d'
+pciSeq.__commit_date__  # '2026-11-08T11:52:02Z', when that commit was made
 ```
 
 The version string lives in `pciSeq/_version.py`. `__commit__`, `__branch__` and
@@ -58,14 +58,14 @@ traced back to them:
 ```python
 varBayes.metadata
 # {'version':          '0.1.2',
-#  'branch':           'v0.1.2',
-#  'commit':           '6db6dc8',
-#  'commit_date':      '2026-09-04T11:30:02+01:00',
-#  'created_at':       '2026-09-04T12:47:51Z',
+#  'branch':           'dev_3d',
+#  'commit':           'af3046d',
+#  'commit_date':      '2026-11-08T11:52:02Z',
+#  'created_at':       '2026-11-08T11:55:12Z',
 #  'python_version':   '3.10.18',
-#  'os':               'Linux 6.8.0-138-generic',
+#  'os':               'Linux 7.0.0-42-generic',
 #  'package_versions': {'numpy': '2.2.6', 'scipy': '1.15.3',
-#                       'pandas': '2.3.3', 'numba': '0.62.1'}}
+#                       'pandas': '2.3.3', 'numba': '0.68.1'}}
 ```
 
 No hostname or user name is recorded.
