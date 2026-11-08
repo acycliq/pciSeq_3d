@@ -99,10 +99,10 @@ As a reference point, a 3D run on 37,310 cells, 2.1 million spots, 316 genes and
 
 Seconds per iteration on three machines:
 
-| machine | CPU | cores | clock | RAM | OS | secs per iter |
+| machine | CPU | cores | clock | RAM | OS | secs per iteration |
 | --- | --- | --- | --- | --- | --- | --- |
 | workstation | Xeon w7-2475X | 20 | 4.8 GHz | 128 GB DDR5 | Ubuntu 24.04 | 2.5 |
-| cluster node | 2 x Xeon Gold 6240, 18 cores each | 36 | 2.6 GHz | 1.5 TB DDR4 | RHEL 9.6 | 4.8 |
+| cluster node | 2 x Xeon Gold 6240 | 2 x 18 | 2.6 GHz | 1.5 TB DDR4 | RHEL 9.6 | 4.8 |
 | laptop chip | Core i7-1165G7 | 4 | 4.7 GHz | 64 GB DDR4 | Ubuntu 26.04 | 7 |
 
 All three ran Python 3.10. The core count alone does not predict the time: the
