@@ -487,3 +487,7 @@
 .vp-doc a:hover {
   text-decoration-color: currentColor;
 }
+
+/* code groups: cap the height so the tabs of a group stay the same size, the
+   longer file scrolls inside the box instead of stretching the page */
+.vp-doc .vp-code-group div[class*='language-'] pre { max-height: 700px; overflow-y: auto; }

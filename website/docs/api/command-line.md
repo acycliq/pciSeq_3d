@@ -130,7 +130,9 @@ done
 A change to `analysis.yaml` applies to every run of the sweep. A run uses every core
 and, for a large 3D dataset, tens of GB of RAM, see
 [compute requirements](../running-pciseq.md#compute-requirements), so sweeps are best
-run sequentially.
+run sequentially on one machine, or as separate jobs on a cluster, one config file
+per setting, see
+[several datasets or settings at once](../running-pciseq.md#several-datasets-or-settings-at-once).
 
 ## Validating a config
 
