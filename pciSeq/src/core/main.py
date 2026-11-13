@@ -62,7 +62,8 @@ import pandas as pd
 from scipy.special import softmax, psi
 from scipy.sparse import coo_matrix
 from .utils.numba_kernels import (spots_to_cell_numba_kernel, gamma_upd_kernel, nb_loglik_kernel,
-                                  theta_beta_kernel, eta_counts_kernel, mvn_loglik_kernel)
+                                  theta_beta_kernel, eta_counts_kernel, mvn_loglik_kernel,
+                                  gene_count_kernel)
 import opt_einsum as oe
 
 # Local imports
@@ -334,7 +335,9 @@ class VarBayes:
             classProb_before = self.cells.classProb.copy() if verbose else None
 
             # 1. For each cell, calc the expected gene counts
-            self._step('geneCount_upd', self.geneCount_upd)
+            # geneCount_upd_numba is the fast path, geneCount_upd the reference.
+            # tests/test_gene_count_ab.py checks they give the very same arrays.
+            self._step('geneCount_upd', self.geneCount_upd_numba)
 
             # 2. update gene-specific misread density
             self._step('rho_upd', self.rho_upd)
@@ -445,6 +448,32 @@ class VarBayes:
 
         # cell at position zero is the background
         self.cells.background_counts = N_cg[0, :]
+        # Actual cells are on non-zero positions
+        self.cells.geneCount = out
+
+    # -------------------------------------------------------------------- #
+    def geneCount_upd_numba(self) -> None:
+        """
+        Updates the gene count matrix for each cell (numba version).
+
+        Same numbers as geneCount_upd, to the last bit. That one starts from the
+        spots: every call it lines up a (cell, gene, prob) triplet per spot and
+        candidate cell and lets a coo matrix sort out which triplets belong
+        together. But which spots point at which cell never changes during a run,
+        only the probs do. So here the sorting out is done once (spots.by_cell_index)
+        and after that every cell just walks its own list of spots and adds up
+        their current probs. A cell only writes its own row, so the cells are
+        spread over all cores.
+        """
+        indptr, order, gene_sorted = self.spots.by_cell_index(self.nC)
+        prob = np.ascontiguousarray(self.spots.parent_cell_prob)
+
+        out = np.empty([self.nC, self.nG], dtype=np.float32)
+        background = np.zeros(self.nG, dtype=prob.dtype)
+        gene_count_kernel(indptr, order, gene_sorted, prob.ravel(), out, background)
+
+        # cell at position zero is the background
+        self.cells.background_counts = background
         # Actual cells are on non-zero positions
         self.cells.geneCount = out
 
@@ -793,7 +822,7 @@ class VarBayes:
 
         # Since the spot-to-cell assignments changed you need to update the gene counts now.
         # Same as the plain spots_to_cell above. Keep it, it is not redundant.
-        self.geneCount_upd()
+        self.geneCount_upd_numba()
 
 
     # -------------------------------------------------------------------- #

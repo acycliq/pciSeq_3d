@@ -11,6 +11,7 @@ from collections import defaultdict
 
 # Local imports
 from ..utils.gaussian_model import expected_logdet_precision
+from ..utils.numba_kernels import by_cell_index_kernel
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,7 @@ class Spots(object):
         """
         self._parent_cell_prob = None
         self._parent_cell_id = None
+        self._by_cell_index = None
         self.Dist = None
         self.config = config
         self.data, self.data_excluded = self.read(spots_df)
@@ -73,6 +75,8 @@ class Spots(object):
         attributes = self.__dict__.copy()
         del attributes['_gamma_bar']
         del attributes['_log_gamma_bar']
+        # the by cell index is rebuilt from parent_cell_id when asked for, no need to save it
+        attributes['_by_cell_index'] = None
         return attributes
 
     # ---------------- PROPERTIES ---------------- #
@@ -129,6 +133,36 @@ class Spots(object):
     def parent_cell_id(self, val: np.ndarray):
         """Sets the parent cell IDs for spots."""
         self._parent_cell_id = val.astype(np.uint32)
+        # the by cell index is made from these ids, so it is stale now.
+        # by_cell_index builds a new one the next time it is asked
+        self._by_cell_index = None
+
+    def by_cell_index(self, nC: int):
+        """For each cell, the (spot, neighbour) entries that point at it.
+
+        geneCount_upd_numba walks these lists. See by_cell_index_kernel for what
+        the three arrays are.
+
+        parent_cell_id is picked once in initialise_state and does not change
+        after that, so this is built once and then just handed back. If the
+        neighbours are ever rebuilt during a run, the setter above throws the
+        index away and the next call here makes it again.
+
+        It costs 6 bytes per entry, 4 for the position and 2 for the gene, so 60
+        bytes per spot with 10 neighbours. The wider types only kick in above
+        4.3 billion entries or 65,536 genes.
+        """
+        if getattr(self, '_by_cell_index', None) is None:
+            parent = self.parent_cell_id
+            n = parent.size
+            indptr = np.zeros(nC + 1, dtype=np.int64)
+            # the smallest types that fit, these arrays are read on every call
+            order = np.empty(n, dtype=np.uint32 if n < 2 ** 32 else np.int64)
+            gene_sorted = np.empty(n, dtype=np.uint16 if self.gene_id.max() < 2 ** 16 else np.int32)
+            by_cell_index_kernel(np.ascontiguousarray(parent).ravel(), self.gene_id, parent.shape[1],
+                                 indptr, order, gene_sorted)
+            self._by_cell_index = (indptr, order, gene_sorted)
+        return self._by_cell_index
 
     @property
     def bonus_mask(self):

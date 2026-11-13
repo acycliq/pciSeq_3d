@@ -210,3 +210,70 @@ def soft_stats_kernel(ids, w, X, x_bar, nchunk, part1, part2):
                 part1[b, c, 0] += wr
                 for j in range(d):
                     part1[b, c, 1 + j] += wr * X[r, j]
+
+
+@njit(cache=True)
+def by_cell_index_kernel(parent_flat, gene_id, nN, indptr, order, gene_sorted):
+    """For every cell, lists the (spot, neighbour) entries that point at it.
+
+    The spots hold the list the other way round, each spot knows its candidate
+    cells. This turns it around.
+
+    parent_flat is parent_cell_id flattened, so entry i belongs to spot i // nN.
+    On return cell c owns the stretch indptr[c] to indptr[c + 1] of order and
+    gene_sorted. order holds the flat position of each entry (so the same
+    position in the flattened parent_cell_prob) and gene_sorted the gene of the
+    spot behind it.
+
+    It is a counting sort: count the entries of each cell, turn the counts into
+    start positions, then drop every entry into the next free slot of its cell.
+    Entries of the same cell keep the order they had in parent_flat. That matters,
+    geneCount_upd adds them up in that order and floats care about the order.
+
+    indptr must come in as zeros of length nC + 1, order and gene_sorted as empty
+    arrays of length parent_flat.shape[0].
+    """
+    n = parent_flat.shape[0]
+    nC = indptr.shape[0] - 1
+    for i in range(n):
+        indptr[parent_flat[i] + 1] += 1
+    for c in range(nC):
+        indptr[c + 1] += indptr[c]
+    nxt = indptr[:-1].copy()
+    for i in range(n):
+        c = parent_flat[i]
+        j = nxt[c]
+        order[j] = i
+        gene_sorted[j] = gene_id[i // nN]
+        nxt[c] = j + 1
+
+
+@njit(parallel=True, cache=True)
+def gene_count_kernel(indptr, order, gene_sorted, prob_flat, out, background):
+    """The sums behind VarBayes.geneCount_upd, which stays as the reference.
+
+    Every cell walks its own list from by_cell_index_kernel and adds the prob of
+    each entry under that entry's gene. A cell's row is only ever touched by the
+    thread that has the cell, so the cells can go on all cores with nothing shared.
+
+    The row is summed in a small buffer with the dtype of the probs and written
+    to out (float32) once. geneCount_upd does the same thing: it sums in the dtype
+    of the probs, float32 on the very first call and float64 after, and then
+    casts. Keeping to that is what makes the two agree to the last bit.
+
+    Row 0 of out is the background and is left at zero, like in geneCount_upd.
+    Its sums go to background instead. That one is done on a single thread
+    because every spot has an entry there, it is one long list.
+    """
+    nC = indptr.shape[0] - 1
+    nG = out.shape[1]
+    for g in range(nG):
+        out[0, g] = 0
+    for c in prange(1, nC):
+        row = np.zeros(nG, dtype=prob_flat.dtype)
+        for i in range(indptr[c], indptr[c + 1]):
+            row[gene_sorted[i]] += prob_flat[order[i]]
+        for g in range(nG):
+            out[c, g] = row[g]
+    for i in range(indptr[0], indptr[1]):
+        background[gene_sorted[i]] += prob_flat[order[i]]
