@@ -49,8 +49,7 @@ Dependencies:
 -----------
 - numpy: For numerical computations
 - pandas: For data management
-- scipy: For statistical operations
-- numpy_groupies: For group operations
+- scipy: For statistical operations and sparse matrices
 """
 import logging
 from typing import Dict, List, Optional, Tuple, Union, Any
@@ -59,9 +58,9 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 import sys
 import time
 import numpy as np
-import numpy_groupies as npg
 import pandas as pd
 from scipy.special import softmax, psi
+from scipy.sparse import coo_matrix
 from .utils.numba_kernels import (spots_to_cell_numba_kernel, gamma_upd_kernel, nb_loglik_kernel,
                                   theta_beta_kernel, eta_counts_kernel, mvn_loglik_kernel)
 import opt_einsum as oe
@@ -424,23 +423,18 @@ class VarBayes:
             The sum of background spots and cell gene counts should equal
             the total number of spots.
         """
-        # make an array nS-by-nN and fill it with the spots id
-        gene_ids = np.tile(self.spots.gene_id, (self.nN, 1)).T
-
-        # flatten it
-        gene_ids = gene_ids.ravel()
-
-        # make corresponding arrays for cell_id and probs
+        # one (cell, gene, prob) triplet for every spot and every one of its nN
+        # candidate cells. A spot has one gene, so its gene id is repeated nN times
+        # to line up with the flattened cell ids and probs
         cell_ids = self.spots.parent_cell_id.ravel()
+        gene_ids = np.repeat(self.spots.gene_id, self.nN)
         probs = self.spots.parent_cell_prob.ravel()
 
-        # make the array to be used as index in the group-by operation
-        group_idx = np.vstack((cell_ids, gene_ids))
-
-        # For each cell aggregate the number of spots from the same gene.
-        # It will produce an array of size nC-by-nG where the entry at (c,g)
-        # is the gene counts of gene g within cell c
-        N_cg = npg.aggregate(group_idx, probs, size=(self.nC, self.nG))
+        # Hand the triplets to a sparse coo matrix. Many triplets land on the same
+        # (cell, gene) and coo adds them up when it is turned into a dense array.
+        # So the result is nC-by-nG and the entry at (c,g) is the gene counts of
+        # gene g within cell c
+        N_cg = coo_matrix((probs, (cell_ids, gene_ids)), shape=(self.nC, self.nG)).toarray()
 
         # assert N_cg.sum() == self.spots.data.shape[0], \
         #     "The sum of the background spots and the cell gene counts should be equal to the total number of spots"
