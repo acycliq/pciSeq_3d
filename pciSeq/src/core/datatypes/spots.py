@@ -16,6 +16,32 @@ from ..utils.numba_kernels import by_cell_index_kernel
 logger = logging.getLogger(__name__)
 
 
+def gene_ids(gene_names):
+    """The gene panel and each spot's place in it, from the gene name of every spot.
+
+    Returns the unique gene names in sorted order, for each spot the position of
+    its gene in that sorted list, and how many spots each gene has. That is what
+    np.unique(gene_names, return_inverse=True, return_counts=True) gives, and it
+    is what this used to be. But np.unique sorts all the names, and sorting a
+    hundred million python strings takes minutes. pd.factorize finds the unique
+    names with a hash table instead, so only the handful of unique names is left
+    to sort, and the ids are then renumbered to follow the sorted order.
+
+    The sorted order is not a detail. The single cell reference is sorted by
+    gene name too and the two are lined up by position, so gene id g has to be
+    row g of the reference.
+    """
+    codes, uniques = pd.factorize(gene_names, sort=False)
+    if codes.min(initial=0) < 0:
+        raise ValueError('some spots have no gene name')
+    order = np.argsort(uniques, kind='stable')
+    rank = np.empty_like(order)
+    rank[order] = np.arange(len(order))
+    gene_id = rank[codes]
+    counts = np.bincount(gene_id, minlength=len(order))
+    return uniques[order], gene_id, counts
+
+
 class Spots(object):
     """
     Processes RNA spot detection data, including spatial coordinates and
@@ -54,8 +80,7 @@ class Spots(object):
         self._log_gamma_bar = None
         self._gene_id = None
         self._counts_per_gene = None
-        [_, self.gene_id, self.counts_per_gene] = np.unique(self.data.gene_name.values, return_inverse=True,
-                                                            return_counts=True)
+        self.unique_gene_names, self.gene_id, self.counts_per_gene = gene_ids(self.data.gene_name.values)
         self.mvn_loglik_arr = None
         self.attention = None
         self.expr_fluctuations = None

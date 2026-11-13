@@ -38,7 +38,9 @@ class Genes(object):
         Parameters:
             spots (Spots): Spots object containing spot data.
         """
-        self.gene_panel = np.unique(spots.data.gene_name.values)
+        # the sorted unique gene names. Spots has worked them out already, see
+        # gene_ids in spots.py, no need to go through every spot a second time
+        self.gene_panel = spots.unique_gene_names
         self._eta_bar = None
         self._logeta_bar = None
         self.nG = len(self.gene_panel)
