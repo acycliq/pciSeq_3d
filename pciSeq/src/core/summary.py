@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import numpy_groupies as npg
 from collections.abc import Iterable
-from ...src.core.utils.geometry import gaussian_ellipsoid_props, gaussian_contour
+from ...src.core.utils.geometry import gaussian_ellipsoids_props, gaussian_contours
 from ...src.core.utils.numba_kernels import contributing_count_kernel, contributing_fill_kernel
 import logging
 
@@ -49,13 +49,11 @@ def cells_summary(cells, spots, genes, is3D):
     class_name_list = [list(class_names[i][d]) for (i, d) in enumerate(isProb_nonZero)]
     prob_list = [((class_prob[i][d] * 1000).astype(np.int32) / 1000).tolist() for i, d in enumerate(isProb_nonZero)]
 
-    contour = []
-    for i in range(cells.nC):
-        # ea = cells.ellipsoid_attributes[i]
-        mu = cells.centroid.iloc[i].tolist()
-        cov = cells.cov[i]
-        ellipsis = gaussian_contour(mu[:2], cov[:2, :2], 3).astype(np.int64)
-        contour.append(ellipsis.tolist())
+    # the outline of every cell, 40 points each. All the cells in one call, see
+    # gaussian_contours. cells.centroid hands out a copy of the whole table every
+    # time it is read, so read it once here and not once per cell.
+    centroid_xy = cells.centroid.values[:, :2]
+    contour = gaussian_contours(centroid_xy, cells.cov[:, :2, :2], 3).astype(np.int64).tolist()
 
     df = pd.DataFrame({'Cell_Num': cells.centroid.index.tolist(),
                        'X': ((cells.centroid['x'] * 1000).astype(np.int32) / 1000).tolist(),
@@ -170,14 +168,8 @@ def collect_data(cells, spots, genes, is3D):
 
 
 def sphere_props(cells):
-    sphere_scale = []
-    sphere_rotation = []
-    for i in range(cells.nC):
-        cov = cells.cov[i]
-        scale, rotation = gaussian_ellipsoid_props(cov)
-        sphere_scale.append(scale)
-        sphere_rotation.append(rotation)
-    return sphere_scale, sphere_rotation
+    # all the cells in one call, see gaussian_ellipsoids_props
+    return gaussian_ellipsoids_props(cells.cov)
 
 
 def contributing_spot_lists(cells, spots, genes, iCounts, shown, tol):

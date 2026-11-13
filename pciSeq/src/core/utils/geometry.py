@@ -145,6 +145,94 @@ def euler_angles(r: NDArray[np.float32]) -> List[float]:
     return [round(float(phi), 7), round(float(theta), 7), round(float(psi), 7)]
 
 
+def gaussian_contours(mus: np.ndarray, covs: np.ndarray, sdwidth: float = 3) -> np.ndarray:
+    """gaussian_contour for many cells in one go.
+
+    mus is (n, 2) and covs is (n, 2, 2). Returns (n, 40, 2) float32, row i being
+    what gaussian_contour(mus[i], covs[i], sdwidth) returns. That function is the
+    reference, tests/test_geometry_batch_ab.py checks the two agree to the last bit.
+
+    cells_summary used to call gaussian_contour once per cell. Most of that time
+    went on things that are the same for every cell (the points on the unit
+    circle) or that numpy does for a whole stack at once (the eigen
+    decomposition), and on building the result through python tuples.
+    """
+    mus = np.asarray(mus, dtype=np.float64)
+    n = mus.shape[0]
+
+    # Points around the unit circle, same for every cell. npts is for drawing
+    # only, the number of points on a cell's outline. Must match gaussian_contour.
+    npts = 40
+    tt = np.linspace(0, 2 * np.pi, npts)
+    ap = np.zeros((2, npts))
+    ap[0, :] = np.cos(tt)
+    ap[1, :] = np.sin(tt)
+
+    out = np.empty((n, npts, 2), dtype=np.float64)
+    if n == 0:
+        return out.astype(np.float32)
+
+    # all the eigen decompositions in one call
+    eigvals, eigvecs = np.linalg.eig(covs)
+    eigvals = sdwidth * np.sqrt(eigvals)
+    eye = np.eye(2)
+    for i in range(n):
+        # these two products are left exactly as gaussian_contour has them, so the
+        # rounding is the same and the numbers come out the same
+        vd = eigvecs[i].dot(eigvals[i] * eye)
+        out[i] = (vd.dot(ap) + mus[i].reshape(2, -1)).T
+    return out.astype(np.float32)
+
+
+def gaussian_ellipsoids_props(covs: np.ndarray, sdwidth: float = 3) -> Tuple[List[List[float]], List[List[float]]]:
+    """gaussian_ellipsoid_props for many cells in one go.
+
+    covs is (n, 3, 3). Returns two lists of n entries, the scaling and the
+    rotation of every cell, entry i being what gaussian_ellipsoid_props(covs[i],
+    sdwidth) returns. That function is the reference and has the comments on why
+    each step is there, tests/test_geometry_batch_ab.py checks the two agree to
+    the last bit. Every numpy call below takes the whole stack of matrices where
+    the reference takes one.
+    """
+    covs = np.asarray(covs)
+    if covs.shape[0] == 0:
+        return [], []
+
+    tol = 1.0e-10
+    covs = np.where(np.abs(covs) < tol, 0, covs)
+    eigvals, eigvecs = np.linalg.eig(covs)
+
+    # Sort eigenvalues and eigenvectors in descending order
+    idx = np.argsort(eigvals, axis=1)[:, ::-1]
+    eigvals = np.take_along_axis(eigvals, idx, axis=1)
+    eigvecs = np.take_along_axis(eigvecs, idx[:, None, :], axis=2)
+
+    scaling = sdwidth * np.sqrt(eigvals)
+
+    eigvecs, _ = np.linalg.qr(eigvecs)
+
+    # Ensure a right-handed coordinate system
+    flip = np.linalg.det(eigvecs) < 0
+    eigvecs[flip, :, -1] *= -1
+
+    # the checks of euler_angles, on all the matrices at once
+    r = np.transpose(eigvecs, (0, 2, 1))
+    if not np.allclose(r @ np.transpose(r, (0, 2, 1)), np.eye(3), atol=1e-6):
+        raise ValueError("Input matrix must be orthogonal")
+    if not np.isclose(np.linalg.det(r), 1, atol=1e-6).all():
+        raise ValueError("Input matrix must have determinant 1")
+
+    phi = np.arctan2(r[:, 2, 1], r[:, 2, 2])
+    theta = np.arcsin(-np.clip(r[:, 2, 0], -1.0, 1.0))
+    psi = np.arctan2(r[:, 1, 0], r[:, 0, 0])
+
+    # python's round on python floats, like euler_angles. np.round does not always
+    # give the same last digit
+    rotation = [[round(a, 7), round(b, 7), round(c, 7)]
+                for a, b, c in zip(phi.tolist(), theta.tolist(), psi.tolist())]
+    return scaling.tolist(), rotation
+
+
 def ellipsoid_to_cov(scale: List[float],
                      rotation: List[float],
                      sdwidth: float = 3) -> np.ndarray:
