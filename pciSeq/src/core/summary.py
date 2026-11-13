@@ -96,6 +96,23 @@ def cells_summary(cells, spots, genes, is3D):
     return df
 
 
+def _column(values):
+    """A plain column for the spot table, as a numpy array pandas takes as it is.
+
+    spots_summary used to hand every column to pandas as a python list, and from
+    a list pandas makes int64 for whole numbers and float64 for the rest,
+    whatever the numpy type was. The columns here are cast to those two types so
+    the table comes out with the very same dtypes as before, without the trip
+    through python objects.
+    """
+    values = np.asarray(values)
+    if values.dtype.kind in 'iu':
+        return values.astype(np.int64, copy=False)
+    if values.dtype.kind == 'f':
+        return values.astype(np.float64, copy=False)
+    return values
+
+
 def spots_summary(spots, is3D):
     # check for duplicates (ie spots with the same coordinates with or without the same gene name).
     # is_duplicate = spots.data.duplicated(subset=['x', 'y'])
@@ -105,13 +122,17 @@ def spots_summary(spots, is3D):
     nbrs = np.take_along_axis(spots.parent_cell_id, idx, axis=1)
     max_nbrs = nbrs[:, 0]
 
-    out = pd.DataFrame({'gene_name': spots.data.gene_name.tolist(),
-                        'gene_id': spots.gene_id.tolist(),
-                        'spot_id': spots.data.index.tolist(),
-                        'x': np.round(spots.data.x.astype('float64'), 3).tolist(),
-                        'y': np.round(spots.data.y.astype('float64'), 3).tolist(),
-                        'plane_id': spots.data.plane_id.tolist(),
-                        'neighbour': max_nbrs.tolist(),
+    # The plain columns go in as numpy arrays, see _column. Only the two ragged
+    # ones, neighbour_array and neighbour_prob, are still python lists, one list
+    # per spot. They are what takes the time and the memory here now.
+    data = spots.data
+    out = pd.DataFrame({'gene_name': data.gene_name.to_numpy(dtype=object),
+                        'gene_id': _column(spots.gene_id),
+                        'spot_id': _column(data.index.to_numpy()),
+                        'x': np.round(data.x.to_numpy().astype('float64'), 3),
+                        'y': np.round(data.y.to_numpy().astype('float64'), 3),
+                        'plane_id': _column(data.plane_id.to_numpy()),
+                        'neighbour': _column(max_nbrs),
                         'neighbour_array': nbrs.tolist(),
                         'neighbour_prob': p.tolist(),
                         # 'omp_score': ((spots.data.score * 1000).astype(np.int32)/1000).tolist()
@@ -120,15 +141,15 @@ def spots_summary(spots, is3D):
     # them whatever the data is, so a 2D run left it with nothing to draw. In 2D
     # z is zero for every spot anyway, and score and intensity are filled in by
     # the validator when the caller has none.
-    out['z'] = np.round(spots.data.z.astype('float64'), 3).tolist()
-    out['omp_score'] = np.round(spots.data.score.astype('float64'), 3).tolist()
-    out['omp_intensity'] = np.round(spots.data.intensity.astype('float64'), 3).tolist()
+    out['z'] = np.round(data.z.to_numpy().astype('float64'), 3)
+    out['omp_score'] = np.round(data.score.to_numpy().astype('float64'), 3)
+    out['omp_intensity'] = np.round(data.intensity.to_numpy().astype('float64'), 3)
     # which cell the spot physically sits in, straight off the label image, 0 if none.
     # Not the same as 'neighbour': that is the cell the model decided the spot came
     # from, this is just where the segmentation put it. The model only ever looks at
     # it through InsideCellBonus, which is normally 0. Named after inside_cell in
     # label_processing, which is what works it out.
-    out['inside_cell'] = spots.data.label.tolist()
+    out['inside_cell'] = _column(data.label.to_numpy())
     # move column z after x, y
     z_pos = out.columns.get_loc('y') + 1
     out.insert(z_pos, 'z', out.pop('z'))
