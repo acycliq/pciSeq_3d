@@ -375,24 +375,15 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
         ys = spots.data['y'].astype(np.int32).to_numpy()
         zs = spots.data['z'].astype(np.float32).to_numpy()
 
+        index = spots.data.index.to_numpy()
+        blob_arrays = [ids_i32, mvn_f32, attn_f32, expr_f32, cineff_f32]
+        if has_bonus:
+            blob_arrays.append(bonus_f32)
+
         batch_size = 10000
         for start in range(0, nS, batch_size):
             end = min(start + batch_size, nS)
-            batch = []
-            for i in range(start, end):
-                row = [
-                    int(spots.data.index[i]),
-                    int(gene_idx[i]),
-                    int(xs[i]), int(ys[i]), float(zs[i]),
-                    ids_i32[i, :-1].tobytes(),
-                    mvn_f32[i, :-1].tobytes(),
-                    attn_f32[i, :-1].tobytes(),
-                    expr_f32[i, :-1].tobytes(),
-                    cineff_f32[i, :-1].tobytes(),
-                ]
-                if has_bonus:
-                    row.append(bonus_f32[i, :-1].tobytes())
-                batch.append(tuple(row))
+            batch = _spot_rows(index, gene_idx, xs, ys, zs, blob_arrays, start, end)
             cursor.executemany(sql, batch)
             # if (end % 50000 == 0) or (end == nS):
             #     logger.info('Inserted %d/%d spots', end, nS)
@@ -405,6 +396,29 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     db_size_mb = os.path.getsize(db_path) / (1024 * 1024)
     logger.info('Saved at: %s (%.1f MB)', db_path, db_size_mb)
 
+
+
+def _spot_rows(index, gene_idx, xs, ys, zs, blob_arrays, start, end):
+    """The rows of the spots table for spots start to end, one tuple per spot.
+
+    A row is the spot id, the gene, x, y, z and then one blob per array in
+    blob_arrays: that spot's row of the array without its last column (the
+    background), as raw bytes.
+
+    Making these one spot at a time, with int() and tobytes() on every value, was
+    half the time of the whole insert. So the plain columns are turned into
+    python numbers a batch at a time with tolist, and each blob column is one
+    tobytes of the whole batch that is then cut into equal pieces, one per spot.
+    Same tuples as before, tests/test_diagnostics_rows_ab.py checks it.
+    """
+    n = end - start
+    columns = [index[start:end].tolist(), gene_idx[start:end].tolist(),
+               xs[start:end].tolist(), ys[start:end].tolist(), zs[start:end].tolist()]
+    for arr in blob_arrays:
+        width = (arr.shape[1] - 1) * arr.dtype.itemsize
+        raw = np.ascontiguousarray(arr[start:end, :-1]).tobytes()
+        columns.append([raw[i * width:(i + 1) * width] for i in range(n)])
+    return list(zip(*columns))
 
 
 def shrink_diagnostics_db(src: str, dst: str) -> None:

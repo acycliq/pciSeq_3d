@@ -80,11 +80,16 @@ def recover_original_labels(cellData: pd.DataFrame,
         Cell_Num=cellData.Cell_Num.map(lambda x: fetch_label(x, reverse_map))
     )
 
-    geneData = geneData.assign(
-        neighbour=geneData.neighbour.map(lambda x: fetch_label(x, reverse_map)),
-        neighbour_array=geneData.neighbour_array.map(lambda x: fetch_label(x, reverse_map)),
-        inside_cell=geneData.inside_cell.map(lambda x: fetch_label(x, reverse_map))
-    )
+    # geneData has a row per spot, so a python call per row is far too slow here.
+    # The three columns are looked up in one go each, see _lookup_labels
+    if len(geneData) > 0:
+        lut, known = _label_lookup_table(reverse_map)
+        nbrs = _lookup_labels(np.array(geneData.neighbour_array.tolist()), lut, known)
+        geneData = geneData.assign(
+            neighbour=_lookup_labels(geneData.neighbour.to_numpy(), lut, known),
+            neighbour_array=nbrs.tolist(),
+            inside_cell=_lookup_labels(geneData.inside_cell.to_numpy(), lut, known)
+        )
 
     cellBoundaries = cellBoundaries.assign(
         cell_id=cellBoundaries.cell_id.map(lambda x: fetch_label(x, reverse_map))
@@ -97,6 +102,38 @@ def recover_original_labels(cellData: pd.DataFrame,
 
     logger.info("Restored original cell segmentation labels")
     return cellData, geneData, cellBoundaries, cellBoundaries_list
+
+
+def _label_lookup_table(d: Dict[int, int]) -> Tuple[np.ndarray, np.ndarray]:
+    """A label mapping dictionary as an array, so that lut[label] is the mapped label.
+
+    known says which positions of lut are real. The labels in the dictionary can
+    have gaps, and a label that is not in it must not come back as some made up
+    number, see _lookup_labels.
+    """
+    keys = np.fromiter(d.keys(), dtype=np.int64, count=len(d))
+    values = np.fromiter(d.values(), dtype=np.int64, count=len(d))
+    lut = np.zeros(keys.max() + 1, dtype=np.int64)
+    known = np.zeros(keys.max() + 1, dtype=bool)
+    lut[keys] = values
+    known[keys] = True
+    return lut, known
+
+
+def _lookup_labels(labels: np.ndarray, lut: np.ndarray, known: np.ndarray) -> np.ndarray:
+    """Map a whole array of labels at once. Same answer as fetch_label on each one.
+
+    A label that is not in the mapping raises KeyError, like fetch_label does. It
+    used to be possible for such a label to go quiet and end up in the output
+    file as a null, and that must not come back.
+    """
+    labels = np.asarray(labels, dtype=np.int64)
+    ok = (labels >= 0) & (labels < lut.shape[0])
+    if ok.all():
+        ok = known[labels]
+    if not ok.all():
+        raise KeyError(int(labels[~ok].ravel()[0]))
+    return lut[labels]
 
 
 def reversed_label_map(label_map: Optional[Dict[int, int]]) -> Optional[Dict[int, int]]:
