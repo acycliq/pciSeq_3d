@@ -287,8 +287,7 @@ class Spots(object):
         spotZYX = self.data[['z', 'y', 'x']].values
 
         # for each spot find the closest cell (in fact the top nN-closest cells...)
-        nbrs = cells.nn()
-        Dist, neighbors = nbrs.kneighbors(spotZYX)
+        Dist, neighbors = cells.nearest_cells(spotZYX)
         self.Dist = Dist.astype(np.float32)
 
         # last column is for misreads.

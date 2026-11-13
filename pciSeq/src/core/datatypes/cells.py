@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import scipy
 from natsort import natsort_keygen
-from sklearn.neighbors import NearestNeighbors
+from scipy.spatial import KDTree
 import numpy_groupies as npg
 import opt_einsum as oe
 
@@ -331,21 +331,39 @@ class Cells(object):
         nu0 = self.config['cell_cov_prior']['default']
         return ((nu0 - self._d - 1) * self.ini_cov()).astype(np.float32)
 
-    def nn(self) -> NearestNeighbors:
+    def nn(self) -> KDTree:
         """
-        Calculates the nearest neighbors for cells.
+        A k-d tree on the cell centroids, to ask it for nearest cells.
 
         Returns:
-            NearestNeighbors: Fitted NearestNeighbors object.
+            KDTree: the tree. Use nearest_cells to query it.
+        """
+        return KDTree(self.zyx_coords)
+
+    def nearest_cells(self, zyx: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """The nNeighbors + 1 nearest cells of every point in zyx, nearest first.
+
+        Returns the distances and the cell indices, both (n points, nNeighbors + 1).
+
+        This used to be scikit-learn's ball tree, which looks the points up one
+        after the other on one core. scipy's KDTree gives the same cells at the same
+        distances and spreads the points over all cores (workers=-1). The one
+        thing that can differ is the order of two cells that are at exactly the
+        same distance from a point, there is no rule for that in either library.
+        In practice that is only the background, cell 0: it is parked so far away
+        that every real cell is equally far from it, so which nine it gets as its
+        own neighbours is arbitrary, and was arbitrary before too.
         """
         n = self.config['nNeighbors'] + 1
-        # for each spot find the closest cell (in fact the top nN-closest cells...)
-        nbrs = NearestNeighbors(n_neighbors=n, algorithm='ball_tree').fit(self.zyx_coords)
-        return nbrs
+        if n > self.zyx_coords.shape[0]:
+            # KDTree does not complain, it pads with a cell index that does not exist
+            raise ValueError('Expected nNeighbors + 1 <= number of cells (background included), '
+                             'but nNeighbors + 1 = %d and there are %d cells' % (n, self.zyx_coords.shape[0]))
+        return self.nn().query(zyx, k=n, workers=-1)
 
     def nearest_neighbours(self):
         # get the nearest neighbours of each cell
-        distances, indices = self.nn().kneighbors(self.zyx_coords)
+        distances, indices = self.nearest_cells(self.zyx_coords)
 
         # drop the 1st column, it is always the cell itself
         out = {
