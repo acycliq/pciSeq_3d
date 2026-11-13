@@ -277,3 +277,58 @@ def gene_count_kernel(indptr, order, gene_sorted, prob_flat, out, background):
             out[c, g] = row[g]
     for i in range(indptr[0], indptr[1]):
         background[gene_sorted[i]] += prob_flat[order[i]]
+
+
+@njit(parallel=True, cache=True)
+def contributing_count_kernel(indptr, order, prob_flat, tol, kept):
+    """For every cell, how many of its (spot, neighbour) entries have a prob above tol.
+
+    First half of the contributing spots of cells_summary, the second half is
+    contributing_fill_kernel. The counts are needed first, to know where in the
+    output each cell starts. Cell 0, the background, is skipped: its row is
+    dropped from cellData anyway and it is by far the longest list.
+    """
+    nC = indptr.shape[0] - 1
+    for c in prange(1, nC):
+        n = 0
+        for i in range(indptr[c], indptr[c + 1]):
+            if prob_flat[order[i]] > tol:
+                n += 1
+        kept[c] = n
+
+
+@njit(parallel=True, cache=True)
+def contributing_fill_kernel(indptr, order, gene_sorted, prob_flat, tol, nN, nG,
+                             cell_off, out_spot, out_gene):
+    """For every cell, its spots with a prob above tol, put in gene order.
+
+    Cell c gets the stretch cell_off[c] to cell_off[c + 1] of out_spot (the row
+    of the spot) and out_gene (its gene). Inside the stretch the genes go up, and
+    the spots of one gene keep the order they have in the spot table. It is a
+    counting sort by gene, one cell at a time: count the kept spots of each gene,
+    turn the counts into start positions, then drop each spot into the next free
+    slot of its gene.
+
+    The cell lists come from by_cell_index_kernel, so nothing is sorted by cell
+    here, that was done once at the start of the run. Cells go on all cores, a
+    cell only writes inside its own stretch.
+    """
+    nC = indptr.shape[0] - 1
+    for c in prange(1, nC):
+        a = cell_off[c]
+        if cell_off[c + 1] == a:
+            continue
+        nxt = np.zeros(nG + 1, dtype=np.int64)
+        for i in range(indptr[c], indptr[c + 1]):
+            if prob_flat[order[i]] > tol:
+                nxt[gene_sorted[i] + 1] += 1
+        for g in range(nG):
+            nxt[g + 1] += nxt[g]
+        for i in range(indptr[c], indptr[c + 1]):
+            pos = order[i]
+            if prob_flat[pos] > tol:
+                g = gene_sorted[i]
+                j = a + nxt[g]
+                out_spot[j] = pos // nN
+                out_gene[j] = g
+                nxt[g] += 1

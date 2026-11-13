@@ -70,9 +70,9 @@ def test_a_shown_gene_with_no_spot_above_the_cut_off_does_not_crash(minimal_varb
     # and the old conversion would have fallen over on it. A cut-off of 0.5 forces the
     # case here: plenty of shown genes have no single spot that is more than half theirs.
     vb = _fitted(minimal_varbayes)
-    real = summary.get_contributing_spots_2
-    monkeypatch.setattr(summary, 'get_contributing_spots_2',
-                        lambda cells, spots, genes, tol=0.0: real(cells, spots, genes, 0.5))
+    real = summary.contributing_spot_lists
+    monkeypatch.setattr(summary, 'contributing_spot_lists',
+                        lambda cells, spots, genes, iCounts, shown, tol: real(cells, spots, genes, iCounts, shown, 0.5))
     cells, _ = summary.collect_data(vb.cells, vb.spots, vb.genes, vb.config['is3D'])
 
     lists = [lst for row in cells.spot_id for lst in row]

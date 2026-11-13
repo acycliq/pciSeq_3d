@@ -3,6 +3,7 @@ import pandas as pd
 import numpy_groupies as npg
 from collections.abc import Iterable
 from ...src.core.utils.geometry import gaussian_ellipsoid_props, gaussian_contour
+from ...src.core.utils.numba_kernels import contributing_count_kernel, contributing_fill_kernel
 import logging
 
 logger = logging.getLogger(__name__)
@@ -38,19 +39,11 @@ def cells_summary(cells, spots, genes, is3D):
     # too would show such a gene with a count and no spots. Not a guarantee, but any
     # mismatch left can only be around tol.
     spot_tol = tol / 10
-    spot_ids = get_contributing_spots_2(cells, spots, genes, spot_tol)
 
-    # reorder each row so spots for genes with higher read counts come first
-    spot_ids = np.take_along_axis(spot_ids, iCounts, axis=1)
-
-    # keep only the genes with counts above the threshold, and convert each to a plain
-    # list. np.asarray first: a gene with no spot above spot_tol comes back as the empty
-    # python list that aggregate fills in, and that has no tolist of its own.
-    spot_id_list = [
-        [np.asarray(d).tolist() for d in row[mask]]
-        for row, mask in zip(spot_ids, isCount_nonZero)
-    ]
-
+    # for each cell one list per shown gene, in the same order as Genenames and
+    # CellGeneCount: genes with higher read counts first, and only the genes with
+    # counts above the threshold
+    spot_id_list = contributing_spot_lists(cells, spots, genes, iCounts, isCount_nonZero, spot_tol)
 
     isProb_nonZero = [d > tol for d in class_prob]
     class_name_list = [list(class_names[i][d]) for (i, d) in enumerate(isProb_nonZero)]
@@ -164,6 +157,62 @@ def sphere_props(cells):
         sphere_scale.append(scale)
         sphere_rotation.append(rotation)
     return sphere_scale, sphere_rotation
+
+
+def contributing_spot_lists(cells, spots, genes, iCounts, shown, tol):
+    """The spot_id column of cellData: for every cell, one list of spot ids per shown gene.
+
+    iCounts is the gene order of each cell (highest count first) and shown says
+    which of those genes make it to cellData, both as cells_summary has them. A
+    spot is listed under a cell when its probability for that cell is above tol.
+    A shown gene with no such spot gets an empty list.
+
+    get_contributing_spots_2 is the reference for which spots belong where. It
+    makes a python list for every cell and gene, nearly all of them empty, and
+    that does not scale: 10,000 cells on 18,000 genes is 180 million lists. Here
+    the spots above tol are laid out once in two flat arrays, cell after cell and
+    gene after gene inside a cell, and python lists are only made for the genes
+    that are shown. tests/test_contributing_spots_ab.py checks the two give the
+    same column.
+    """
+    indptr, order, gene_sorted = spots.by_cell_index(cells.nC)
+    prob = np.ascontiguousarray(spots.parent_cell_prob)
+    prob_flat = prob.ravel()
+    # same float type as the probs, so the cut is the one numpy makes in
+    # parent_cell_prob > tol
+    tol = prob.dtype.type(tol)
+
+    kept = np.zeros(cells.nC, dtype=np.int64)
+    contributing_count_kernel(indptr, order, prob_flat, tol, kept)
+    cell_off = np.zeros(cells.nC + 1, dtype=np.int64)
+    np.cumsum(kept, out=cell_off[1:])
+
+    out_spot = np.empty(cell_off[-1], dtype=np.int64)
+    out_gene = np.empty(cell_off[-1], dtype=np.int32)
+    contributing_fill_kernel(indptr, order, gene_sorted, prob_flat, tol, prob.shape[1], genes.nG,
+                             cell_off, out_spot, out_gene)
+
+    # one big python list of the spot ids, every list handed out below is a slice of it
+    ids = spots.data.index.values[out_spot].tolist()
+
+    out = []
+    for c in range(cells.nC):
+        wanted = iCounts[c][shown[c]].tolist()
+        a, b = int(cell_off[c]), int(cell_off[c + 1])
+        if a == b:
+            out.append([[] for _ in wanted])
+            continue
+        # where each gene of this cell starts and stops inside a to b
+        g = out_gene[a:b]
+        starts = np.concatenate(([0], np.flatnonzero(np.diff(g)) + 1))
+        stops = np.concatenate((starts[1:], [b - a]))
+        where = dict(zip(g[starts].tolist(), zip((starts + a).tolist(), (stops + a).tolist())))
+        row = []
+        for gene in wanted:
+            se = where.get(gene)
+            row.append(ids[se[0]:se[1]] if se is not None else [])
+        out.append(row)
+    return out
 
 
 def get_contributing_spots(spot_ids, gene_id, parent_cell_id, parent_cell_prob, tol=0.001):
