@@ -649,11 +649,16 @@
             background: var(--surface);
             color: var(--text);
             border: 1px solid var(--border);
-            border-radius: 6px;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 13px;
+            border-radius: 40px;
+            /* the speech bubble sits in the middle of the round button */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
             cursor: pointer;
         }
+
+        #chat-toggle svg { width: 16px; height: 16px; display: block; }
 
         #chat-toggle:hover,
         #chat-toggle.open {

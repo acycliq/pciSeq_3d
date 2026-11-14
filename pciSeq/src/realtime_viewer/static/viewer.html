@@ -48,7 +48,7 @@
                     <span class="hud-sep">|</span>
                     <span class="hud-item"><span id="hud-cells-value">-</span> cells</span>
                 </div>
-                <button id="chat-toggle" title="Ask about this run">&gt;_</button>
+                <button id="chat-toggle" aria-label="Ask the run a question" title="Ask the run"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><circle cx="8" cy="10" r="0.6" fill="currentColor"/><circle cx="12" cy="10" r="0.6" fill="currentColor"/><circle cx="16" cy="10" r="0.6" fill="currentColor"/></svg></button>
                 <div id="loading-overlay">
                     <div class="spinner"></div>
                     <div class="loading-text">Waiting for algorithm to start...</div>
@@ -153,7 +153,7 @@
     <div id="chat-dock">
         <div id="chat-resize-handle" title="Drag to resize"></div>
         <div id="chat-header">
-            <span id="chat-title"><span class="chat-prompt">&gt;_</span> Ask the run</span>
+            <span id="chat-title">Ask the run</span>
             <div id="chat-tabs">
                 <button class="chat-tab" data-tab="connection">Connection</button>
                 <button class="chat-tab active" data-tab="chat">Chat</button>
