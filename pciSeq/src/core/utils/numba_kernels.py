@@ -10,7 +10,7 @@ from numba import njit, prange
 
 @njit(parallel=True, cache=True)
 def spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar, log_theta,
-                               expected_counts, logeta_bar, nNb,
+                               log_mean_expression, logeta_bar, nNb,
                                wSpotCell, attention, expr_fluct, cell_ineff, gene_ineff):
     """Computes the three spot-to-cell weight terms for every spot and its nearest cells.
 
@@ -18,10 +18,16 @@ def spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar, log_th
     It reads values straight from the arrays instead of first copying out the rows, so
     it never builds the large temporary [nS, nK] arrays the numpy version does, and it
     runs over spots on all cores (numba).
-      term_1 = sum_k expected_counts[s,k] * classProb[cell,k]
+      term_1 = sum_k log_mean_expression[gene_s,k] * classProb[cell,k]
       term_2 = sum_k classProb[cell,k]   * log_gamma_bar[cell, gene_s, k]
       term_3 = sum_k classProb[cell,k]   * log_theta[cell,k]
     mvn_loglik and the misread column are handled by the caller.
+
+    log_mean_expression is the genes x classes table of the single cell
+    reference, read by the gene id of the spot. Row g of it MUST be the gene
+    with id g. VarBayes._check_gene_order makes sure of that before the loop
+    starts. This used to get a spots x classes array instead, the same table
+    with the row of each spot's gene copied out once per spot.
     """
     nS = parent.shape[0]
     nK = classProb.shape[1]
@@ -35,7 +41,7 @@ def spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar, log_th
             t3 = 0.0
             for k in range(nK):
                 cpk = classProb[cell, k]
-                t1 += expected_counts[s, k] * cpk
+                t1 += log_mean_expression[g, k] * cpk
                 t2 += cpk * log_gamma_bar[cell, g, k]
                 t3 += cpk * log_theta[cell, k]
             wSpotCell[s, n] = t1 + t2 + t3 + le

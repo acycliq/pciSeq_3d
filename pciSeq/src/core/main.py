@@ -172,6 +172,34 @@ class VarBayes:
         self.single_cell = SingleCell(scRNAseq, self.genes.gene_panel, self.config)
         self.cellTypes = CellClass(self.single_cell, self.config)
         self.cells.class_names = self.single_cell.classes
+        self._check_gene_order()
+
+    def _check_gene_order(self) -> None:
+        """Stops the run if the genes of the single cell reference are not in
+        the same order as the gene ids of the spots.
+
+        A spot knows its gene as a number, gene_id, its place in genes.gene_panel.
+        The loop uses that number to pick rows out of the reference tables
+        (mean_expression_adj, log_mean_expression) and out of gamma. So row g of
+        the reference has to be gene g of the panel. Both are sorted by gene
+        name, in two different places (spots.gene_ids and SingleCell._helper),
+        and that is the only thing that lines them up.
+
+        If the two ever stopped agreeing nothing would crash. Every spot would
+        just be scored against the expression of some other gene and the results
+        would be wrong without any sign of it. So it is checked here once, by
+        name, before the loop starts.
+        """
+        panel = np.asarray(self.genes.gene_panel)
+        tables = {'mean_expression_adj': self.single_cell.mean_expression_adj,
+                  'log_mean_expression': self.single_cell.log_mean_expression}
+        for name, table in tables.items():
+            rows = np.asarray(table.index)
+            if rows.shape != panel.shape or not np.array_equal(rows, panel):
+                raise ValueError(
+                    "The genes of single_cell.%s are not in the same order as the gene panel of the "
+                    "spots (%d rows against %d genes). Gene ids would point at the wrong rows."
+                    % (name, rows.shape[0], panel.shape[0]))
 
     def _setup_dimensions(self) -> None:
         """Set up core dimensions."""
@@ -780,8 +808,12 @@ class VarBayes:
         nNb = nN - 1
         nS = self.spots.data.gene_name.shape[0]
 
-        gn = self.spots.data.gene_name.values
-        expected_counts = np.ascontiguousarray(self.single_cell.log_mean_expression.loc[gn].values)  # [nS, nK]
+        # The genes x classes table as it is, [nG, nK]. The kernel reads row
+        # gene_id[s] of it for spot s. It is NOT copied out to one row per spot
+        # anymore, that was a spots x classes array made again on every pass.
+        # Reading by position is only right if row g is the gene with id g,
+        # which _check_gene_order has made sure of in _setup_components.
+        log_mean_expression = np.ascontiguousarray(self.single_cell.log_mean_expression.values)  # [nG, nK]
         logeta_bar = np.ascontiguousarray(self.genes.logeta_bar[self.spots.gene_id])     # [nS]
         log_rho = self.genes.log_rho_bar[self.spots.gene_id]                             # [nS]
         log_gamma_bar_arr = np.ascontiguousarray(self.spots.log_gamma_bar)     # [nC, nG, nK]
@@ -806,7 +838,7 @@ class VarBayes:
 
         # numba kernel fills in term_1/2/3 for all spots (see numba_kernels)
         spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar_arr, log_theta_bar_all,
-                                   expected_counts, logeta_bar, nNb,
+                                   log_mean_expression, logeta_bar, nNb,
                                    wSpotCell, attention, expr_fluctuations, cell_inefficiency, gene_inefficiency)
 
         # the position term, all neighbours in one pass. Same maths as
