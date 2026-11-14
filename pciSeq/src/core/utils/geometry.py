@@ -311,44 +311,27 @@ def adjust_for_anisotropy(
             - z_plane : float32, original z-plane index
     """
 
-    # Extract columns for transformation
-    gene_col = spots.gene_name.values[:, None]  # Add dimension for hstack
-    z_plane = spots.z_plane.values[:, None].astype(np.float32)
-    score = spots.score.values[:, None].astype(np.float32)
-    intensity = spots.intensity.values[:, None].astype(np.float32)
-
-    # Get coordinates for scaling
+    # Scale the coordinates
     coords = spots[['x', 'y', 'z_plane']].values
-
-    # Apply anisotropic scaling
     scaled_coords = anisotropy_calc(coords, voxel_size)
 
-    # Combine all columns
-    data_adj = np.hstack([
-        gene_col,  # Gene names
-        scaled_coords,  # Scaled coordinates
-        z_plane,  # Original z-plane indices
-        score,
-        intensity
-    ])
-
-    # Create DataFrame with correct column names and data types.
+    # Build the frame one column at a time. The gene names must not be stacked
+    # next to the numbers in one array: numpy can only do that by turning every
+    # number into a python object, and they all have to be cast back afterwards.
+    #
     # Note for future: consider preserving the original index from the input 'spots' DataFrame.
     # Keeping the index can be useful for filtering spots before calling pciSeq.fit().
     # The line below creates a new index, which can make it harder to exclude spots
     # if they were removed or cleaned earlier in the codebase.
     # Should be safe, but worth testing.
-    return pd.DataFrame(
-        data=data_adj,
-        columns=['gene_name', 'x', 'y', 'z', 'z_plane', 'score', 'intensity']
-    ).astype({
-        'gene_name': str,
-        'x': np.float32,
-        'y': np.float32,
-        'z': np.float32,
-        'z_plane': np.float32,
-        'score': np.float32,
-        'intensity': np.float32,
+    return pd.DataFrame({
+        'gene_name': spots.gene_name.astype(str).values,
+        'x': scaled_coords[:, 0].astype(np.float32),
+        'y': scaled_coords[:, 1].astype(np.float32),
+        'z': scaled_coords[:, 2].astype(np.float32),
+        'z_plane': spots.z_plane.values.astype(np.float32),
+        'score': spots.score.values.astype(np.float32),
+        'intensity': spots.intensity.values.astype(np.float32),
     })
 
 

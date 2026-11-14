@@ -418,10 +418,10 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 | `gaussian_ellipsoids_props` | 187 | gaussian_ellipsoid_props for many cells in one go. |
 | `ellipsoid_to_cov` | 236 | The covariance matrix back from sphere_scale and sphere_rotation. |
 | `adjust_for_anisotropy` | 278 | Adjust spot coordinates for non-cubic voxel dimensions. |
-| `anisotropy_calc` | 355 | Calculate anisotropic scaling for spot coordinates. |
-| `plane_of` | 426 | The plane a scaled z is on: floor(z * voxel_size[0] / voxel_size[2]). |
-| `plane_to_z` | 436 | The scaled z where a plane starts, plane * voxel_size[2] / voxel_size[0]. |
-| `get_img_shape` | 445 | Get image dimensions from list of sparse matrices. |
+| `anisotropy_calc` | 338 | Calculate anisotropic scaling for spot coordinates. |
+| `plane_of` | 409 | The plane a scaled z is on: floor(z * voxel_size[0] / voxel_size[2]). |
+| `plane_to_z` | 419 | The scaled z where a plane starts, plane * voxel_size[2] / voxel_size[0]. |
+| `get_img_shape` | 428 | Get image dimensions from list of sparse matrices. |
 
 </details>
 
