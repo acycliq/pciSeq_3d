@@ -15,7 +15,7 @@ import pickle
 
 from pciSeq.src.core.io import run_metadata
 
-KEYS = {'version', 'branch', 'commit', 'commit_date', 'created_at',
+KEYS = {'version', 'branch', 'commit', 'commit_date', 'tag', 'created_at',
         'python_version', 'os', 'package_versions'}
 
 
@@ -37,6 +37,33 @@ def test_commit_date_is_the_date_of_the_commit():
     repo = Path(__file__).resolve().parents[1]
     want = subprocess.check_output(['git', 'log', '-1', '--format=%cI'], cwd=repo, text=True).strip()
     assert run_metadata()['commit_date'] == want
+
+
+def _git_tag_here():
+    # the tag HEAD is exactly on, or '' when it is on none (git exits non zero then)
+    import subprocess
+    from pathlib import Path
+    repo = Path(__file__).resolve().parents[1]
+    try:
+        return subprocess.check_output(['git', 'describe', '--tags', '--exact-match'], cwd=repo,
+                                       text=True, stderr=subprocess.DEVNULL).strip()
+    except subprocess.CalledProcessError:
+        return ''
+
+
+def test_tag_is_the_tag_of_the_commit_or_empty():
+    # on a release commit this is the tag name, like 'v0.1.2'. Anywhere else it is
+    # an empty string, not None and not 'unknown', so every value stays a string
+    tag = run_metadata()['tag']
+    assert isinstance(tag, str)
+    assert tag == _git_tag_here()
+
+
+def test_tag_is_never_the_nearest_tag_with_a_distance():
+    # git describe without --exact-match gives things like v0.1.2-7-gabc1234 a few
+    # commits after a release. That reads like a release and is not one.
+    import re
+    assert not re.search(r'-\d+-g[0-9a-f]+$', run_metadata()['tag'])
 
 
 def test_it_goes_to_json_as_it_is():

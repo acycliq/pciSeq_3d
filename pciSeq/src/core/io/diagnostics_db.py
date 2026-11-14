@@ -241,7 +241,7 @@ def export_diagnostics(varBayes: Any, output_dir: str) -> None:
     except Exception:
         pass
 
-    # which pciSeq made this. version, branch, commit, commit_date, created_at,
+    # which pciSeq made this. version, branch, commit, commit_date, tag, created_at,
     # serialised_at, hostname, os, python version, package versions.
     meta_items.append(('pciSeq_provenance', json.dumps(getattr(varBayes, 'metadata', {}))))
 

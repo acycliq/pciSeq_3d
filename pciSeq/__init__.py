@@ -4,8 +4,12 @@ from pciSeq._version import __version__
 
 
 def _resolve_git_info():
-    """Return (commit, branch, commit_date). Try live git first, fall back to
+    """Return (commit, branch, commit_date, tag). Try live git first, fall back to
     values baked at build time, fall back to 'unknown'.
+
+    tag is the release tag when the code is exactly on one, like 'v0.1.2', and
+    an empty string when it is not. It is never 'unknown': no tag is the normal
+    case, most commits do not have one.
 
     commit_date is when that commit was made, so how old the code is. There used to
     be a build_date as well, but from a source checkout it was just the last time
@@ -26,20 +30,22 @@ def _resolve_git_info():
     commit = _git(['rev-parse', '--short', 'HEAD'])
     branch = _git(['rev-parse', '--abbrev-ref', 'HEAD'])
     if commit and branch:
-        return commit, branch, _git(['log', '-1', '--format=%cI']) or 'unknown'
+        return (commit, branch, _git(['log', '-1', '--format=%cI']) or 'unknown',
+                _git(['describe', '--tags', '--exact-match']))
 
     # a pip install has no .git, so read what setup.py baked in when it was built.
-    # getattr because a _build_info.py from before commit_date will not have it
+    # getattr because a _build_info.py from before commit_date or tag will not have them
     try:
         from pciSeq import _build_info as bi
         return (getattr(bi, '__commit__', '') or 'unknown',
                 getattr(bi, '__branch__', '') or 'unknown',
-                getattr(bi, '__commit_date__', '') or 'unknown')
+                getattr(bi, '__commit_date__', '') or 'unknown',
+                getattr(bi, '__tag__', ''))
     except ImportError:
-        return 'unknown', 'unknown', 'unknown'
+        return 'unknown', 'unknown', 'unknown', ''
 
 
-__commit__, __branch__, __commit_date__ = _resolve_git_info()
+__commit__, __branch__, __commit_date__, __tag__ = _resolve_git_info()
 
 
 from pciSeq.app import fit

@@ -350,8 +350,8 @@ class Run:
         """What produced this run and how it ended: the pciSeq version and commit, the
         resolved settings, the number of iterations and whether the loop converged.
 
-        The provenance (version, commit, its date, when the run was made, python
-        and the package versions) is always there. Runs written before the
+        The provenance (version, commit, its date, the release tag if it is on one,
+        when the run was made, python and the package versions) is always there. Runs written before the
         settings were exported carry nothing else; the answer says so.
         """
         prov = self._meta('pciSeq_provenance', parse=True, default={})
@@ -361,6 +361,7 @@ class Run:
             'pciSeq_version': prov.get('version'),
             'commit': prov.get('commit'),
             'commit_date': prov.get('commit_date'),
+            'tag': prov.get('tag'),
             'branch': prov.get('branch'),
             'run_date': prov.get('created_at'),
             'python_version': prov.get('python_version'),

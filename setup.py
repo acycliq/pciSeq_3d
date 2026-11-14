@@ -35,11 +35,16 @@ def write_build_info():
         branch = _git(['describe', '--tags', '--exact-match']) or branch
     # when that commit was made, not when this build ran
     commit_date = _git(['log', '-1', '--format=%cI'])
+    # the release tag, but only when HEAD is exactly on one. Off a tag this is ''.
+    # Not the nearest tag with a distance: v0.1.2-7-gabc1234 reads like a release
+    # and is not one.
+    tag = _git(['describe', '--tags', '--exact-match'])
     path = os.path.join('pciSeq', '_build_info.py')
     with open(path, 'w') as f:
         f.write(f'__commit__ = {commit!r}\n')
         f.write(f'__branch__ = {branch!r}\n')
         f.write(f'__commit_date__ = {commit_date!r}\n')
+        f.write(f'__tag__ = {tag!r}\n')
 
 
 write_build_info()

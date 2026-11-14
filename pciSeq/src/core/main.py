@@ -113,7 +113,7 @@ class VarBayes:
         runtime keys `is3D`, `img_dim` and `label_map`.
     metadata : dict
         Provenance recorded when the model is built: `version`, `branch`, `commit`,
-        `commit_date`, `created_at`, `python_version`, `os` and `package_versions`.
+        `commit_date`, `tag`, `created_at`, `python_version`, `os` and `package_versions`.
     has_converged : bool
         True when the loop stopped because the change fell below
         `CellCallTolerance`, False when it ran to `max_iter`.
