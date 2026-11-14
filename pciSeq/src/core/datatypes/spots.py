@@ -277,8 +277,10 @@ class Spots(object):
 
         # remove a gene if it is on the exclude list
         exclude_genes = self.config['exclude_genes']
-        gene_mask = [True if d not in exclude_genes else False for d in spots_df.gene_name]
-        neg_gene_mask = [True if d in exclude_genes else False for d in spots_df.gene_name]
+        # one True/False per spot, True when its gene is on the exclude list.
+        # isin does the whole column in one go, no python loop over the spots
+        neg_gene_mask = spots_df.gene_name.isin(exclude_genes).values
+        gene_mask = ~neg_gene_mask
         spots_copy = spots_df.copy()
         spots_df = spots_copy.loc[gene_mask]
         spots_excluded_df = spots_copy.loc[neg_gene_mask]
