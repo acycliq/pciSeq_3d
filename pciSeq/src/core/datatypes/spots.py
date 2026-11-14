@@ -230,10 +230,20 @@ class Spots(object):
             b (float): Rate of the Gamma prior.
             dim (list): Dimensionality of gamma values.
         """
-        self._post_shape = np.ones(dim, dtype=np.float32) * a
-        self._post_rate = np.ones(dim, dtype=np.float32) * b
-        self._gamma_bar = np.ones(dim, dtype=np.float32) * (a / b)
-        self._log_gamma_bar = np.ones(dim, dtype=np.float32) * self._digamma(a, b)
+        # Only gamma_bar is made here. It is cells x genes x classes, the
+        # biggest array of the run, and at this point it is one number
+        # repeated, a/b.
+        self._gamma_bar = np.full(dim, a / b, dtype=np.float32)
+
+        # The other three are the same size and used to be filled here too.
+        # Nothing reads them before gamma_upd, which makes all four from
+        # scratch in the first pass of the loop, so they start empty.
+        # (the elbo does read them, but elbo_per_step only kicks in after the
+        # first spots_to_cell, and that comes after gamma_upd. If the elbo is
+        # ever wanted before the first gamma_upd they have to be filled again)
+        self._post_shape = None
+        self._post_rate = None
+        self._log_gamma_bar = None
 
 
     def _digamma(self, a, b):

@@ -14,6 +14,11 @@ def test_spots_to_cell_numba_matches_loop(minimal_varbayes):
     vb = minimal_varbayes
     vb.initialise_state()
 
+    # the steps the loop runs before the spot step. gamma_upd is the one that
+    # matters: log_gamma_bar is empty until it has run once
+    for name in ('geneCount_upd', 'rho_upd', 'eta_upd', 'theta_upd', 'gamma_upd'):
+        getattr(vb, name)()
+
     # plain numpy loop, keep its result
     vb.spots_to_cell()
     p_loop = vb.spots.parent_cell_prob.copy()

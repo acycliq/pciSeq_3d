@@ -230,18 +230,25 @@ class VarBayes:
         geneCounts = self.cells.ini_gene_counts
         alpha = geneCounts + self.config['rTheta'] - 1
 
+        mu = self.single_cell.mean_expression_adj.values + self.config['SpotReg']
+        area_factor = np.asarray(self.cells.ini_cell_props['area_factor'], dtype=np.float64)
+        eta_bar = self.genes.eta_bar.astype(np.float64)
 
-
-        mu = self.single_cell.mean_expression_adj + self.config['SpotReg']
-        area_factor = self.cells.ini_cell_props['area_factor']
-        gamma_bar = self.spots.gamma_bar
-        eta_bar = self.genes.eta_bar
-
-        beta = np.einsum('c, cgk, g, gk -> ck',
-                         area_factor,
-                         gamma_bar,
-                         eta_bar,
-                         mu) + self.config['rTheta']
+        # The full sum is the one in theta_upd:
+        #     beta[c,k] = sum_g area_factor[c] * gamma_bar[c,g,k] * eta_bar[g] * mu[g,k] + rTheta
+        # but init_gamma has just set gamma_bar to one number everywhere, so
+        # it comes out of the sum and there is no need to walk the whole
+        # cells x genes x classes array. If init_gamma ever stops being a
+        # constant, this has to go back to the full sum.
+        #
+        # NOTE: gamma_0 is that one number. It is read off the first element
+        # of gamma_bar (cell 0, gene 0, class 0), any element would do since
+        # they are all the same here. Reading it from the array, and not
+        # working out a/b again from the config, means it can never be
+        # anything other than what init_gamma really put in there.
+        gamma_0 = float(self.spots.gamma_bar[0, 0, 0])
+        expected_per_class = gamma_0 * np.einsum('g, gk -> k', eta_bar, mu)
+        beta = np.einsum('c, k -> ck', area_factor, expected_per_class) + self.config['rTheta']
 
         self.cells.calc_theta(alpha, beta)
 
