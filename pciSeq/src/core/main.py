@@ -703,10 +703,11 @@ class VarBayes:
         # pre-populate last column
         wSpotCell[:, -1] = log_rho
         mvn_loglik_arr = np.zeros(wSpotCell.shape)
-        attention = np.zeros(wSpotCell.shape)
-        expr_fluctuations = np.zeros(wSpotCell.shape)
-        cell_inefficiency = np.zeros(wSpotCell.shape)
-        gene_inefficiency = np.zeros(wSpotCell.shape)
+        # float32, same as in spots_to_cell_numba, see the note there
+        attention = np.zeros(wSpotCell.shape, dtype=np.float32)
+        expr_fluctuations = np.zeros(wSpotCell.shape, dtype=np.float32)
+        cell_inefficiency = np.zeros(wSpotCell.shape, dtype=np.float32)
+        gene_inefficiency = np.zeros(wSpotCell.shape, dtype=np.float32)
 
         # Materialize once before the loop (same for all neighbors)
         log_gamma_bar_arr = self.spots.log_gamma_bar
@@ -745,7 +746,8 @@ class VarBayes:
 
         # update the prob a spot belongs to a neighboring cell
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
-        self.spots.mvn_loglik_arr = mvn_loglik_arr
+        # kept as float32, same as in spots_to_cell_numba, see the note there
+        self.spots.mvn_loglik_arr = mvn_loglik_arr.astype(np.float32)
         self.spots.attention = attention
         self.spots.expr_fluctuations = expr_fluctuations
         self.spots.cell_inefficiency = cell_inefficiency
@@ -791,10 +793,16 @@ class VarBayes:
         wSpotCell = np.zeros([nS, nN], dtype=np.float64)
         wSpotCell[:, -1] = log_rho
         mvn_loglik_arr = np.zeros([nS, nN])
-        attention = np.zeros([nS, nN])
-        expr_fluctuations = np.zeros([nS, nN])
-        cell_inefficiency = np.zeros([nS, nN])
-        gene_inefficiency = np.zeros([nS, nN])
+        # These four are kept only to explain a spot afterwards (diagnostics.db,
+        # the explain tools, the verbose log). Nothing in the loop reads them
+        # back, the score in wSpotCell is added up in float64 before any of
+        # them is stored. So float32 is plenty and it halves four spots x nN
+        # arrays that stay in memory for the whole run. diagnostics.db always
+        # stored them as float32 anyway.
+        attention = np.zeros([nS, nN], dtype=np.float32)
+        expr_fluctuations = np.zeros([nS, nN], dtype=np.float32)
+        cell_inefficiency = np.zeros([nS, nN], dtype=np.float32)
+        gene_inefficiency = np.zeros([nS, nN], dtype=np.float32)
 
         # numba kernel fills in term_1/2/3 for all spots (see numba_kernels)
         spots_to_cell_numba_kernel(parent, gene_id, classProb, log_gamma_bar_arr, log_theta_bar_all,
@@ -821,7 +829,10 @@ class VarBayes:
         wSpotCell += bonus_mask
 
         self.spots.parent_cell_prob = softmax(wSpotCell, axis=1)
-        self.spots.mvn_loglik_arr = mvn_loglik_arr
+        # The position term has gone into the score above in float64. The copy
+        # kept on the spots is only for explaining a spot afterwards, same as
+        # the four arrays below, so it is kept as float32 too.
+        self.spots.mvn_loglik_arr = mvn_loglik_arr.astype(np.float32)
         self.spots.attention = attention
         self.spots.expr_fluctuations = expr_fluctuations
         self.spots.cell_inefficiency = cell_inefficiency
