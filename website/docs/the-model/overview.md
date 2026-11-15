@@ -83,7 +83,9 @@ The extended model adds four ingredients: a **per-cell scale factor** $\theta_c$
 intensity, a **Markov Random Field** prior that rewards neighbouring cells for sharing
 a class, a prior on each **cell's geometry**, covered
 [below](#cell-geometry), and a prior on the **class probabilities** $\pi$, covered
-[below](#class-prior). With the first two the log-joint becomes
+[below](#class-prior). A fifth, optional, is a class whose **mean expression** is
+unknown, covered [below](#mean-expression-of-the-unclassified-class). With the first two
+the log-joint becomes
 
 $$
 \begin{aligned}
@@ -184,14 +186,32 @@ $$
 over the real classes, with the Zero class held at a fixed weight. This adds
 $\log p(\pi)$ to the log-joint. The posterior is derived [on its own page](class-prior.md).
 
+### Mean expression of the Unclassified class
+
+The mean expression $\mu_{g,k}$ of every defined class is read from the cell type
+definitions and is fixed. With `unclassified_class` on there is one more class, $u$, with
+no entry in the definitions. Its mean expression, $m_g \equiv \eta_0\,\mu_{g,u}$, is a
+random variable, one per gene, with a Gamma prior of mean $M_g$,
+
+$$
+p(m_g) = \mathrm{Gamma}\!\Big(m_g;\; r,\; \frac{r}{M_g}\Big) ,
+$$
+
+where $r$ is the `rUnclassified` setting and $M_g$ a starting value built from the cell
+type definitions. This adds $\sum_g \log p(m_g)$ to the log-joint. In the terms of
+equation (1), class $u$ enters like any other class, with $\mu_{g,u}$ unknown. $m_g$,
+indexed by the gene, is not the cell centre $m_c$. The posterior is derived
+[on its own page](unclassified-class.md).
+
 ### The full log-joint
 
 The log-joint of the full model is the sum of equations (1) and (2) plus the priors on
-the cells' geometry and on the class probabilities:
+the cells' geometry, on the class probabilities and, with the Unclassified class on, on
+its mean expression, written $\mu_u$ for the genes together:
 
 $$
 \begin{aligned}
-\log p(x, g, z, \zeta, \gamma, \eta, \theta, \rho, m, \Sigma, \pi) =
+\log p(x, g, z, \zeta, \gamma, \eta, \theta, \rho, m, \Sigma, \pi, \mu_u) =
 & - \sum_{g,c,k} \zeta_{c,k}\, \theta_c\, \mu_{g,k}\, A_c\, \gamma_{g,c}\, \eta_g \\
 & + \sum_{s,c,k} z_{s,c}\, \zeta_{c,k}\,
    \log\!\big[\, \theta_c\, \mu_{g_s,k}\, e^{-D_c(x_s)}\, \gamma_{g_s,c}\, \eta_{g_s} \big] \\
@@ -200,7 +220,8 @@ $$
 & + \sum_g \Big[ - \rho_g\, A_{\text{total}} + \sum_{s:\, g_s = g} z_{s,0}\, \log \rho_g
    + \log p(\rho_g) \Big] \\
 & + \sum_{c,k} \zeta_{c,k}\, \log \pi_k + \sum_k (\delta_k - 1) \log \pi_k
-   + \beta \sum_{c,k} \sum_{c' \in \mathcal{N}_c} \mathbf{1}(\zeta_{c,k} = \zeta_{c',k} = 1) .
+   + \beta \sum_{c,k} \sum_{c' \in \mathcal{N}_c} \mathbf{1}(\zeta_{c,k} = \zeta_{c',k} = 1) \\
+& + \sum_g \log p(m_g) .
 \end{aligned}
 \tag{3}
 $$
@@ -213,16 +234,17 @@ divergence, fitted by **coordinate ascent** (CAVI), one factor at a time. $\gamm
 on $\theta$ and on the cell's class, so the three form one structured factor:
 
 $$
-p(z, \zeta, \gamma, \eta, \theta, \rho, m, \Sigma, \pi \mid x, g)
+p(z, \zeta, \gamma, \eta, \theta, \rho, m, \Sigma, \pi, \mu_u \mid x, g)
 \approx q(\gamma \mid \zeta, \theta)\, q(\theta \mid \zeta)\, q(\zeta)\, q(z)\, q(\eta)\, q(\rho)\,
-q(m, \Sigma)\, q(\pi) .
+q(m, \Sigma)\, q(\pi)\, q(\mu_u) ,
+\qquad q(\mu_u) = \prod_g q(m_g) .
 $$
 
 Coordinate ascent updates each factor to its optimal form, which is always the **expected
 log-joint over all the other factors**:
 
 $$
-\log q^*(x_j) = \mathbb{E}_{q(\text{rest})}\big[\log p(x, g, z, \zeta, \gamma, \eta, \theta, \rho, m, \Sigma, \pi)\big] + \text{const} .
+\log q^*(x_j) = \mathbb{E}_{q(\text{rest})}\big[\log p(x, g, z, \zeta, \gamma, \eta, \theta, \rho, m, \Sigma, \pi, \mu_u)\big] + \text{const} .
 $$
 
 Each derivation that follows applies this equation: the terms of the

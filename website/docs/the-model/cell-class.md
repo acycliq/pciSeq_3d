@@ -58,6 +58,10 @@ Under `cell_type_prior` set to `weighted`, $\pi$ is itself a random variable and
 $\log \pi_k$ in the score is its expectation $\mathbb{E}[\log \pi_k]$ under the
 [Dirichlet posterior](class-prior.md).
 
+The optional [Unclassified class](unclassified-class.md) is scored in the same way. Its
+$\mu_{g,k}$ is not read from the cell type definitions: it is the posterior mean of the
+mean expression of the class, as it stands after the previous iteration.
+
 <!-- Simplified on purpose: the sentence above leaves out the Zero class. Zero is not
 part of the Dirichlet; it keeps the fixed weight w from cell_type_weights, and the real
 classes share 1 - w. The prior term is therefore log(1 - w) + E[log pi_k] for a real

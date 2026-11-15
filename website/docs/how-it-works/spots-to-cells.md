@@ -81,7 +81,9 @@ which is not known exactly, so each is averaged over the cell's class probabilit
 [cell typing](cell-to-celltype.md). The fourth depends on the gene alone.
 
 - **Class expression.** Derived from mu, the expected count of the gene in each class:
-  its log, averaged over the cell's class probabilities. It is high only when the
+  its log, averaged over the cell's class probabilities. For the optional
+  [Unclassified class](../the-model/unclassified-class.md), whose expected count is
+  estimated and not known, the log is replaced by its expected value. It is high only when the
   probabilities are concentrated on classes that express the gene. Formally, it is the
   dot product of two vectors over the classes, the cell's class probabilities and the
   log expected counts of the gene, and it measures how closely the two coincide. This

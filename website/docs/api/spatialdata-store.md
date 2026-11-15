@@ -100,7 +100,7 @@ layout.
 | `obs['region']`, `obs['class_name']`, `obs['class_prob']` | The labels element each row annotates (`'cell_labels'`), the most probable class, and its probability. |
 | `obsm['spatial']` | Fitted cell centroid `(X, Y, Z)`. `X`, `Y` equal `cellData`'s; `Z` is in plane units, see the tip below. |
 | `obsm['class_prob']` | The full class posterior, shape `(n_cells, n_classes)`. Columns line up with `uns['class_names']`. |
-| `uns['class_names']` | Class names, the classes of the cell type definitions plus `'Zero'`, the class that expects no expression, appended last. |
+| `uns['class_names']` | Class names, the classes of the cell type definitions plus `'Zero'`, the class that expects no expression, appended last. With `unclassified_class` on, `'Unclassified'` comes just before `'Zero'`. |
 | `X` | Sparse cell by gene matrix (csr) of soft counts, the same values as `cellData.CellGeneCount`. |
 | `var_names` | The gene panel, matching `cellData.Genenames`. |
 

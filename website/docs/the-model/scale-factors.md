@@ -112,6 +112,10 @@ $k$, so it needs no weighting by $\bar\zeta_{c,k}$ in its own update.
 The Zero class has no scale factors, $\theta$ and $\gamma$ are fixed at $1$ for it, see
 [the model overview](overview.md#the-zero-class).
 
+The optional [Unclassified class](unclassified-class.md) has scale factors like a defined
+class. In the updates on this page its $\eta_0\mu_{g,k}$ is the posterior mean of its
+mean expression, re-estimated on every iteration.
+
 #### The prior strength $r_\theta$ {#r-theta}
 
 $r_\theta$ sets how far the data can move $\theta_c$ from $1$. The two limits:

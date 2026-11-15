@@ -11,7 +11,8 @@ that posterior.
 
 The Zero class is held out. Its weight $w$ is fixed by `cell_type_weights`, and the Dirichlet
 runs over the $K$ real classes, which share the remaining $1 - w$. From here on
-$\pi = (\pi_1, \dots, \pi_K)$ is the list for the real classes only.
+$\pi = (\pi_1, \dots, \pi_K)$ is the list for the real classes only. The optional
+[Unclassified class](unclassified-class.md) counts as one of the real classes here.
 
 ## Prior
 

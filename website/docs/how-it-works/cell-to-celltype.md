@@ -46,5 +46,13 @@ One class, Zero, expects no expression. Cells are assigned to it when they have 
 few reads that no real class explains; such a cell can be a real cell of a type the gene panel does not
 target.
 
+## The Unclassified class
+
+Optional and experimental, off by default (`unclassified_class`). A "none of the above"
+class for cells that no defined class fits. It has no entry in
+the cell type definitions: its expected expression is estimated during the run from the
+cells currently assigned to it, and a cell is scored against it as against any defined
+class. See [the Unclassified class](../the-model/unclassified-class.md).
+
 The output, a distribution over classes for every cell, is the input to
 [spot assignment](spots-to-cells.md).
