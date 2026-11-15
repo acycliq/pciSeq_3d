@@ -150,7 +150,9 @@ It does not depend on the gene. The closed form is on the
 **Class expression** ($\sum_k \bar\zeta_{c,k}\log\mu_{g_s,k}$). The gene's log
 expected expression averaged over the cell's class posterior $\bar\zeta_c$. It is large
 when the cell is confidently of a type that expresses the gene. It is the same for every
-cell with the same class posterior.
+cell with the same class posterior. For the optional
+[Unclassified class](unclassified-class.md), whose mean expression is a random variable,
+$\log\mu_{g_s,k}$ is replaced by its expected log.
 
 **Cell scale** ($\sum_k \bar\zeta_{c,k}\log\bar\theta_{c\mid k}$). The same average of
 $\bar\theta_{c\mid k}$, the cell's total observed count over what class $k$ predicts.

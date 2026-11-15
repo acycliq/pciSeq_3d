@@ -42,6 +42,16 @@ gene and nothing else. It keeps a fixed prior weight, held out of the Dirichlet
 are fixed at $1$ for a Zero cell. Such a cell can be a real cell of a type the panel does
 not target.
 
+### The Unclassified class {#the-unclassified-class}
+
+An optional second extra class, off by default (the `unclassified_class` setting,
+experimental). It has no entry in the cell type definitions: its mean expression is a
+random variable with a Gamma prior, updated on every iteration from the cells assigned to
+it. It is intended for cells that no defined class explains. Unlike Zero it has scale
+factors, and it takes part in the class prior and in the spatial coupling like a defined
+class.
+The [Unclassified class](unclassified-class.md) page gives the prior and derives the update.
+
 ## The generative model
 
 RNA spots of gene $g$ arising from cell $c$ are modelled as a spatial Poisson process
@@ -241,3 +251,5 @@ $\gamma_{g,c}$.
   each spot is assigned to.
 - **[Class prior $q(\pi)$](class-prior.md)**: the Dirichlet posterior of the class
   probabilities under `weighted`.
+- **[Unclassified class $q(m_g)$](unclassified-class.md)**: the Gamma posterior of the mean
+  expression of the optional class with no entry in the cell type definitions.

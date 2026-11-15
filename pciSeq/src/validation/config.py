@@ -38,6 +38,8 @@ _TYPE_SPECS = {
     "realtime_viewer_fixed_radius": (type(None), float, int),
     "rRho": (int, float),
     "mrf_pooled_classes": (type(None), list),
+    "unclassified_class": bool,
+    "rUnclassified": (int, float),
 }
 
 

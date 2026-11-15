@@ -13,6 +13,32 @@ from ..utils.cell_utils import read_image_objects, keep_labels_unique
 
 logger = logging.getLogger(__name__)
 
+# name of the class with no reference, see config['unclassified_class']
+UNCLASSIFIED = 'Unclassified'
+
+
+def unclassified_start(values: np.ndarray) -> Tuple[np.ndarray, int]:
+    """Starting values of the Unclassified class, from the genes x classes
+    array of the reference.
+
+    For a given k the candidate is, gene by gene, the mean of the k highest
+    values of that gene over the classes. k=1 is the max, k = number of classes
+    is the plain mean. Every k is tried and the one kept is the candidate whose
+    closest class is the furthest away (lowest cosine to its nearest class). A
+    start that looks like one of the classes would take that class's cells.
+
+    Returns the chosen column and its k.
+    """
+    values = np.asarray(values, dtype=np.float64)
+    nK = values.shape[1]
+    unit = values / np.linalg.norm(values, axis=0, keepdims=True)
+    # column j is the mean of the j+1 highest values of each gene
+    candidates = np.cumsum(-np.sort(-values, axis=1), axis=1) / np.arange(1, nK + 1)
+    candidates_unit = candidates / np.linalg.norm(candidates, axis=0, keepdims=True)
+    nearest = np.einsum('gj, gk -> jk', candidates_unit, unit).max(axis=1)
+    j = int(np.argmin(nearest))
+    return candidates[:, j], j + 1
+
 
 class SingleCell(object):
     """
@@ -96,6 +122,26 @@ class SingleCell(object):
         """Returns the class names."""
         return self.mean_expression_adj.columns.values
 
+    @property
+    def unclassified_idx(self):
+        """Column of the Unclassified class, None when the run has no such class."""
+        cols = list(self._mean_expression_adj.columns)
+        return cols.index(UNCLASSIFIED) if UNCLASSIFIED in cols else None
+
+    def set_unclassified(self, mu_adj: np.ndarray, log_mu: np.ndarray) -> None:
+        """Overwrites the Unclassified column of the two tables with a new
+        estimate, one value per gene, in the order of the gene panel.
+
+        mu_adj is on the scale of mean_expression_adj, so the steps that add
+        SpotReg to the table get the mean of the class back. log_mu goes into
+        the log table as it is. For every other column the log table is
+        log(mean_expression_adj + SpotReg); for this one it is the expected
+        log of an unknown, which is lower than the log of its mean, so it is
+        handed in and not worked out from mu_adj.
+        """
+        self._mean_expression_adj[UNCLASSIFIED] = np.asarray(mu_adj, dtype=np.float32)
+        self._log_mean_expression_adj[UNCLASSIFIED] = np.asarray(log_mu, dtype=np.float32)
+
     # Helper functions #
     def _set_axes(self, df):
         """
@@ -121,6 +167,20 @@ class SingleCell(object):
         Returns:
             tuple: Processed mean and log-mean expression data.
         """
+
+        # The Unclassified class, when asked for. It has no reference, so it
+        # starts from the reference of the other classes (see unclassified_start)
+        # and VarBayes.unclassified_upd re-estimates it on every pass. It goes in
+        # before the sort, so it sits among the other classes by name and Zero
+        # stays the last column.
+        if self.config.get('unclassified_class', False):
+            if UNCLASSIFIED in expr.columns:
+                raise ValueError("The cell type definitions already have a class named '%s'. "
+                                 "Rename it or set unclassified_class to False." % UNCLASSIFIED)
+            start, k = unclassified_start(expr.values)
+            logger.info("Unclassified class starts as the mean of the top %d of %d classes per gene"
+                        % (k, expr.shape[1]))
+            expr[UNCLASSIFIED] = start
 
         # order by column name
         expr = expr.copy().sort_index(axis=0).sort_index(axis=1, key=natsort_keygen(key=lambda y: y.str.lower()))

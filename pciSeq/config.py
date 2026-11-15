@@ -241,6 +241,26 @@ DEFAULT = {
     "cell_type_weights": {"Zero": 0.5},
 
 
+    # Experimental. When True, one more class named 'Unclassified' is added next
+    # to the classes of the cell type definitions. It has no reference: its mean
+    # expression per gene is estimated from the cells currently assigned to it,
+    # once per iteration. It starts, gene by gene, as the mean of the k highest
+    # classes of the reference, with k picked so that the start is as unlike any
+    # class as possible (lowest cosine to its closest class). It is meant for
+    # cells that no class of the reference explains.
+    "unclassified_class": False,
+
+
+    # Strength of the prior on the mean expression of the Unclassified class.
+    # The prior is a Gamma with shape `rUnclassified * M` and rate
+    # `rUnclassified`, where M is the starting value of the class for that gene.
+    # Its mean is M whatever the strength. It counts as rUnclassified cells'
+    # worth of exposure already seen with M reads each, so the estimate is
+    # `(rUnclassified * M + observed) / (rUnclassified + exposure)`.
+    # Used only when unclassified_class is True.
+    "rUnclassified": 1.0,
+
+
 
     # *******************************************************************************
     # 3D settings

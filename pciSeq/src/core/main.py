@@ -229,6 +229,19 @@ class VarBayes:
         self.genes.init_rho(self.config['MisreadDensity']['default'], self._roi_volume())
         self.spots.init_gamma(self.config['rSpot'], self.config['rSpot'], [self.nC, self.nG, self.nK])
         self.init_theta()
+        # the prior mean M of the Unclassified class, per gene: where its column
+        # starts (see singleCell.unclassified_start) plus SpotReg. Kept aside
+        # because unclassified_upd overwrites the column on every pass. The log
+        # column is set to the expected log under the prior, Gamma(r * M, r),
+        # which is what unclassified_upd gives while the class has no cells.
+        u = self.single_cell.unclassified_idx
+        if u is not None:
+            r = self.config['rUnclassified']
+            M = self.single_cell.mean_expression_adj.values[:, u].astype(np.float64) + self.config['SpotReg']
+            self._unclassified_prior_mean = M
+            self._unclassified_shape = r * M
+            self._unclassified_rate = np.full(M.shape, r, dtype=np.float64)
+            self.single_cell.set_unclassified(M - self.config['SpotReg'], psi(r * M) - np.log(r))
 
     def _roi_volume(self) -> float:
         """Volume of the region of interest, in the same units the spots live in.
@@ -398,6 +411,11 @@ class VarBayes:
             # 7. update the dirichlet distribution
             if self.config['cell_type_prior'] == 'weighted':
                 self._step('dalpha_upd', self.dalpha_upd)
+
+            # 7b. the mean expression of the Unclassified class, the one class
+            # with no reference. Only when config['unclassified_class'] is on.
+            if self.single_cell.unclassified_idx is not None:
+                self._step('unclassified_upd', self.unclassified_upd)
 
             # 8. assign spots to cells
             # spots_to_cell_numba is the fast path. spots_to_cell (the plain numpy
@@ -1034,6 +1052,81 @@ class VarBayes:
         zeta_real = self.cells.classProb[:, :-1].sum(axis=0)
         alpha_0 = np.ones(self.cellTypes.nK - 1, dtype=np.float32)
         self.cellTypes.alpha = zeta_real + alpha_0
+
+    # -------------------------------------------------------------------- #
+    def unclassified_upd(self) -> None:
+        """Re-estimates the mean expression of the Unclassified class from the
+        cells currently assigned to it.
+
+        Every other class reads its mean expression per gene off the cell type
+        definitions. This one has none, so its mean expression is one more
+        unknown of the model, m[g], with a Gamma prior of shape r * M[g] and
+        rate r. Its mean is M[g], the starting value of the class (see
+        singleCell.unclassified_start) plus SpotReg, and r is
+        config['rUnclassified']. The prior counts as r units of exposure in
+        which M[g] reads per unit were seen. SpotReg is in M so that a gene
+        the start has at zero still gets a shape above zero.
+
+        Under class u the reads of gene g in cell c are Poisson with mean
+            m[g] * area_factor[c] * eta[g] * theta[c,u] * gamma[c,g,u]
+        the same mean eta_upd and theta_upd use for the real classes, where
+        their m is the reference plus SpotReg. Collecting what multiplies
+        log m[g] and m[g] in the expected log joint gives a Gamma posterior:
+            shape[g] = r * M[g] + sum_c P[c,u] * N[c,g]
+            rate[g]  = r        + eta_bar[g] * sum_c P[c,u] * area_factor[c] * theta_bar[c,u] * gamma_bar[c,g,u]
+        P[c,u] is the probability cell c is Unclassified and N[c,g] its reads
+        of gene g. It is the eta update turned round: eta asks how a gene
+        does across all classes given the means, this asks what the mean of
+        one class is given eta.
+
+        Two numbers per gene go back into the tables. The mean, shape / rate,
+        with SpotReg taken back off (never below zero) is the column of
+        mean_expression_adj, so that every step that adds SpotReg to the table
+        sees shape / rate again. The expected log, digamma(shape) - log(rate),
+        is the column of the log table, which only the spot step reads. It is
+        lower than the log of the mean, by a lot when the shape is small: a gene
+        the class has no reads of counts against a spot of that gene joining a
+        cell of the class. Row 0 is the background, not a cell, and is left out.
+
+        NOTE: the steps that read the mean (eta, theta, gamma and the class
+        step) use it as a plain number, they do not average over the Gamma.
+        SpotReg is not in the same place in all of them, for this class like
+        for every other: eta and theta add it to the table and so see
+        shape / rate, gamma reads the table without it, and the class step
+        adds it after the scaling and not before. And the ELBO has no terms for the prior and the
+        entropy of this Gamma, and takes the log of the mean, so with the class
+        on it is not the bound of this model.
+        """
+        u = self.single_cell.unclassified_idx
+        eps = self.config['SpotReg']
+        r = self.config['rUnclassified']
+
+        P = self.cells.classProb[1:, u].astype(np.float64)                             # [nC-1]
+        area_factor = np.asarray(self.cells.ini_cell_props['area_factor'], dtype=np.float64)[1:]
+        theta_bar = self.cells.theta_bar[1:, u].astype(np.float64)                     # [nC-1]
+        gamma_bar = self.spots.gamma_bar[1:, :, u]                                     # [nC-1, nG]
+        eta_bar = self.genes.eta_bar.astype(np.float64)                                # [nG]
+
+        observed = np.einsum('c, cg -> g', P, self.cells.geneCount[1:, :], dtype=np.float64)
+        exposure = eta_bar * np.einsum('c, c, c, cg -> g', P, area_factor, theta_bar, gamma_bar,
+                                       dtype=np.float64)
+
+        shape = r * self._unclassified_prior_mean + observed
+        rate = r + exposure
+        m = shape / rate
+        log_m = psi(shape) - np.log(rate)
+
+        self._unclassified_shape = shape
+        self._unclassified_rate = rate
+        self.single_cell.set_unclassified(np.maximum(m - eps, 0.0), log_m)
+
+        # gamma_upd_numba builds the scaled expression once and keeps it, because
+        # the reference never changed. This column does now, so keep it in step
+        # for check_cell and the numpy class step that read it.
+        if self._scaled_exp is not None:
+            all_area = np.asarray(self.cells.ini_cell_props['area_factor'], dtype=np.float32)
+            mu_u = self.single_cell.mean_expression_adj.values[:, u]
+            self._scaled_exp[:, :, u] = np.einsum('c, g -> cg', all_area, mu_u)
 
     # -------------------------------------------------------------------- #
     def theta_upd(self):

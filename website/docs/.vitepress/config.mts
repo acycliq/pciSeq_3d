@@ -133,6 +133,7 @@ export default defineConfig({
           { text: 'Cell geometry', link: '/the-model/gaussian' },
           { text: 'Spot assignment', link: '/the-model/spot-assignment' },
           { text: 'Class prior', link: '/the-model/class-prior' },
+          { text: 'Unclassified class', link: '/the-model/unclassified-class' },
           // hidden for now, see srcExclude above
           // { text: 'Errata', link: '/the-model/errata' },
           // { text: 'Appendix: self-consistency', link: '/the-model/appendix-self-consistency' },
