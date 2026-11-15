@@ -30,6 +30,12 @@ This version extends the method of
   and its spread are fitted per cell from the spots: it can become an ellipsoid, elongated
   along the spots, and its centre can shift where the segmentation did not capture the cell
   well. See [cell geometry](the-model/gaussian.md).
+- **An Unclassified class**, optional and experimental. A "none of the above" class.
+  Without it, every cell must be given one of the defined classes, even when none of them
+  fits. That happens in two cases: the cell is of a type that the cell type definitions do
+  not include, or the cell holds a mix of genes that no single class expresses together.
+  With this class on, such cells are called Unclassified. See
+  [Unclassified class](the-model/unclassified-class.md).
 
 ## Inputs
 
