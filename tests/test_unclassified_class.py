@@ -227,6 +227,66 @@ def test_mean_and_expected_log_of_the_gamma_by_integration(base_opts):
         np.testing.assert_allclose(vb.single_cell.log_mean_expression.values[g, u], mean_log, rtol=1e-4, atol=1e-5)
 
 
+def test_elbo_term_is_the_kl_between_the_two_gammas(base_opts):
+    """The piece of the elbo for the mean expression of the class, checked
+    against the integral it stands for: sum over genes of
+    integral q(m) * (log q(m) - log p(m)) dm."""
+    from scipy.integrate import quad
+    from scipy.stats import gamma as gamma_dist
+    from pciSeq.src.core.utils.elbo import unclassified_kl
+    vb, _ = _build(base_opts, r=1.3)
+    vb.initialise_state()
+    # still on the prior, so nothing to pay
+    assert unclassified_kl(vb) == pytest.approx(0.0, abs=1e-9)
+    _one_pass(vb)
+    vb.cells.classProb = np.random.default_rng(2).dirichlet(np.ones(vb.nK), size=vb.nC)
+    vb.unclassified_upd()
+    r = vb.config["rUnclassified"]
+    total = 0.0
+    for g in range(vb.nG):
+        q = gamma_dist(vb._unclassified_shape[g], scale=1.0 / vb._unclassified_rate[g])
+        p = gamma_dist(r, scale=vb._unclassified_prior_mean[g] / r)
+        total += quad(lambda x: q.pdf(x) * (q.logpdf(x) - p.logpdf(x)), 0, np.inf, limit=200)[0]
+    assert total > 0
+    np.testing.assert_allclose(unclassified_kl(vb), total, rtol=1e-5)
+
+
+def test_elbo_has_no_such_term_with_the_class_off(base_opts):
+    from pciSeq.src.core.utils.elbo import unclassified_kl
+    vb, _ = _build(base_opts, on=False)
+    vb.initialise_state()
+    assert unclassified_kl(vb) == 0.0
+
+
+def test_the_update_is_the_top_of_the_elbo(base_opts):
+    """unclassified_upd should leave the elbo at its highest point over the
+    shape and the rate: the step itself must not lower it, and moving either
+    of the two away from what the step found must lower it."""
+    from pciSeq.src.core.utils.elbo import calc_elbo
+    vb, _ = _build(base_opts, r=1.3)
+    vb.initialise_state()
+    for _ in range(3):
+        _one_pass(vb)
+        before = calc_elbo(vb)
+        vb.unclassified_upd()
+        assert calc_elbo(vb) >= before - 1e-6
+        vb.spots_to_cell_numba()
+    _one_pass(vb)
+    vb.unclassified_upd()
+
+    eps = vb.config["SpotReg"]
+    a, b = vb._unclassified_shape.copy(), vb._unclassified_rate.copy()
+
+    def put(shape, rate):
+        vb._unclassified_shape, vb._unclassified_rate = shape, rate
+        vb.single_cell.set_unclassified(np.maximum(shape / rate - eps, 0.0), psi(shape) - np.log(rate))
+        return calc_elbo(vb)
+
+    best = put(a, b)
+    for fa, fb in [(1.02, 1.0), (0.98, 1.0), (1.0, 1.02), (1.0, 0.98), (1.05, 1.05), (0.95, 0.95)]:
+        assert put(a * fa, b * fb) < best, (fa, fb)
+
+
 def test_with_no_cells_it_stays_at_the_prior(base_opts):
     vb, _ = _build(base_opts, r=1.7)       # not 1, so a missing log(r) shows
     vb.initialise_state()

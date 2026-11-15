@@ -198,6 +198,28 @@ large prior rate and needs the most cells, so the estimate of a gene that the st
 values have near the floor rises more slowly than that of one they have high. The default
 is $r_u = 1$.
 
+## Evidence lower bound
+
+The unknown $m_g$ adds one term to the evidence lower bound, the divergence of its posterior
+from its prior, summed over the genes and entering with a negative sign:
+
+$$
+-\sum_g \mathrm{KL}\big(q(m_g)\,\|\,p(m_g)\big),
+$$
+
+$$
+\mathrm{KL}\big(q(m_g)\,\|\,p(m_g)\big)
+= (\hat a_g - r_u)\,\psi(\hat a_g) - \log\Gamma(\hat a_g) + \log\Gamma(r_u)
++ r_u \Big( \log \hat b_g - \log \frac{r_u}{M_g} \Big)
++ \hat a_g\, \frac{r_u/M_g - \hat b_g}{\hat b_g} .
+$$
+
+It is zero while the class is at its prior. In the likelihood terms of the bound the class
+enters through the two moments above: $\bar m_g$ in the expected total count and
+$\overline{\log m}_g$ in the term of the observed spots. The update on this page maximises
+the bound over $\hat a_g$ and $\hat b_g$, and the step can be named in `elbo_per_step` as
+`unclassified_upd`.
+
 ## Limitations
 
 - The steps that read the mean use it as a number. They do not average over $q(m_g)$.
@@ -208,8 +230,6 @@ is $r_u = 1$.
   scaling by $A_c$, $\bar\eta_g$ and $\bar\theta_{c\mid u}$.
 - A mean below $\varepsilon$ is written to the table as $0$, so the steps that add the
   floor read $\varepsilon$ and not $\bar m_g$. The expected log is not floored.
-- The evidence lower bound reported with `elbo_per_step` has no terms for the prior and the
-  entropy of $q(m_g)$. With the class on it is not the bound of this model.
 - The class takes part in the class prior and in the spatial (MRF) coupling like any
   defined class.
 - The name `Unclassified` is reserved: a run stops if the cell type definitions already

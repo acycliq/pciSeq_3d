@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+from scipy.special import psi
 
 from . import gaussian_model
 
@@ -13,7 +14,37 @@ def calc_elbo(obj):
     # the cell geometry factor q(m, Sigma) goes in as one piece,
     # E[log p(m, Sigma)] - E[log q(m, Sigma)] = -KL to its prior,
     # as on the cell geometry docs page
-    return E_log_p + entropy - geometry_kl(obj)
+    return E_log_p + entropy - geometry_kl(obj) - unclassified_kl(obj)
+
+
+def unclassified_kl(obj):
+    """
+    Sum over genes of KL(q(m_g) || p(m_g)) for the mean expression of the
+    Unclassified class. Both are Gamma: q has the shape and rate that
+    unclassified_upd found, p has shape r and rate r / M_g (r is rUnclassified,
+    M_g the starting value of the class for the gene).
+
+    KL(Gamma(a, b) || Gamma(a0, b0))
+        = (a - a0) * psi(a) - gammaln(a) + gammaln(a0)
+          + a0 * (log(b) - log(b0)) + a * (b0 - b) / b
+
+    This is E[log q(m)] - E[log p(m)], so it goes into the elbo with a minus,
+    the same way as geometry_kl. Zero when the run has no Unclassified class,
+    and zero before the first update, the class then still sits on its prior.
+    """
+    if obj.single_cell.unclassified_idx is None:
+        return 0.0
+
+    from scipy.special import gammaln, psi
+
+    a = obj._unclassified_shape                       # (nG,)
+    b = obj._unclassified_rate                        # (nG,)
+    a0 = obj.config['rUnclassified']
+    b0 = a0 / obj._unclassified_prior_mean            # (nG,)
+
+    kl = ((a - a0) * psi(a) - gammaln(a) + gammaln(a0)
+          + a0 * (np.log(b) - np.log(b0)) + a * (b0 - b) / b)
+    return float(np.sum(kl))
 
 
 def geometry_kl(obj):
@@ -112,6 +143,12 @@ def poisson_process_loglikelihood(obj):
     q_z = spots.parent_cell_prob           # (nS, nN) - q(z_s)
     cell_ids = spots.parent_cell_id        # (nS, nN)
     log_mu = np.log(mu_gk)                 # (nG, nK)
+    u = obj.single_cell.unclassified_idx
+    if u is not None:
+        # the mean expression of the Unclassified class is a random variable,
+        # so its column is the expected log, psi(shape) - log(rate), and not
+        # the log of the mean. Same thing the spot step reads.
+        log_mu[:, u] = psi(obj._unclassified_shape) - np.log(obj._unclassified_rate)
     log_theta = np.log(theta_ck)           # (nC, nK) - point estimate, so E[log] = log
     E_log_gamma = spots.log_gamma_bar      # (nC, nG, nK) - E_q[log gamma] = psi(a) - log(b)
     E_log_eta = obj.genes.logeta_bar       # (nG,) - E_q[log eta] = psi(a) - log(b)

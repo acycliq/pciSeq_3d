@@ -1094,9 +1094,8 @@ class VarBayes:
         SpotReg is not in the same place in all of them, for this class like
         for every other: eta and theta add it to the table and so see
         shape / rate, gamma reads the table without it, and the class step
-        adds it after the scaling and not before. And the ELBO has no terms for the prior and the
-        entropy of this Gamma, and takes the log of the mean, so with the class
-        on it is not the bound of this model.
+        adds it after the scaling and not before. The ELBO has its piece for
+        this Gamma, see unclassified_kl in utils/elbo.py.
         """
         u = self.single_cell.unclassified_idx
         eps = self.config['SpotReg']
