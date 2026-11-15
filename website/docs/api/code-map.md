@@ -382,20 +382,20 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 | `unclassified_kl` | 20 | Sum over genes of KL(q(m_g) \|\| p(m_g)) for the mean expression of the |
 | `geometry_kl` | 50 | Sum over cells of KL(q(m_c, Sigma_c) \|\| p(m_c, Sigma_c)), both NIW. |
 | `total_entropy` | 67 | Computes the total entropy of the variational distribution: H[q]. |
-| `expected_log_joint` | 92 | Computes E_q[log p(data, latent variables)] = likelihood + all priors. |
-| `poisson_process_loglikelihood` | 108 | Computes E_q[log p(spots \| z, zeta, theta, gamma, eta)]. |
-| `zeta_prior` | 186 | Computes E_q[log p(zeta \| pi)]. |
-| `mrf_prior` | 198 | Computes E_q[log p_MRF(zeta)] for the proximity-weighted Potts model with |
-| `theta_prior` | 225 | Computes E_q[log p(theta \| zeta)]. |
-| `gamma_prior` | 247 | Computes E_q[log p(gamma \| zeta)]. |
-| `eta_prior` | 275 | Computes E_q[log p(eta)]. |
-| `rho_prior` | 295 | Computes E_q[log p(rho_g \| a_0, b_0)] for the gene-specific misread density. |
-| `entropy_rho` | 318 | Entropy of q(rho). Not conditional on zeta, so no weighting. |
-| `pi_prior` | 333 | Computes E_q[log p(pi \| alpha_0)] for the real classes only. |
-| `entropy_pi` | 362 | Entropy of q(pi) = Dirichlet(alpha_post). |
-| `categorical_entropy` | 386 | Entropy of a categorical distribution: H = -sum(p * log(p)). |
-| `entropy_gamma` | 398 | Entropy of q(gamma), weighted by q(zeta_ck) since gamma is conditional on zeta. |
-| `entropy_eta` | 423 | Entropy of q(eta). Not conditional on zeta, so no weighting. |
+| `expected_log_joint` | 97 | Computes E_q[log p(data, latent variables)] = likelihood + all priors. |
+| `poisson_process_loglikelihood` | 117 | Computes E_q[log p(spots \| z, zeta, theta, gamma, eta)]. |
+| `zeta_prior` | 195 | Computes E_q[log p(zeta \| pi)]. |
+| `mrf_prior` | 207 | Computes E_q[log p_MRF(zeta)] for the proximity-weighted Potts model with |
+| `theta_prior` | 234 | Computes E_q[log p(theta \| zeta)]. |
+| `gamma_prior` | 256 | Computes E_q[log p(gamma \| zeta)]. |
+| `eta_prior` | 284 | Computes E_q[log p(eta)]. |
+| `rho_prior` | 304 | Computes E_q[log p(rho_g \| a_0, b_0)] for the gene-specific misread density. |
+| `entropy_rho` | 327 | Entropy of q(rho). Not conditional on zeta, so no weighting. |
+| `pi_prior` | 342 | Computes E_q[log p(pi \| alpha_0)] for the real classes only. |
+| `entropy_pi` | 371 | Entropy of q(pi) = Dirichlet(alpha_post). |
+| `categorical_entropy` | 395 | Entropy of a categorical distribution: H = -sum(p * log(p)). |
+| `entropy_gamma` | 407 | Entropy of q(gamma), weighted by q(zeta_ck) since gamma is conditional on zeta. |
+| `entropy_eta` | 432 | Entropy of q(eta). Not conditional on zeta, so no weighting. |
 
 </details>
 

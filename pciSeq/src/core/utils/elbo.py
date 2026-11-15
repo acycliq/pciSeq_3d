@@ -69,6 +69,11 @@ def total_entropy(obj):
     Computes the total entropy of the variational distribution: H[q].
     = H[q(z)] + H[q(zeta)] + H[q(gamma)] + H[q(eta)] + H[q(rho)] + H[q(pi)]
     No entropy for theta (point estimate).
+
+    Two factors are not in this sum. The cell geometry q(m, Sigma) and the mean
+    expression of the Unclassified class q(m_g) each go into calc_elbo as one
+    piece, minus the KL to the prior (geometry_kl, unclassified_kl), which
+    already holds the entropy.
     """
     H_z = categorical_entropy(obj.spots.parent_cell_prob)
     H_zeta = categorical_entropy(obj.cells.classProb)
@@ -92,6 +97,10 @@ def total_entropy(obj):
 def expected_log_joint(obj):
     """
     Computes E_q[log p(data, latent variables)] = likelihood + all priors.
+
+    Two priors are not in this sum, the one on the cell geometry and the one on
+    the mean expression of the Unclassified class. calc_elbo takes each of them
+    together with its entropy, as minus a KL (geometry_kl, unclassified_kl).
     """
     log_lik = poisson_process_loglikelihood(obj)
     log_prior_zeta = zeta_prior(obj)
