@@ -60,24 +60,25 @@ The floor keeps $M_g$ above zero for a gene that the chosen candidate has at zer
 Each $m_g$ has a conjugate Gamma prior, independent across genes:
 
 $$
-p(m_g) = \mathrm{Gamma}(m_g;\; r_u M_g,\; r_u)
-= \frac{r_u^{\,r_u M_g}}{\Gamma(r_u M_g)}\; m_g^{\,r_u M_g - 1}\; e^{-r_u m_g},
+p(m_g) = \mathrm{Gamma}\!\Big(m_g;\; r_u,\; \frac{r_u}{M_g}\Big)
+= \frac{(r_u/M_g)^{\,r_u}}{\Gamma(r_u)}\; m_g^{\,r_u - 1}\; e^{-(r_u/M_g)\, m_g},
 $$
 
-with shape $r_u M_g$ and rate $r_u$, where $r_u$ is the **`rUnclassified`** setting. Its
+with shape $r_u$ and rate $r_u / M_g$, where $r_u$ is the **`rUnclassified`** setting. Its
 mean and variance are
 
 $$
-\mathbb{E}[m_g] = \frac{r_u M_g}{r_u} = M_g,
+\mathbb{E}[m_g] = \frac{r_u}{r_u/M_g} = M_g,
 \qquad
-\mathrm{Var}[m_g] = \frac{r_u M_g}{r_u^2} = \frac{M_g}{r_u} .
+\mathrm{Var}[m_g] = \frac{r_u}{(r_u/M_g)^2} = \frac{M_g^2}{r_u} .
 $$
 
-The mean is $M_g$ for any $r_u$. The prior has the form of the posterior that would follow
-from $r_u$ units of exposure in which $r_u M_g$ reads of gene $g$ were counted: $r_u$ is the
-amount of exposure the prior is worth, and it is the same for every gene. This differs from
-the priors on $\theta$, $\gamma$, $\eta$ and $\rho$, whose shape is the strength setting
-itself.
+The mean is $M_g$ for any $r_u$. Equivalently $m_g = M_g\, w_g$ with
+$w_g \sim \mathrm{Gamma}(r_u, r_u)$, a variate of mean $1$: the same construction as the
+priors on $\theta$, $\gamma$ and $\eta$, scaled by $M_g$, and the same parameterisation as
+the prior on $\rho_g$ ([misread density](misread-density.md#prior)). The standard deviation
+relative to the mean is $1/\sqrt{r_u}$ for every gene, and $r_u$ acts as a pseudo-count:
+the prior is worth $r_u$ reads of each gene.
 
 ## Likelihood
 
@@ -105,7 +106,7 @@ $$
 \log q(m_g)
 = \sum_c \bar\zeta_{c,u} \Big[ \bar N_{c,g} \log m_g
   - m_g\, A_c\, \bar\eta_g\, \bar\theta_{c\mid u}\, \bar\gamma_{g,c\mid u} \Big]
-  + (r_u M_g - 1) \log m_g - r_u\, m_g + \text{const},
+  + (r_u - 1) \log m_g - \frac{r_u}{M_g}\, m_g + \text{const},
 $$
 
 where $\bar\zeta_{c,u}$ is the probability that cell $c$ is Unclassified, $\bar N_{c,g}$ the
@@ -115,8 +116,8 @@ the $\log m_g$ and $m_g$ terms:
 
 $$
 \log q(m_g)
-= \Big( r_u M_g + \sum_c \bar\zeta_{c,u} \bar N_{c,g} - 1 \Big) \log m_g
-- \Big( r_u + \bar\eta_g \sum_c \bar\zeta_{c,u}\, A_c\, \bar\theta_{c\mid u}\, \bar\gamma_{g,c\mid u} \Big)\, m_g
+= \Big( r_u + \sum_c \bar\zeta_{c,u} \bar N_{c,g} - 1 \Big) \log m_g
+- \Big( \frac{r_u}{M_g} + \bar\eta_g \sum_c \bar\zeta_{c,u}\, A_c\, \bar\theta_{c\mid u}\, \bar\gamma_{g,c\mid u} \Big)\, m_g
 + \text{const}.
 $$
 
@@ -131,16 +132,17 @@ $$
 with
 
 $$
-\hat a_g = r_u M_g + \sum_c \bar\zeta_{c,u}\, \bar N_{c,g},
+\hat a_g = r_u + \sum_c \bar\zeta_{c,u}\, \bar N_{c,g},
 \qquad
-\hat b_g = r_u + \bar\eta_g \sum_c \bar\zeta_{c,u}\, A_c\, \bar\theta_{c\mid u}\, \bar\gamma_{g,c\mid u} .
+\hat b_g = \frac{r_u}{M_g} + \bar\eta_g \sum_c \bar\zeta_{c,u}\, A_c\, \bar\theta_{c\mid u}\, \bar\gamma_{g,c\mid u} .
 $$
 
 The sums run over the cells; the background ($c = 0$) is not a cell and is excluded. The
-shape is the prior reads plus the reads of gene $g$ held by the cells of the class. The rate
-is the prior exposure plus the exposure of those cells. The update is the counterpart of the
-[efficiency update](scale-factors.md#eta): $\eta_g$ is estimated for one gene across all
-classes given the means, $m_g$ for one class given $\eta_g$.
+shape is the prior pseudo-count plus the reads of gene $g$ held by the cells of the class.
+The rate is the prior rate plus the expected count of those cells at a mean expression of
+$1$, the count they would show of gene $g$ if $m_g$ were $1$. The update is the counterpart
+of the [efficiency update](scale-factors.md#eta): $\eta_g$ is estimated for one gene across
+all classes given the means, $m_g$ for one class given $\eta_g$.
 
 The step runs once per iteration, after the cell-class assignment and before the spot
 assignment.
@@ -153,8 +155,8 @@ Two moments of $q(m_g)$ enter the other steps.
 
 $$
 \bar m_g = \mathbb{E}[m_g] = \frac{\hat a_g}{\hat b_g}
-= \frac{r_u M_g + \sum_c \bar\zeta_{c,u}\, \bar N_{c,g}}
-       {r_u + \bar\eta_g \sum_c \bar\zeta_{c,u}\, A_c\, \bar\theta_{c\mid u}\, \bar\gamma_{g,c\mid u}} .
+= \frac{r_u + \sum_c \bar\zeta_{c,u}\, \bar N_{c,g}}
+       {\dfrac{r_u}{M_g} + \bar\eta_g \sum_c \bar\zeta_{c,u}\, A_c\, \bar\theta_{c\mid u}\, \bar\gamma_{g,c\mid u}} .
 $$
 
 The table of the cell type definitions holds $\max(\bar m_g - \varepsilon,\, 0)$ in the
@@ -163,7 +165,8 @@ $\bar m_g$. The updates of $\eta$ and $\theta$ do so and read $\bar m_g$, in the
 $\eta_0\mu_{g,k} + \varepsilon$. The update of $\gamma$ and the
 [cell-class assignment](cell-class.md) read the table as it is, as they do for every class.
 With no cells in the class it is $M_g$. With many, the prior terms are negligible and it is
-the reads of the gene in the cells of the class divided by their exposure.
+the reads of the gene in the cells of the class divided by their expected count at a mean
+expression of $1$: observed over expected, as for $\eta_g$.
 
 **The expected log.**
 
@@ -173,23 +176,27 @@ $$
 
 with $\psi$ the digamma function. It is read by the
 [spot assignment](spot-assignment.md), as the class expression term of class $u$. Since
-$\psi(a) < \log a$, it is below $\log \bar m_g$, and the difference grows as the shape
-decreases: approximately $1/(2\hat a_g)$ for a large shape and $1/\hat a_g$ for a shape
-near zero. A gene of which the class holds few reads, and whose prior mean is small, has a
-small shape and a strongly negative expected log. A spot of such a gene is therefore
-assigned to a cell of the Unclassified class with a low score.
+$\psi(a) < \log a$, it is below $\log \bar m_g$, and the difference,
+$\log \hat a_g - \psi(\hat a_g)$, decreases as the shape grows. The shape is never below
+$r_u$, so the difference is at most $\log r_u - \psi(r_u)$, which is $0.58$ at $r_u = 1$,
+and it is approximately $1/(2\hat a_g)$ for a large shape. With no cells in the class the
+expected log is $\psi(r_u) - \log r_u + \log M_g$.
 
 ### The role of $r_u$ (the prior strength)
 
-- **Large $r_u$.** $\hat a_g \approx r_u M_g$ and $\hat b_g \approx r_u$, so
+- **Large $r_u$.** $\hat a_g \approx r_u$ and $\hat b_g \approx r_u / M_g$, so
   $\bar m_g \approx M_g$: the class stays at its starting values and acts as a fixed
   class.
-- **Small $r_u$.** $\bar m_g$ follows the cells of the class as soon as they hold some
-  exposure. The shape of a gene with no reads in the class is $r_u M_g$, which is then
-  small, so its expected log is strongly negative.
+- **Small $r_u$.** The prior contributes little to the shape and to the rate, and
+  $\bar m_g$ is close to the observed count of the gene in the cells of the class divided
+  by their expected count at a mean expression of $1$.
 
-The prior is weighed against the exposure of the class, which grows with the number of cells
-assigned to it. The default is $r_u = 1$.
+The prior is weighed gene by gene. For gene $g$ the data dominate once the cells of the
+class hold many more than $r_u$ reads of the gene and their expected count at a mean
+expression of $1$ is well above $r_u / M_g$. A gene with a small prior mean $M_g$ has a
+large prior rate and needs the most cells, so the estimate of a gene that the starting
+values have near the floor rises more slowly than that of one they have high. The default
+is $r_u = 1$.
 
 ## Limitations
 

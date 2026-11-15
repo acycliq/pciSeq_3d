@@ -232,16 +232,16 @@ class VarBayes:
         # the prior mean M of the Unclassified class, per gene: where its column
         # starts (see singleCell.unclassified_start) plus SpotReg. Kept aside
         # because unclassified_upd overwrites the column on every pass. The log
-        # column is set to the expected log under the prior, Gamma(r * M, r),
+        # column is set to the expected log under the prior, Gamma(r, r / M),
         # which is what unclassified_upd gives while the class has no cells.
         u = self.single_cell.unclassified_idx
         if u is not None:
             r = self.config['rUnclassified']
             M = self.single_cell.mean_expression_adj.values[:, u].astype(np.float64) + self.config['SpotReg']
             self._unclassified_prior_mean = M
-            self._unclassified_shape = r * M
-            self._unclassified_rate = np.full(M.shape, r, dtype=np.float64)
-            self.single_cell.set_unclassified(M - self.config['SpotReg'], psi(r * M) - np.log(r))
+            self._unclassified_shape = np.full(M.shape, r, dtype=np.float64)
+            self._unclassified_rate = r / M
+            self.single_cell.set_unclassified(M - self.config['SpotReg'], psi(r) - np.log(r / M))
 
     def _roi_volume(self) -> float:
         """Volume of the region of interest, in the same units the spots live in.
@@ -1060,20 +1060,21 @@ class VarBayes:
 
         Every other class reads its mean expression per gene off the cell type
         definitions. This one has none, so its mean expression is one more
-        unknown of the model, m[g], with a Gamma prior of shape r * M[g] and
-        rate r. Its mean is M[g], the starting value of the class (see
+        unknown of the model, m[g], with a Gamma prior of shape r and rate
+        r / M[g]. Its mean is M[g], the starting value of the class (see
         singleCell.unclassified_start) plus SpotReg, and r is
-        config['rUnclassified']. The prior counts as r units of exposure in
-        which M[g] reads per unit were seen. SpotReg is in M so that a gene
-        the start has at zero still gets a shape above zero.
+        config['rUnclassified']. It is M[g] times a Gamma(r, r), the same
+        mean 1 variate eta, theta and gamma start from, so the prior counts as
+        r reads of every gene. SpotReg is in M so that a gene the start has at
+        zero still gets a rate that is not infinite.
 
         Under class u the reads of gene g in cell c are Poisson with mean
             m[g] * area_factor[c] * eta[g] * theta[c,u] * gamma[c,g,u]
         the same mean eta_upd and theta_upd use for the real classes, where
         their m is the reference plus SpotReg. Collecting what multiplies
         log m[g] and m[g] in the expected log joint gives a Gamma posterior:
-            shape[g] = r * M[g] + sum_c P[c,u] * N[c,g]
-            rate[g]  = r        + eta_bar[g] * sum_c P[c,u] * area_factor[c] * theta_bar[c,u] * gamma_bar[c,g,u]
+            shape[g] = r        + sum_c P[c,u] * N[c,g]
+            rate[g]  = r / M[g] + eta_bar[g] * sum_c P[c,u] * area_factor[c] * theta_bar[c,u] * gamma_bar[c,g,u]
         P[c,u] is the probability cell c is Unclassified and N[c,g] its reads
         of gene g. It is the eta update turned round: eta asks how a gene
         does across all classes given the means, this asks what the mean of
@@ -1084,9 +1085,9 @@ class VarBayes:
         mean_expression_adj, so that every step that adds SpotReg to the table
         sees shape / rate again. The expected log, digamma(shape) - log(rate),
         is the column of the log table, which only the spot step reads. It is
-        lower than the log of the mean, by a lot when the shape is small: a gene
-        the class has no reads of counts against a spot of that gene joining a
-        cell of the class. Row 0 is the background, not a cell, and is left out.
+        lower than the log of the mean, the more so the smaller the shape. The
+        shape is never under r, so the gap is at most log(r) - digamma(r), 0.58
+        at r = 1. Row 0 is the background, not a cell, and is left out.
 
         NOTE: the steps that read the mean (eta, theta, gamma and the class
         step) use it as a plain number, they do not average over the Gamma.
@@ -1108,11 +1109,13 @@ class VarBayes:
         eta_bar = self.genes.eta_bar.astype(np.float64)                                # [nG]
 
         observed = np.einsum('c, cg -> g', P, self.cells.geneCount[1:, :], dtype=np.float64)
-        exposure = eta_bar * np.einsum('c, c, c, cg -> g', P, area_factor, theta_bar, gamma_bar,
+        # the reads of each gene these cells would show if the mean expression
+        # of the class were 1. Same naming as eta_upd: observed over expected
+        expected = eta_bar * np.einsum('c, c, c, cg -> g', P, area_factor, theta_bar, gamma_bar,
                                        dtype=np.float64)
 
-        shape = r * self._unclassified_prior_mean + observed
-        rate = r + exposure
+        shape = r + observed
+        rate = r / self._unclassified_prior_mean + expected
         m = shape / rate
         log_m = psi(shape) - np.log(rate)
 

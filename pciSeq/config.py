@@ -252,11 +252,13 @@ DEFAULT = {
 
 
     # Strength of the prior on the mean expression of the Unclassified class.
-    # The prior is a Gamma with shape `rUnclassified * M` and rate
-    # `rUnclassified`, where M is the starting value of the class for that gene.
-    # Its mean is M whatever the strength. It counts as rUnclassified cells'
-    # worth of exposure already seen with M reads each, so the estimate is
-    # `(rUnclassified * M + observed) / (rUnclassified + exposure)`.
+    # The prior is a Gamma with shape `rUnclassified` and rate
+    # `rUnclassified / M`, where M is the starting value of the class for that
+    # gene. Its mean is M whatever the strength. It counts as rUnclassified
+    # reads of every gene already seen, so the estimate is
+    # `(rUnclassified + observed) / (rUnclassified / M + expected)`.
+    # observed is the reads of the gene in the cells of the class and expected
+    # is the reads those cells would show at a mean expression of 1.
     # Used only when unclassified_class is True.
     "rUnclassified": 1.0,
 

@@ -2,7 +2,7 @@
 The Unclassified class, config['unclassified_class'].
 
 One more class with no reference. Its mean expression per gene is an unknown
-with a Gamma prior, shape r * M and rate r, and VarBayes.unclassified_upd
+with a Gamma prior, shape r and rate r / M, and VarBayes.unclassified_upd
 re-estimates it on every pass from the cells assigned to it. These tests check the bookkeeping (where the
 column sits, that everything else is left alone), the update against plain
 loops written straight from the formula, and that the Gamma it lands on is the
@@ -124,6 +124,12 @@ def test_update_matches_plain_loops(base_opts):
     rng = np.random.default_rng(0)
     P = rng.dirichlet(np.ones(vb.nK), size=vb.nC)
     vb.cells.classProb = P
+    # row 0 is the background. Give it reads and a class probability, so that
+    # an update that lets it in comes out different from the loops below
+    N0 = np.array(vb.cells.geneCount, dtype=np.float64)
+    N0[0, :] = 7.0
+    vb.cells.geneCount = N0
+    assert P[0, vb.single_cell.unclassified_idx] > 0
 
     u = vb.single_cell.unclassified_idx
     eps, r = vb.config["SpotReg"], vb.config["rUnclassified"]
@@ -134,8 +140,8 @@ def test_update_matches_plain_loops(base_opts):
     others_before = vb.single_cell.mean_expression_adj.drop(columns=UNCLASSIFIED).values.copy()
     log_others_before = vb.single_cell.log_mean_expression.drop(columns=UNCLASSIFIED).values.copy()
 
-    shape = r * m0
-    rate = np.full(vb.nG, r, dtype=np.float64)
+    shape = np.full(vb.nG, r, dtype=np.float64)
+    rate = r / m0
     for g in range(vb.nG):
         for c in range(1, vb.nC):          # row 0 is the background
             shape[g] += P[c, u] * float(N[c, g])
@@ -183,8 +189,8 @@ def test_the_gamma_posterior_is_the_best_one(base_opts):
     u = vb.single_cell.unclassified_idx
     r, m0 = vb.config["rUnclassified"], vb._unclassified_prior_mean.copy()
     af = np.asarray(vb.cells.ini_cell_props["area_factor"], dtype=np.float64)
-    coef_log = r * m0 - 1.0                 # multiplies log m[g]
-    coef_lin = np.full(vb.nG, r)            # multiplies -m[g]
+    coef_log = np.full(vb.nG, r - 1.0)      # multiplies log m[g]
+    coef_lin = r / m0                       # multiplies -m[g]
     for g in range(vb.nG):
         for c in range(1, vb.nC):
             coef_log[g] += P[c, u] * float(vb.cells.geneCount[c, g])
@@ -229,9 +235,9 @@ def test_with_no_cells_it_stays_at_the_prior(base_opts):
     r, M = vb.config["rUnclassified"], vb._unclassified_prior_mean
     start = vb.single_cell.mean_expression_adj.values[:, u].copy()
     log_start = vb.single_cell.log_mean_expression.values[:, u].copy()
-    # what initialise_state left there is the prior: mean M, expected log psi(r M) - log r
+    # what initialise_state left there is the prior: mean M, expected log psi(r) - log(r / M)
     np.testing.assert_allclose(start + vb.config["SpotReg"], M, rtol=1e-5)
-    np.testing.assert_allclose(log_start, psi(r * M) - np.log(r), rtol=1e-5, atol=1e-6)
+    np.testing.assert_allclose(log_start, psi(r) - np.log(r) + np.log(M), rtol=1e-5, atol=1e-6)
     P = vb.cells.classProb.copy()
     P[:, u] = 0.0
     vb.cells.classProb = P
