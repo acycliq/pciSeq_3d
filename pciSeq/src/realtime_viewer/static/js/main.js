@@ -10,11 +10,6 @@
     window.addEventListener('load', function() {
         console.log('=== pciSeq Real-Time Viewer Initializing ===');
 
-        // Initialize setup form (shown first)
-        if (window.pciSeq.setup) {
-            window.pciSeq.setup.initializeSetupForm();
-        }
-
         // Initialize color palette
         window.pciSeq.colors.generateColorPalette();
 

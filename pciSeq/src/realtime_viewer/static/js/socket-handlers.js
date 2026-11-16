@@ -35,22 +35,6 @@
         }
     });
 
-    // Backward-compatible single-shot update (geometry + classes together)
-    socket.on('iteration_update', (data) => {
-        console.log('=== RECEIVED iteration_update (compat) ===');
-        try {
-            if (data.centroids_x && data.centroids_y && data.radii) {
-                state.geom.ready = true;
-                state.geom.centroids_x = new Float32Array(data.centroids_x);
-                state.geom.centroids_y = new Float32Array(data.centroids_y);
-                state.geom.radii = new Float32Array(data.radii);
-            }
-            applyClassesUpdate(data.iteration, data.delta, data.num_cells, data.cell_classes, data.prob);
-        } catch (err) {
-            console.error('ERROR compat iteration_update:', err);
-        }
-    });
-
     // Geometry init (sent once)
     socket.on('geometry_init_begin', (meta) => {
         console.log('=== BEGIN geometry_init ===', meta);
@@ -262,32 +246,6 @@
         window.pciSeq.render();
         window.pciSeq.chart.renderConvergenceChart();
     });
-
-    // Helper function for backward compatibility
-    function applyClassesUpdate(iteration, delta, numCells, classes, prob) {
-        if (!state.geom.ready) return;
-        const N = numCells;
-        const cells = new Array(N);
-        for (let i = 0; i < N; i++) {
-            cells[i] = {
-                id: state.geom.cell_ids ? state.geom.cell_ids[i] : i,  // Use original_label from server, fallback to index
-                x: state.geom.centroids_x[i],
-                y: state.geom.centroids_y[i],
-                radius: state.geom.radii[i],
-                plane: state.geom.planeId ? state.geom.planeId[i] : null,  // positional, same order as the geometry arrays
-                class: classes[i],
-                prob: prob ? prob[i] : 1.0
-            };
-        }
-        state.cells = cells;
-        state.numCells = N;
-        state.iteration = iteration;
-        state.delta = delta;
-        window.pciSeq.updateStatus();
-        window.pciSeq.updateCellClassCounts();
-        window.pciSeq.updateLegend();
-        window.pciSeq.render();
-    }
 
     // Check cell diagnostics response
     socket.on('check_cell_result', (data) => {
