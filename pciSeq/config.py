@@ -248,7 +248,7 @@ DEFAULT = {
     # classes of the reference, with k picked so that the start is as unlike any
     # class as possible (lowest cosine to its closest class). It is meant for
     # cells that no class of the reference explains.
-    "unclassified_class": False,
+    "unclassified_class": True,
 
 
     # Strength of the prior on the mean expression of the Unclassified class.
