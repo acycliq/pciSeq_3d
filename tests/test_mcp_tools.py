@@ -833,7 +833,12 @@ def test_theta_and_gamma_are_the_stored_arrays(fitted):
         assert row['expected'] >= 0
         if row['expected'] > 0:
             assert (r_spot + row['counts']) / (r_spot + row['expected']) == pytest.approx(row['gamma'], rel=1e-4)
+            # the plain ratio is given too, so the model need not work it out
+            assert row['counts_over_expected'] == pytest.approx(row['counts'] / row['expected'])
+        else:
+            assert row['counts_over_expected'] is None
     assert one['expected'] == gm['gamma'][3]['expected']
+    assert one['counts_over_expected'] == gm['gamma'][3]['counts_over_expected']
 
 
 def test_gamma_and_theta_of_a_zero_cell_are_fixed_at_one(fitted, monkeypatch):

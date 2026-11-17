@@ -69,9 +69,10 @@ INSTRUCTIONS = '\n'.join([
     'or mean_in_compared, to the user; say in words what the number is. Never name',
     'a tool to the user either, even in an offer: say what you would check, not',
     'which tool would do it. Never do',
-    'arithmetic in your head, not even adding a few up: the totals of',
-    'the two gene lists are sum_favouring_assigned and sum_favouring_compared, and',
-    'for any other number the tools do not give, use calculate. Never make up a new',
+    'arithmetic in your head, not even a sum, a ratio, a percentage or an order of',
+    'magnitude: the totals of the two gene lists are given, and any other number',
+    'the tools do not give goes through calculate. Write a very small or very large',
+    'number as the tools give it, 7.4e-20, never with superscripts. Never make up a new',
     'quantity the tools do not define, such as a ratio of two sums: one sum of',
     'log-likelihood differences divided by another is not odds and means nothing. A',
     'log-likelihood difference is not odds: the odds are e to that difference, and',
@@ -376,9 +377,9 @@ CORE = '\n\n'.join(' '.join(paragraph) for paragraph in [
      'the number is.',
      'Never name a tool to the user either, even in an offer: say what you would check, '
      'not which tool would do it.',
-     'Never do arithmetic in your head, not even adding a few up: the totals of the two '
-     'gene lists are sum_favouring_assigned and sum_favouring_compared, and for any other '
-     'number the tools do not give, use calculate.',
+     'Never do arithmetic in your head, not even a sum, a ratio, a percentage or an order '
+     'of magnitude: the totals of the two gene lists are given, and any other number the '
+     'tools do not give goes through calculate.',
      'Do not attach any unit to a log-likelihood or to a difference of two, not nats and '
      'not "log-likelihood units"; say odds, or a word.',
      'No equation: a formula puts off the people this is written for, and the words '

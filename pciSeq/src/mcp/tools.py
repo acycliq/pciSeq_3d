@@ -108,6 +108,13 @@ class _CellIndex:
         return self.spot_row[a:b], self.prob[a:b], self.first[a:b]
 
 
+def _ratio(counts, expected):
+    """The plain ratio the explanation needs, given so the model does not work it
+    out itself; None where the class expects nothing (Zero). Same as the viewer's
+    gamma tool (electron/run.js)."""
+    return float(counts) / float(expected) if expected > 0 else None
+
+
 class Run:
     """A finished pciSeq run, opened for questions.
 
@@ -970,10 +977,12 @@ class Run:
             out['gamma'] = float(gam[g])
             out['counts'] = float(c['gene_count'][g])
             out['expected'] = float(expected[g])
+            out['counts_over_expected'] = _ratio(c['gene_count'][g], expected[g])
         else:
             out['gamma'] = [{'gene': str(self.gene_panel[g]), 'gamma': float(gam[g]),
                              'counts': float(c['gene_count'][g]),
-                             'expected': float(expected[g])}
+                             'expected': float(expected[g]),
+                             'counts_over_expected': _ratio(c['gene_count'][g], expected[g])}
                             for g in range(self.nG)]
         return out
 
