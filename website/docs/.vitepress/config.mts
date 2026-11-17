@@ -66,6 +66,7 @@ export default defineConfig({
           { text: 'Compute requirements', link: '/running-pciseq#compute-requirements' },
           { text: 'Cluster jobs', link: '/running-pciseq#cluster-jobs' },
           { text: 'Command line', link: '/api/command-line' },
+          { text: 'Docker', link: '/docker' },
           { text: 'Live viewer', link: '/api/live-viewer' },
           { text: 'Working with results', link: '/api/working-with-results' },
           { text: 'SpatialData store', link: '/api/spatialdata-store' },

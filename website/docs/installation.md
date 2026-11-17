@@ -33,6 +33,11 @@ libvips, which is supplied by the `pyvips[binary]` wheel; on a platform with no 
 rest of the package still imports and only `tile_maker` and `stage_image` raise an ImportError, with a
 message pointing at the libvips install page. `read_tiles` does not need libvips.
 
+## Docker
+
+pciSeq can also be run from a Docker image, with nothing installed on the machine except
+Docker. See [Docker](./docker.md).
+
 ## Versions
 
 ```python

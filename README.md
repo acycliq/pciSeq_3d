@@ -36,7 +36,8 @@ pip install git+https://github.com/acycliq/pciSeq_3d.git@v0.1.2
 
 Python 3.10 or newer. See
 [installation](https://acycliq.github.io/pciSeq_3d/installation) for the optional `mcp`
-extra.
+extra, and [Docker](https://acycliq.github.io/pciSeq_3d/docker) for running pciSeq from a
+Docker image.
 
 ## Quick start
 
