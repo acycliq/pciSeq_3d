@@ -360,10 +360,12 @@ for a second thread pool: the linear algebra library behind numpy and scipy has 
 own threads and sizes them from that variable. `export` is what makes a shell variable
 visible to the Python process started after it.
 
-The run log is written to `pciSeq.log` in a `pciSeq` folder under the system temporary
-directory; the path is printed at the start of the run. On a machine shared between
+The run log is written to `pciSeq.log` in the output folder, `<output_path>/pciSeq/`;
+the path is printed at the start of the run. Without `output_path` the output folder is
+a `pciSeq` folder under the system temporary directory. On a machine shared between
 users that folder may belong to someone else, in which case the run stops at once with
-a permission error. Setting `TMPDIR` to a writable directory moves the log.
+a permission error. Setting `output_path`, or `TMPDIR` to a writable directory, avoids
+this.
 
 ### Several datasets or settings at once
 

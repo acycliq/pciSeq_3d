@@ -868,11 +868,11 @@ One block per module, in source order. Methods are listed as `Class.method`; nam
 | Name | Line | Description |
 |---|---|---|
 | `Config` | 44 | Simple dict-based configuration with validation. |
-| `Config._merge_user_opts` | 87 | Merge user options onto the defaults. |
-| `Config._validate_types` | 109 | Validate all config parameters against type specifications. |
-| `Config._setup_logging` | 139 | Setup file handler for logging. |
-| `Config.set_runtime_attrs` | 145 | Set configuration attributes that can only be determined at runtime. |
-| `Config._detect_3d` | 158 | Detect if data is 3D based on coo structure. |
+| `Config._merge_user_opts` | 89 | Merge user options onto the defaults. |
+| `Config._validate_types` | 111 | Validate all config parameters against type specifications. |
+| `Config._setup_logging` | 141 | Setup file handler for logging, in the folder the results go to. |
+| `Config.set_runtime_attrs` | 147 | Set configuration attributes that can only be determined at runtime. |
+| `Config._detect_3d` | 160 | Detect if data is 3D based on coo structure. |
 
 </details>
 

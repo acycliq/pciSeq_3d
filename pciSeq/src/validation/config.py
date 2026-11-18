@@ -73,9 +73,11 @@ class Config(dict):
         # Start with defaults
         super().__init__(config.DEFAULT.copy())
 
-        # Setup logging early so warnings during merge are captured
+        # Setup logging early so warnings during merge are captured. The merge has
+        # not happened yet, so take output_path straight from the user's options.
+        # Without that the log always went to the temp folder, away from the results.
         if log_to_file:
-            self._setup_logging()
+            self._setup_logging((user_opts or {}).get("output_path", self["output_path"]))
 
         # Merge user options
         if user_opts:
@@ -136,11 +138,11 @@ class Config(dict):
                     f"got {type(value).__name__}"
                 )
 
-    def _setup_logging(self) -> None:
-        """Setup file handler for logging."""
+    def _setup_logging(self, output_path: str) -> None:
+        """Setup file handler for logging, in the folder the results go to."""
         from pciSeq.src.core.io import log_file
 
-        log_file(self)
+        log_file({"output_path": output_path})
 
     def set_runtime_attrs(self, coo) -> None:
         """
